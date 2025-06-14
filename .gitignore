@@ -1,0 +1,8 @@
+*.xyz
+*.pkl
+*h5
+*.hdf5
+.conda/
+conda_envs/
+experiments/
+SKfiles/
