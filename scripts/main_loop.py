@@ -95,7 +95,7 @@ def main(args):
         relaxed_data = os.path.join(dm.current_data, "relaxed")
         parallelize("relax_molecules", generated_data, relaxed_data, n_jobs=max_parallel_tasks)
         
-        # Step 5: Filter molecules
+        # Step 5: Calculate SAScore and Filter molecules with low SAScore
         print("  Running Filter molecules  ")
         filtered_data = os.path.join(dm.current_data, "filtered")
         parallelize("calculate_sascore", relaxed_data, relaxed_data, n_jobs=max_parallel_tasks)
