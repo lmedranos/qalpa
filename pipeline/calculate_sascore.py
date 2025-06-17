@@ -94,14 +94,14 @@ def calculate_sascore(smiles):
 if __name__ == "__main__":
 
     try:
-        ipath = sys.argv[1] ;  opath = sys.argv[2] 
+        ifile = sys.argv[1] ;  opath = sys.argv[2] 
     except:
         print("Usage:", sys.argv[0], "infile")
         sys.exit(1)
- 
-    if str(ipath[-3:]) == 'xyz':
-        fname = str(ipath[:-4])
-        smiles = xyz_to_smiles(ipath)
+    
+    if str(ifile[-3:]) == 'xyz':
+        fname = ifile.split('/')[-1]
+        smiles = xyz_to_smiles(ifile)
         if smiles:
             sascore = calculate_sascore(smiles)
             if sascore is not None:
