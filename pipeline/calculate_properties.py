@@ -5,6 +5,7 @@ from os import path
 from ase.io import read, write
 from os import environ, listdir, mkdir, makedirs, chdir, system, remove
 from mpi4py import MPI
+from parserFHItoJSON import get_data as create_json
 
 
 #comm = MPI.COMM_WORLD
@@ -24,7 +25,7 @@ cdir = os.environ["CONFIG"]
 
 idir = os.path.dirname(ifile)
 os.chdir(idir)   
-if str(ifile[-3:]) == 'xyz' :     
+if str(ifile[-3:]) == 'xyz' :   
     fname = str(ifile.split('/')[-1][:-4])  # Extract filename without extension
     atoms = read(ifile, format='xyz')
     Z = atoms.get_atomic_numbers()
@@ -34,3 +35,6 @@ if str(ifile[-3:]) == 'xyz' :
     write('geometry.in', atoms, scaled=False)
     shutil.copy2(cdir+'/nctr1.in', opath+fname+'/control.in')
     system(aims_cmd)
+    if path.exists(opath+fname+'/aims.out'):
+       create_json(opath+fname+'/aims.out')
+       
