@@ -46,7 +46,7 @@ class DataManager:
         if not os.path.exists(self.current_data):
             os.makedirs(self.current_data)
         # Create subdirectories for the iteration
-        subfolders = ["splited", "generated", "relaxed", "filtered", "properties"]
+        subfolders = ["splited", "generated", "relaxed", "filtered"]
         for subfolder in subfolders:
             subfolder_path = os.path.join(self.current_data, subfolder)
             if not os.path.exists(subfolder_path):
