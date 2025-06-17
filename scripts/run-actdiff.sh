@@ -35,4 +35,4 @@ python3 main_loop.py --base_dataset "$base_dataset" \
                      --model_code "$model_code" \
                      --pipeline "$pipeline" \
                      --config "$config" \
-                     --num_iterations 20
+                     --num_iterations 5

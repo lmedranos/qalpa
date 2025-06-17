@@ -1,9 +1,11 @@
 import argparse
 import os
+import sys
 import subprocess
 import time
 import socket
 from data_manage import DataManager
+from parallelize import parallelize
 
 
 def main(args):
@@ -42,17 +44,51 @@ def main(args):
         print(" Running Data split ")
         hdf5_file = os.path.join(dm.current_data, "hdf5")
         splited_data = os.path.join(dm.current_data, "splited")
-        split(hdf5_file, splited_data)
+        cmd = [
+            "python",
+            os.path.join(os.environ["MODEL_CODE"],"e3mol_aqm/experiments/data/aqm/split_data.py"),
+            "--file-path", hdf5_file,
+            "--out-path", splited_data
+            ]
+        subprocess.run(cmd, check=True)
+
 
         # step 2: Diffusion model training
         print("  Running Diffusion model training ")
         model_dir = os.path.join(os.environ["MODEL_REGISTRY"], f"model_iter_{n}")
-        train(splited_data, model_dir)
+        cmd = [
+            "python",
+            os.path.join(os.environ["MODEL_REGISTRY"],"filter_molecules.py",
+            "--conf", os.path.join(os.environ["CONFIG"], "diffusion_aqm.yaml"),
+            "--save-dir", model_dir,
+            "--dataset", "aqm_qm7x",
+            "--dataset-root", splited_data,
+            "--gpus", "2",
+            "--batch-size", "32"
+        ]
+        subprocess.run(cmd, check=True)
 
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
         generated_data = os.path.join(dm.current_data, "generated")
-        evaluate(model_dir, generated_data) 
+        n_nodes = 24                # add function to updaten_node, embd and hlgap to target different set of molecules
+        embd = -1.2
+        hlgap = 6
+        cmd = [
+            "python",
+            os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_evaluation_qm.py"),
+            "--model-path", os.path.join(model_dir, "best_mol_stab.ckpt"),
+            "--save-dir", generated_data,
+            "--save-xyz",
+            "--calculate-relax-change",
+            "--calculate-props",
+            "--batch-size", "20",
+            "--ngraphs", "200",
+            "--generate-ngraphs-valid",
+            "--num-nodes", n_nodes,
+            "--fixed-context", embd, hlgap
+        ]
+        subprocess.run(cmd, check=True)
 
         # Step 4: Relax molecules
         print("  Running Relax molecules  ")
@@ -63,7 +99,13 @@ def main(args):
         print("  Running Filter molecules  ")
         filtered_data = os.path.join(dm.current_data, "filtered")
         parallelize("calculate_sascore", relaxed_data, filtered_data, n_jobs=max_parallel_tasks)
-        apply_filter(relaxed_data, filtered_data)
+        cmd = [
+            "python",
+            os.path.join(os.environ["PIPELINE"], "filter_molecules.py"),
+            "--file-path", relaxed_data,
+            "--out-path", filtered_data
+        ]
+        subprocess.run(cmd, check=True)
 
         # Step 6: Calculate properties
         print("  Running Calculate properties ")
@@ -78,6 +120,13 @@ def main(args):
         # Step 8: Create HDF5
         print("  Running Create HDF5  ")
         next_hdf5_file = os.path.join(dm.next_data, "hdf5")
+        cmd = [
+            "python",
+            os.path.join(os.environ["PIPELINE"], "create_hdf5.py"),
+            "--file-path", json_data,
+            "--out-path", next_hdf5_file
+        ]
+        subprocess.run(cmd, check=True)
         create_hdf5(filtered_data, json_data, next_hdf5_file)
 
         print(f" Iteration {n} done")
@@ -112,5 +161,14 @@ if __name__ == "__main__":
     os.environ["PIPELINE"] = args.pipeline
     os.environ["CONFIG"] = args.config
 
+    num_threads = int(os.environ.get("SLURM_CPUS_ON_NODE", "1"))
+    env = os.environ.copy()
+    env["OMP_NUM_THREADS"] = str(num_threads)
+    env["MKL_NUM_THREADS"] = str(num_threads)
+    env["OPENBLAS_NUM_THREADS"] = str(num_threads)
+    env["NUMEXPR_NUM_THREADS"] = str(num_threads)
+    env["TF_NUM_INTEROP_THREADS"] = str(num_threads)
+    env["TF_NUM_INTRAOP_THREADS"] = str(num_threads)
+    os.environ.update(env)
     main(args)
  
