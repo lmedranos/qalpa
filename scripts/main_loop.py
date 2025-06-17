@@ -58,7 +58,7 @@ def main(args):
         model_dir = os.path.join(os.environ["MODEL_REGISTRY"], f"model_iter_{n}")
         cmd = [
             "python",
-            os.path.join(os.environ["MODEL_REGISTRY"],"filter_molecules.py",
+            os.path.join(os.environ["MODEL_REGISTRY"],"filter_molecules.py"),
             "--conf", os.path.join(os.environ["CONFIG"], "diffusion_aqm.yaml"),
             "--save-dir", model_dir,
             "--dataset", "aqm_qm7x",
