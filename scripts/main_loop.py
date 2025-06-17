@@ -15,8 +15,6 @@ def main(args):
     '''
     # import necessary functions from the pipeline
     sys.path.append(os.environ["PIPELINE"])
-    from diffusion import split, train, evaluate
-    from filter_molecules import apply_filter
     from to_hdf5 import create_hdf5
 
     # Number of iterations and max parallel tasks
@@ -58,7 +56,7 @@ def main(args):
         model_dir = os.path.join(os.environ["MODEL_REGISTRY"], f"model_iter_{n}")
         cmd = [
             "python",
-            os.path.join(os.environ["MODEL_REGISTRY"],"filter_molecules.py",
+            os.path.join(os.environ["MODEL_REGISTRY"],"filter_molecules.py"),
             "--conf", os.path.join(os.environ["CONFIG"], "diffusion_aqm.yaml"),
             "--save-dir", model_dir,
             "--dataset", "aqm_qm7x",
@@ -95,10 +93,10 @@ def main(args):
         relaxed_data = os.path.join(dm.current_data, "relaxed")
         parallelize("relax_molecules", generated_data, relaxed_data, n_jobs=max_parallel_tasks)
         
-        # Step 5: Filter molecules
+        # Step 5: Calculate SAScore and Filter molecules with low SAScore
         print("  Running Filter molecules  ")
         filtered_data = os.path.join(dm.current_data, "filtered")
-        parallelize("calculate_sascore", relaxed_data, filtered_data, n_jobs=max_parallel_tasks)
+        parallelize("calculate_sascore", relaxed_data, relaxed_data, n_jobs=max_parallel_tasks)
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "filter_molecules.py"),
@@ -107,27 +105,21 @@ def main(args):
         ]
         subprocess.run(cmd, check=True)
 
-        # Step 6: Calculate properties
+        # Step 6: Calculate properties and convert output to JSON
         print("  Running Calculate properties ")
-        properties_data = os.path.join(dm.current_data, "properties")
-        parallelize("calculate_properties", filtered_data, properties_data, n_jobs=max_parallel_tasks)
+        control_data = os.path.join(os.environ["CONFIG"], "nctr1.in")
+        parallelize("calculate_properties", filtered_data, control_data, n_jobs=max_parallel_tasks)
         
-        # Step 7: Convert to JSON
-        print("  Running Convert to JSON ")
-        json_data = os.path.join(dm.current_data, "properties")
-        parallelize("convert_to_json", properties_data, json_data, n_jobs=max_parallel_tasks)
-
-        # Step 8: Create HDF5
+        # Step 7: Create HDF5
         print("  Running Create HDF5  ")
         next_hdf5_file = os.path.join(dm.next_data, "hdf5")
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "create_hdf5.py"),
-            "--file-path", json_data,
+            "--in-dir", filtered_data,
             "--out-path", next_hdf5_file
         ]
         subprocess.run(cmd, check=True)
-        create_hdf5(filtered_data, json_data, next_hdf5_file)
 
         print(f" Iteration {n} done")
 

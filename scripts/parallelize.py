@@ -2,19 +2,21 @@ import subprocess
 import os
 import time
 
-def parallelize(script, input_dir, output_dir, n_jobs=1):
+
+def parallelize(script, input_dir, output_dir, max_parallel_tasks=1):
     """
     Parallelize a function over an iterable using multiprocessing.
+    This function runs a specified script in parallel for each file in the input directory.
+    It uses `srun` to manage parallel tasks, allowing for a specified maximum number of tasks to run concurrently.
+    It exports necessary environment variables to the subprocesses and waits for all tasks to complete before returning.
 
     Parameters:
-    - script: The function to parallelize.
-    - input_dir: Directory containing input files.
-    - output_dir: Directory to store output files.
-    - n_jobs: Number of parallel jobs (default is 1, meaning no parallelization).
-
-    Returns:
-    A list of results from applying the function to each item in the iterable.
-"""
+    ---------------
+        - script: The function to parallelize.
+        - input_dir: Directory containing input files.
+        - output_dir: Directory to store output files.
+        - max_parallel_tasks: Maximum number of parallel tasks to run at once.
+    """
     # 
     export_vars = "ALL,ROOT={},DATA={},MODEL={},CODE={},CONFIG={}".format(
     os.environ["ROOT"],
@@ -23,9 +25,9 @@ def parallelize(script, input_dir, output_dir, n_jobs=1):
     os.environ["CODE"],
     os.environ["CONFIG"],
 )
-    max_parallel_tasks = int(os.environ.get("SLURM_NTASKS", n_jobs))
     # Script to run
     code_dir = os.environ["CODE"]
+
     if not script.endswith(".py"):
         script += ".py"
     script_path = os.path.join(code_dir, script)
@@ -35,7 +37,7 @@ def parallelize(script, input_dir, output_dir, n_jobs=1):
 
     # Start parallel processing
     processes = []
-    for f in iterable:
+    for f in xyz_files:
         cmd = [
             "srun", "--ntasks=1", "--cpus-per-task=1", "--exclusive",   
             f"--export={export_vars}",
