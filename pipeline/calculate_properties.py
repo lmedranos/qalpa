@@ -7,6 +7,10 @@ from os import environ, listdir, mkdir, makedirs, chdir, system, remove
 from mpi4py import MPI
 from parserFHItoJSON import get_data as create_json
 
+"""
+This script reads an input file in XYZ format, processes it with FHI-aims, and creates a JSON output file.
+It requires the FHI-aims executable to be available in the specified path.
+"""
 
 #comm = MPI.COMM_WORLD
 #rank = comm.Get_rank()
