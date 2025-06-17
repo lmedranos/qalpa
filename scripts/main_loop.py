@@ -98,7 +98,7 @@ def main(args):
         # Step 5: Filter molecules
         print("  Running Filter molecules  ")
         filtered_data = os.path.join(dm.current_data, "filtered")
-        parallelize("calculate_sascore", relaxed_data, filtered_data, n_jobs=max_parallel_tasks)
+        parallelize("calculate_sascore", relaxed_data, relaxed_data, n_jobs=max_parallel_tasks)
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "filter_molecules.py"),
