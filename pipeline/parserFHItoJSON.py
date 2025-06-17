@@ -5,6 +5,11 @@ import re
 import json
 import numpy as np
 
+"""
+This script reads the output file from FHI-aims and extracts various properties such as coordinates, energy, components, dipole moment, Hirshfeld charges, volumes, forces, etc.
+It then prints these properties and saves them in a JSON file.
+"""
+
 def get_data(log):
     lines = open(log, 'r').readlines()
     C = coordinates(lines)
