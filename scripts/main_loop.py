@@ -107,8 +107,8 @@ def main(args):
 
         # Step 6: Calculate properties and convert output to JSON
         print("  Running Calculate properties ")
-        properties_data = os.path.join(dm.current_data, "properties")
-        parallelize("calculate_properties", filtered_data, properties_data, n_jobs=max_parallel_tasks)
+        control_data = os.path.join(os.environ["CONFIG"], "nctr1.in")
+        parallelize("calculate_properties", filtered_data, control_data, n_jobs=max_parallel_tasks)
         
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
@@ -116,8 +116,7 @@ def main(args):
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "create_hdf5.py"),
-            "--xyz-dir", filtered_data,
-            "--properties-dir", properties_data,
+            "--in-dir", filtered_data,
             "--out-path", next_hdf5_file
         ]
         subprocess.run(cmd, check=True)
