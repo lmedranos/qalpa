@@ -1,4 +1,6 @@
 import subprocess
+import os
+import time
 
 def parallelize(script, input_dir, output_dir, n_jobs=1):
     """
@@ -21,7 +23,9 @@ def parallelize(script, input_dir, output_dir, n_jobs=1):
     os.environ["CODE"],
     os.environ["CONFIG"],
 )
+    max_parallel_tasks = int(os.environ.get("SLURM_NTASKS", n_jobs))
     # Script to run
+    code_dir = os.environ["CODE"]
     if not script.endswith(".py"):
         script += ".py"
     script_path = os.path.join(code_dir, script)
