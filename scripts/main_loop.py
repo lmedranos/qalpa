@@ -19,6 +19,7 @@ def main(args):
 
     # Number of iterations and max parallel tasks
     base_dataset = args.base_dataset
+    data_base_name = os.path.basename(base_dataset)
     dataset_name = args.dataset_name
     global NUM_ITERATIONS, max_parallel_tasks
     NUM_ITERATIONS = args.num_iterations
@@ -113,10 +114,10 @@ def main(args):
         
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
-        next_hdf5_file = os.path.join(dm.next_data, "hdf5")
+        next_hdf5_file = os.path.join(dm.next_hdf5_dir, data_base_name)
         cmd = [
             "python",
-            os.path.join(os.environ["PIPELINE"], "create_hdf5.py"),
+            os.path.join(os.environ["PIPELINE"], "to_hdf5.py"),
             "--in-dir", filtered_data,
             "--out-path", next_hdf5_file
         ]
