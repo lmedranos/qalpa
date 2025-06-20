@@ -15,10 +15,11 @@ EPBE0_atom = {6:-1027.59344601,1:-13.64136507, \
               7:-1484.25358313, 8:-2039.74560236, 15:-9283.01120606}
 
 xyz_pre = sys.argv[1]
+h5file_path = sys.argv[2]            # output file path 
 
 folders = sorted(listdir(xyz_pre))
 
-with h5py.File(str(folders[0])+'.hdf5', 'a') as h5file:
+with h5py.File(h5file_path, 'a') as h5file:
 
     for fdir in folders[:1]:
 
@@ -26,7 +27,9 @@ with h5py.File(str(folders[0])+'.hdf5', 'a') as h5file:
         grp = h5file.create_group(fdir)
         molecule = {}
 
-        folders2 = sorted(listdir(xyz_pre+fdir))
+        #folders2 = sorted(listdir(xyz_pre+fdir))
+        folder_path = os.path.join(xyz_pre, fdir)
+        folders2 = [f for f in listdir(folder_path) if f.endswith('.json')]  #As folder have non json files
 
         for confid in folders2:
 
@@ -38,15 +41,16 @@ with h5py.File(str(folders[0])+'.hdf5', 'a') as h5file:
             subgrp = grp.create_group(sysname)
         #saving DFT data
 
-            w = len(data["Coordinates"])
-            ftmp = open('tmp-'+str(sysname)+'.xyz', 'w')  # open file for writing
-            ftmp.write(str(w) + "\n")
-            ftmp.write("{: >24}".format('leo') + "\n")
-            for p1 in data["Coordinates"]:
-                ftmp.write("{: >24} {: >24} {: >24} {: >24}".format(*p1) + "\n")
-            ftmp.close()
-
-            atoms = read('tmp-'+str(sysname)+'.xyz')    # define atoms
+            # w = len(data["Coordinates"])
+            # ftmp = open('tmp-'+str(sysname)+'.xyz', 'w')  # open file for writing
+            # ftmp.write(str(w) + "\n")
+            # ftmp.write("{: >24}".format('leo') + "\n")
+            # for p1 in data["Coordinates"]:
+            #     ftmp.write("{: >24} {: >24} {: >24} {: >24}".format(*p1) + "\n")
+            # ftmp.close()
+            #atoms = read('tmp-'+str(sysname)+'.xyz')    # define atoms
+            xyz_file_path = os.path.join(folder_path, sysname + '.xyz')       # path to the xyz file if coordinate is not in json file
+            atoms = read(xyz_file_path)
             Z = atoms.get_atomic_numbers()
             POS = atoms.get_positions()
 

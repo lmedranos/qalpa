@@ -7,6 +7,7 @@ class DataManager:
         self.data_directory = data_directory 
         self.current_data = None
         self.next_data = None
+        self.next_hdf5_dir = None
         
 
     def initialize_data_directory(self):
@@ -56,9 +57,9 @@ class DataManager:
         self.next_data = os.path.join(self.data_directory, f"iter_{iteration + 1}")
         if not os.path.exists(self.next_data):
             os.makedirs(self.next_data)
-        next_hdf5_dir = os.path.join(self.next_data, "hdf5")
-        if not os.path.exists(next_hdf5_dir):
-            os.makedirs(next_hdf5_dir)
+        self.next_hdf5_dir = os.path.join(self.next_data, "hdf5")
+        if not os.path.exists(self.next_hdf5_dir):
+            os.makedirs(self.next_hdf5_dir)
 
     
 
