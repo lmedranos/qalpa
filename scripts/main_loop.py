@@ -42,7 +42,8 @@ def main(args):
 
         # Step 1: Run data split
         print(" Running Data split ")
-        hdf5_file = os.path.join(dm.current_data, "hdf5")
+        #hdf5_file = os.path.join(dm.current_data, "hdf5")
+        hdf5_file = dm.hdf5
         splited_data = os.path.join(dm.current_data, "splited")
         cmd = [
             "python",
@@ -114,12 +115,12 @@ def main(args):
         
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
-        next_hdf5_file = os.path.join(dm.next_hdf5_dir, data_base_name)
+        #next_hdf5_file = os.path.join(dm.next_hdf5_dir, data_base_name)
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "to_hdf5.py"),
             "--in-dir", filtered_data,
-            "--out-path", next_hdf5_file
+            "--out-path", dm.hdf5
         ]
         subprocess.run(cmd, check=True)
 
