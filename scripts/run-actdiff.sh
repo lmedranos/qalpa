@@ -29,6 +29,7 @@ conda activate /data/horse/ws/miha493e-activediffusion_hanna/conda_envs/env-para
 base_dataset = "/data/horse/ws/miha493e-activediffusion_hanna/datasets/qm7x-aqm-gas-noP.hdf5"
 
 python3 main_loop.py --base_dataset "$base_dataset" \
+                     --dataset_name "aqm_qm7x" \
                      --root "$root" \
                      --data "$data" \
                      --model_registry "$model_registry" \

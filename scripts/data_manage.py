@@ -7,6 +7,8 @@ class DataManager:
         self.data_directory = data_directory 
         self.current_data = None
         self.next_data = None
+        self.hdf5 = None
+        #self.next_hdf5_dir = None
         
 
     def initialize_data_directory(self):
@@ -20,9 +22,10 @@ class DataManager:
         if not os.path.exists(intial_data_dir):
             os.makedirs(intial_data_dir)
 
-        initial_hdf5_dir = os.path.join(intial_data_dir, "hdf5")
-        if not os.path.exists(initial_hdf5_dir):
-            os.makedirs(initial_hdf5_dir)
+        # initial_hdf5_dir = os.path.join(intial_data_dir, "hdf5")
+        # if not os.path.exists(initial_hdf5_dir):
+        #     os.makedirs(initial_hdf5_dir)
+        initial_hdf5_dir = self.data_directory
         
         try:
             data_base_name = os.path.basename(self.data_source)
@@ -30,6 +33,7 @@ class DataManager:
             if not os.path.exists(initial_hdf5):
                 shutil.copy(self.data_source, initial_hdf5)
                 print(f"Copied base dataset to {initial_hdf5}")
+                self.hdf5 = initial_hdf5
             else:
                 print(f"Initial HDF5 file already exists at {initial_hdf5}")
         except Exception as e:
@@ -56,9 +60,9 @@ class DataManager:
         self.next_data = os.path.join(self.data_directory, f"iter_{iteration + 1}")
         if not os.path.exists(self.next_data):
             os.makedirs(self.next_data)
-        next_hdf5_dir = os.path.join(self.next_data, "hdf5")
-        if not os.path.exists(next_hdf5_dir):
-            os.makedirs(next_hdf5_dir)
+        # self.next_hdf5_dir = os.path.join(self.next_data, "hdf5")
+        # if not os.path.exists(self.next_hdf5_dir):
+        #     os.makedirs(self.next_hdf5_dir)
 
     
 
