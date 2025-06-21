@@ -19,6 +19,8 @@ def main(args):
 
     # Number of iterations and max parallel tasks
     base_dataset = args.base_dataset
+    data_base_name = os.path.basename(base_dataset)
+    dataset_name = args.dataset_name
     global NUM_ITERATIONS, max_parallel_tasks
     NUM_ITERATIONS = args.num_iterations
     max_parallel_tasks = args.max_parallel_tasks
@@ -40,7 +42,8 @@ def main(args):
 
         # Step 1: Run data split
         print(" Running Data split ")
-        hdf5_file = os.path.join(dm.current_data, "hdf5")
+        #hdf5_file = os.path.join(dm.current_data, "hdf5")
+        hdf5_file = dm.hdf5
         splited_data = os.path.join(dm.current_data, "splited")
         cmd = [
             "python",
@@ -56,10 +59,10 @@ def main(args):
         model_dir = os.path.join(os.environ["MODEL_REGISTRY"], f"model_iter_{n}")
         cmd = [
             "python",
-            os.path.join(os.environ["MODEL_REGISTRY"],"filter_molecules.py"),
+            os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_train.py"),
             "--conf", os.path.join(os.environ["CONFIG"], "diffusion_aqm.yaml"),
             "--save-dir", model_dir,
-            "--dataset", "aqm_qm7x",
+            "--dataset", dataset_name,
             "--dataset-root", splited_data,
             "--gpus", "2",
             "--batch-size", "32"
@@ -112,12 +115,12 @@ def main(args):
         
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
-        next_hdf5_file = os.path.join(dm.next_data, "hdf5")
+        #next_hdf5_file = os.path.join(dm.next_hdf5_dir, data_base_name)
         cmd = [
             "python",
-            os.path.join(os.environ["PIPELINE"], "create_hdf5.py"),
+            os.path.join(os.environ["PIPELINE"], "to_hdf5.py"),
             "--in-dir", filtered_data,
-            "--out-path", next_hdf5_file
+            "--out-path", dm.hdf5
         ]
         subprocess.run(cmd, check=True)
 
@@ -134,6 +137,7 @@ if __name__ == "__main__":
     '''
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_dataset", type=str)
+    parser.add_argument("--dataset_name", type=str)
     parser.add_argument("--root", type=str)
     parser.add_argument("--data", type=str)
     parser.add_argument("--model_registry", type=str)
