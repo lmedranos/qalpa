@@ -102,24 +102,24 @@ def main(args):
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "filter_molecules.py"),
-            "--file-path", relaxed_data,
-            "--out-path", filtered_data
+            relaxed_data,
+            filtered_data
         ]
         subprocess.run(cmd, check=True)
 
         # Step 6: Calculate properties and convert output to JSON
         print("  Running Calculate properties ")
         control_data = os.path.join(os.environ["CONFIG"], "nctr1.in")
-        # parallelize("calculate_properties", filtered_data, control_data, max_parallel_tasks)
+        parallelize("calculate_properties", filtered_data, control_data, max_parallel_tasks)
         
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
-        next_hdf5_file = os.path.join(dm.next_hdf5_dir, data_base_name)
+        #next_hdf5_file = os.path.join(dm.next_hdf5_dir, data_base_name)
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "to_hdf5.py"),
-            "--in-dir", filtered_data,
-            "--out-path", dm.hdf5
+            filtered_data,
+            dm.hdf5
         ]
         subprocess.run(cmd, check=True)
 

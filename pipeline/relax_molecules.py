@@ -30,13 +30,14 @@ def relax_molecule(file_path, model_path, output_folder):
     filename = os.path.basename(file_path)
     #print(f"Starting processing {filename} on {hostname}")
 
-    SPcalc = MACECalculator(model_path=model_path, device='cpu', default_dtype="float32")   # should we change device
+    SPcalc = MACECalculator(model_paths=model_path, device='cpu', default_dtype="float32")   # should we change device
     fname = file_path.split('/')[-1]
     chdir(output_folder)
     if str(fname[-3:]) == 'xyz':
         if path.exists(output_folder+"opt-"+str(fname)) == True: return
         atoms = read(file_path)
-        atoms.set_calculator(SPcalc)
+        #atoms.set_calculator(SPcalc)
+        atoms.calc = SPcalc
         qn = BFGS(atoms)
         qn.run(fmax=0.001,steps=4000)
         write("opt-"+str(fname), atoms, format='xyz')
