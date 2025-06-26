@@ -9,6 +9,7 @@ from mpi4py import MPI
 from parserFHItoJSON import get_data as create_json
 
 if __name__ == "__main__":
+    
     """
     This script reads an input file in XYZ format, processes it with FHI-aims, and creates a JSON output file.
     It requires the FHI-aims executable to be available in the specified path.
@@ -19,11 +20,12 @@ if __name__ == "__main__":
     #size = comm.Get_size()
 
     # read input file path and output directory from command line arguments
-    ifile = sys.argv[1]  , cdata = sys.argv[2]
-    print(f"Processing file: {ifile} with control data: {cdata}")
+    ifile = sys.argv[1]  
+    cdata = sys.argv[2]
+
     #aims_cmd = 'srun -n $SLURM_NTASKS /software/rapids/r24.04/FHI-aims/240507-intel-2022a/bin/aims.x > aims.out'
-    #aims_cmd='/software/rapids/r24.04/FHI-aims/240507-intel-2022a/bin/aims.x > aims.out'
-    aims_cmd='/software/rapids/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x > aims.out' 
+    aims_cmd='/software/rapids/r24.04/FHI-aims/240507-intel-2022a/bin/aims.x > aims.out'
+    #aims_cmd='/software/rapids/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x > aims.out' 
 
     #cdata = os.path.join(os.environ["CONFIG"], "nctr1.in")
 
@@ -31,7 +33,7 @@ if __name__ == "__main__":
     os.chdir(idir)   
     if ifile.lower().endswith('.xyz'):
         fname = str(ifile.split('/')[-1][:-4])  # Extract filename without extension
-        opath = idir/fname
+        opath = os.path.join(idir, fname)
         atoms = read(ifile, format='xyz')
         Z = atoms.get_atomic_numbers()
         os.makedirs(opath, exist_ok=True)

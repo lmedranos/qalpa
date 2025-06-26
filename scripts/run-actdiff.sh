@@ -26,9 +26,9 @@ config="$root/configs"
 source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate /data/horse/ws/miha493e-activediffusion_hanna/conda_envs/env-activeloop
 
-module load development/24.04 intel-compilers/2023.2.1  impi/2021.10.0
-#module load release/24.04   
 #module load intel-compilers/2022.1.0 impi/2021.6.0 
+module load development/24.04 load intel-compilers/2023.2.1  impi/2021.10.0  #module load release/24.04   
+
 module load FHI-aims/240507
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export MKL_NUM_THREADS=1
