@@ -32,6 +32,7 @@ dependencies:
       - tensorboard
       - biopython
       - xtb
+      - git+https://github.com/ACEsuit/mace.git
   # - python=3.12
   - ase
   - numpy

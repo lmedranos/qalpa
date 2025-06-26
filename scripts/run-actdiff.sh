@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH -J active-loop
 #SBATCH -A p_nanoparticle
-#SBATCH --time=00:02:00                    # time (HH:MM:SS)
+#SBATCH --time=02:00:00                    # time (HH:MM:SS)
 #SBATCH --partition=alpha                  # partition
 #SBATCH --gres=gpu:2                       # number of GPUs
 #SBATCH --mem=16G                           # memory
