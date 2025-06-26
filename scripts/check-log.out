@@ -1,0 +1,49 @@
+Running active loop script...
+Starting iterating on i8005
+Initial HDF5 file already exists at /data/horse/ws/miha493e-activediffusion_hanna/datasets/qm7x-aqm-gas-noP.hdf5
+
+ Iteration 0
+Created iteration directory: /data/horse/ws/miha493e-activediffusion_hanna/datasets/iter_0
+ Running Data split 
+  Running Diffusion model training 
+  Running Generate molecules  
+  Running Relax molecules  
+  Running Filter molecules  
+  Running Calculate properties 
+  Running Create HDF5  
+ Iteration 0 done
+
+ Iteration 1
+Created iteration directory: /data/horse/ws/miha493e-activediffusion_hanna/datasets/iter_1
+ Running Data split 
+  Running Diffusion model training 
+  Running Generate molecules  
+  Running Relax molecules  
+  Running Filter molecules  
+  Running Calculate properties 
+  Running Create HDF5  
+ Iteration 1 done
+
+ Iteration 2
+Created iteration directory: /data/horse/ws/miha493e-activediffusion_hanna/datasets/iter_2
+ Running Data split 
+  Running Diffusion model training 
+  Running Generate molecules  
+  Running Relax molecules  
+  Running Filter molecules  
+  Running Calculate properties 
+  Running Create HDF5  
+ Iteration 2 done
+
+ Iteration 3
+Created iteration directory: /data/horse/ws/miha493e-activediffusion_hanna/datasets/iter_3
+ Running Data split 
+  Running Diffusion model training 
+  Running Generate molecules  
+  Running Relax molecules  
+  Running Filter molecules  
+  Running Calculate properties 
+  Running Create HDF5  
+ Iteration 3 done
+Finished workflow on i8005 Total main loop time: 0.08 seconds
+Active loop script completed.
