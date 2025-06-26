@@ -18,22 +18,24 @@ def parallelize(script, input_dir, output_dir, max_parallel_tasks=1):
         - max_parallel_tasks: Maximum number of parallel tasks to run at once.
     """
     # 
-    export_vars = "ALL,ROOT={},DATA={},MODEL={},CODE={},CONFIG={}".format(
+
+    export_vars = "ALL,ROOT={},PIPELINE={},DATA={},MODEL_REGISTRY={},MODEL_CODE={},CONFIG={}".format(
     os.environ["ROOT"],
+    os.environ["PIPELINE"],
     os.environ["DATA"],
-    os.environ["MODEL"],
-    os.environ["CODE"],
+    os.environ["MODEL_REGISTRY"],
+    os.environ["MODEL_CODE"],
     os.environ["CONFIG"],
 )
     # Script to run
-    code_dir = os.environ["CODE"]
+    script_dir = os.environ["PIPELINE"]
 
     if not script.endswith(".py"):
         script += ".py"
-    script_path = os.path.join(code_dir, script)
+    script_path = os.path.join(script_dir, script)
 
     # Find all .xyz files in the input directory
-    xyz_files = [f for f in os.listdir(input_dir) if f.endswith(".xyz")]
+    xyz_files = [f            for f in os.listdir(input_dir) if f.endswith(".xyz")]
 
     # Start parallel processing
     processes = []
