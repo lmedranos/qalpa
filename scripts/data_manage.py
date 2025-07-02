@@ -18,7 +18,7 @@ class DataManager:
         if not os.path.exists(self.data_directory):
             os.makedirs(self.data_directory)
         
-        intial_data_dir = os.join(self.data_directory, "iter_0")
+        intial_data_dir = os.path.join(self.data_directory, "iter_0")
         if not os.path.exists(intial_data_dir):
             os.makedirs(intial_data_dir)
 
