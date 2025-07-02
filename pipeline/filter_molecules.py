@@ -30,8 +30,8 @@ if __name__ == "__main__":
             sascore = float(sascore)
             if sascore >= score_threshold:
                 # copy this molecule to the output path
-                src_file = os.path.join(ipath, f"{molecule_name}.xyz")
-                dst_file = os.path.join(opath, f"{molecule_name}.xyz")
+                src_file = os.path.join(ipath, molecule_name)
+                dst_file = os.path.join(opath, molecule_name)
                 shutil.copy(src_file, dst_file)
         except ValueError:
             print(f"Invalid SAScore value: {sascore} for molecule {molecule_name}")

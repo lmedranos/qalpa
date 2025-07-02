@@ -15,7 +15,6 @@ def main(args):
     '''
     # import necessary functions from the pipeline
     sys.path.append(os.environ["PIPELINE"])
-    from to_hdf5 import create_hdf5
 
     # Number of iterations and max parallel tasks
     base_dataset = args.base_dataset
@@ -28,7 +27,7 @@ def main(args):
 
     start_loop = time.time()
     hostname = socket.gethostname()
-    print(f"Starting iterations  on {hostname}")
+    print(f"Starting iterating on {hostname}")
 
     # Create the intial hdf5 data directory if it doesn't exist
     dm = DataManager(base_dataset, os.environ["DATA"])
@@ -45,29 +44,29 @@ def main(args):
         #hdf5_file = os.path.join(dm.current_data, "hdf5")
         hdf5_file = dm.hdf5
         splited_data = os.path.join(dm.current_data, "splited")
-        cmd = [
-            "python",
-            os.path.join(os.environ["MODEL_CODE"],"e3mol_aqm/experiments/data/aqm/split_data.py"),
-            "--file-path", hdf5_file,
-            "--out-path", splited_data
-            ]
-        subprocess.run(cmd, check=True)
+        # cmd = [
+        #     "python",
+        #     os.path.join(os.environ["MODEL_CODE"],"e3mol_aqm/experiments/data/aqm/split_data.py"),
+        #     "--file-path", hdf5_file,
+        #     "--out-path", splited_data
+        #     ]
+        # subprocess.run(cmd, check=True)
 
 
         # step 2: Diffusion model training
         print("  Running Diffusion model training ")
         model_dir = os.path.join(os.environ["MODEL_REGISTRY"], f"model_iter_{n}")
-        cmd = [
-            "python",
-            os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_train.py"),
-            "--conf", os.path.join(os.environ["CONFIG"], "diffusion_aqm.yaml"),
-            "--save-dir", model_dir,
-            "--dataset", dataset_name,
-            "--dataset-root", splited_data,
-            "--gpus", "2",
-            "--batch-size", "32"
-        ]
-        subprocess.run(cmd, check=True)
+        # cmd = [
+        #     "python",
+        #     os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_train.py"),
+        #     "--conf", os.path.join(os.environ["CONFIG"], "diffusion_aqm.yaml"),
+        #     "--save-dir", model_dir,
+        #     "--dataset", dataset_name,
+        #     "--dataset-root", splited_data,
+        #     "--gpus", "2",
+        #     "--batch-size", "32"
+        # ]
+        # subprocess.run(cmd, check=True)
 
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
@@ -75,43 +74,43 @@ def main(args):
         n_nodes = 24                # add function to updaten_node, embd and hlgap to target different set of molecules
         embd = -1.2
         hlgap = 6
-        cmd = [
-            "python",
-            os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_evaluation_qm.py"),
-            "--model-path", os.path.join(model_dir, "best_mol_stab.ckpt"),
-            "--save-dir", generated_data,
-            "--save-xyz",
-            "--calculate-relax-change",
-            "--calculate-props",
-            "--batch-size", "20",
-            "--ngraphs", "200",
-            "--generate-ngraphs-valid",
-            "--num-nodes", n_nodes,
-            "--fixed-context", embd, hlgap
-        ]
-        subprocess.run(cmd, check=True)
+        # cmd = [
+        #     "python",
+        #     os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_evaluation_qm.py"),
+        #     "--model-path", os.path.join(model_dir, "best_mol_stab.ckpt"),
+        #     "--save-dir", generated_data,
+        #     "--save-xyz",
+        #     "--calculate-relax-change",
+        #     "--calculate-props",
+        #     "--batch-size", "20",
+        #     "--ngraphs", "200",
+        #     "--generate-ngraphs-valid",
+        #     "--num-nodes", n_nodes,
+        #     "--fixed-context", embd, hlgap
+        # ]
+        # subprocess.run(cmd, check=True)
 
         # Step 4: Relax molecules
         print("  Running Relax molecules  ")
         relaxed_data = os.path.join(dm.current_data, "relaxed")
-        parallelize("relax_molecules", generated_data, relaxed_data, n_jobs=max_parallel_tasks)
+        parallelize("relax_molecules", generated_data, relaxed_data, max_parallel_tasks)
         
         # Step 5: Calculate SAScore and Filter molecules with low SAScore
         print("  Running Filter molecules  ")
         filtered_data = os.path.join(dm.current_data, "filtered")
-        parallelize("calculate_sascore", relaxed_data, relaxed_data, n_jobs=max_parallel_tasks)
+        parallelize("calculate_sascore", relaxed_data, relaxed_data, max_parallel_tasks)
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "filter_molecules.py"),
-            "--file-path", relaxed_data,
-            "--out-path", filtered_data
+            relaxed_data,
+            filtered_data
         ]
         subprocess.run(cmd, check=True)
 
         # Step 6: Calculate properties and convert output to JSON
         print("  Running Calculate properties ")
         control_data = os.path.join(os.environ["CONFIG"], "nctr1.in")
-        parallelize("calculate_properties", filtered_data, control_data, n_jobs=max_parallel_tasks)
+        parallelize("calculate_properties", filtered_data, control_data, max_parallel_tasks)
         
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
@@ -119,8 +118,8 @@ def main(args):
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "to_hdf5.py"),
-            "--in-dir", filtered_data,
-            "--out-path", dm.hdf5
+            filtered_data,
+            dm.hdf5
         ]
         subprocess.run(cmd, check=True)
 
@@ -141,10 +140,11 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=str)
     parser.add_argument("--data", type=str)
     parser.add_argument("--model_registry", type=str)
-    parser.add_argument("--model", type=str)
+    parser.add_argument("--model_code", type=str)
     parser.add_argument("--pipeline", type=str)
     parser.add_argument("--config", type=str)
     parser.add_argument("--num_iterations", type=int, default=10)
+
     max_parallel_tasks = int(os.environ.get("SLURM_NTASKS", 8))
     parser.add_argument("--max_parallel_tasks", type=int, default=max_parallel_tasks)
     args = parser.parse_args()
