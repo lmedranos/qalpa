@@ -11,29 +11,29 @@ from ase.io import read
 import h5py
 
 ## initialize database
-EPBE0_atom = {6:-1027.59344601,1:-13.64136507, \
-              7:-1484.25358313, 8:-2039.74560236, 15:-9283.01120606}
+EPBE0_atom = {1:-13.64136507, 6:-1027.59344601, \
+              7:-1484.25358313, 8:-2039.74560236, 9: -3139.751675679, 15:-9283.01120606, 16: -10828.726222083, 17: -12516.462339357}
 
-xyz_pre = sys.argv[1]
+filtered_dir = sys.argv[1]
 h5file_path = sys.argv[2]            # output file path 
+itr = 0
+folders = sorted(listdir(filtered_dir))
 
-folders = sorted(listdir(xyz_pre))
+with h5py.File("/data/horse/ws/miha493e-activediffusion_hanna/datasets/new.hdf5", 'w') as h5file:
 
-with h5py.File(h5file_path, 'a') as h5file:
-
-    for fdir in folders[:1]:
+    for fdir in folders:#[:1]:
 
         print(fdir)
-        grp = h5file.create_group(fdir)
+        grp = h5file.create_group(f"{fdir}_{itr}")
         molecule = {}
 
         #folders2 = sorted(listdir(xyz_pre+fdir))
-        folder_path = os.path.join(xyz_pre, fdir)
-        folders2 = [f for f in listdir(folder_path) if f.endswith('.json')]  #As folder have non json files
+        folder_path = os.path.join(filtered_dir, fdir)
+        jfils = [f for f in listdir(folder_path) if f.endswith('.json')]  #As folder have non json files
 
-        for confid in folders2:
+        for confid in jfils:
 
-            with open(xyz_pre+'/'+str(fdir)+'/'+str(confid)) as json_file:
+            with open(filtered_dir+'/'+str(fdir)+'/'+str(confid)) as json_file:
                 data = json.load(json_file)
 
             sysname = confid[:-5]
@@ -54,11 +54,14 @@ with h5py.File(h5file_path, 'a') as h5file:
             Z = atoms.get_atomic_numbers()
             POS = atoms.get_positions()
 
-            os.remove('tmp-'+str(sysname)+'.xyz')
+            #os.remove('tmp-'+str(sysname)+'.xyz')
 
             ener=float(data["Total energy (eV):"])
             mbd=float(data["SUM"]["MBD"])
             pbe0 = float(ener) - float(mbd)
+            print("EPBE0_atom keys:", EPBE0_atom.keys())
+            print("Z values:", Z)
+            print([type(zi) for zi in Z])
             EDFTatoms = sum([ EPBE0_atom[zi] for zi in Z ])
             Eat = float(pbe0) - float(EDFTatoms)
 
