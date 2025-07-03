@@ -2,7 +2,6 @@ import sys
 import shutil
 import os
 from os import path
-import sh
 import subprocess
 from ase.io import read, write
 from os import environ
@@ -58,7 +57,7 @@ if __name__ == "__main__":
         # os.dup2(fd, 2)  # Redirect stderr
         # os.close(fd)
         # os.execvp(aims_cmd, [aims_cmd])
-        os.system(f'srun -n $SLURM_NTASKS /software/rapids/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x > aims.out')
+        os.system(f'srun -n $SLURM_NTASKS /software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x > aims.out')
 
         if path.exists(opath+'/aims.out'):
           create_json(opath+'/aims.out')

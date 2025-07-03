@@ -33,6 +33,7 @@ dependencies:
       - biopython
       - xtb
       - git+https://github.com/ACEsuit/mace.git
+      - sh
   # - python=3.12
   - ase
   - numpy

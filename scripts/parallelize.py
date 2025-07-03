@@ -41,12 +41,10 @@ def parallelize(script, input_dir, output_dir, max_parallel_tasks=1):
     processes = []
     for f in xyz_files:
         cmd = [
-            "srun", "--nodes=1", "--ntasks=1", "--cpus-per-task=1", "--exclusive",   
-            f"--export={export_vars}",
             "python3", script_path,
             os.path.join(input_dir, f),
             output_dir,
-        ]
+        ]  #"srun", "--nodes=1", "--ntasks=1", "--cpus-per-task=1", "--exclusive",     f"--export={export_vars}",
         p = subprocess.Popen(cmd)
         processes.append(p)
         # Control max parallelism
