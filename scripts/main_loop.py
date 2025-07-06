@@ -32,17 +32,15 @@ def main(args):
     # Create the intial hdf5 data directory if it doesn't exist
     dm = DataManager(base_dataset, os.environ["DATA"])
     dm.initialize_data_directory()
-
+    hdf5_file = dm.input_hdf5
     # Create active learning loop
     for n in range(NUM_ITERATIONS):
         print(f"\n Iteration {n}")
-        # Create directories 
+        # Create directories for the current iteration
         dm.create_iteration_directories(n)
 
         # Step 1: Run data split
         print(" Running Data split ")
-        #hdf5_file = os.path.join(dm.current_data, "hdf5")
-        hdf5_file = dm.hdf5
         splited_data = os.path.join(dm.current_data, "splited")
         # cmd = [
         #     "python",
@@ -108,22 +106,24 @@ def main(args):
         # subprocess.run(cmd, check=True)
 
         # Step 6: Calculate properties and convert output to JSON
-        print("  Running Calculate properties ")
-        control_data = os.path.join(os.environ["CONFIG"], "nctr1.in")
-        parallelize("calculate_properties", filtered_data, control_data, max_parallel_tasks)
+        # print("  Running Calculate properties ")
+        # control_data = os.path.join(os.environ["CONFIG"], "nctr1.in")
+        # parallelize("calculate_properties", filtered_data, control_data, max_parallel_tasks)
         
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
-        #next_hdf5_file = os.path.join(dm.next_hdf5_dir, data_base_name)
-        # cmd = [
-        #     "python",
-        #     os.path.join(os.environ["PIPELINE"], "to_hdf5.py"),
-        #     filtered_data,
-        #     dm.hdf5
-        # ]
-        # subprocess.run(cmd, check=True)
+        hdf5_file = os.path.join(dm.current_data, "hdf5", "output.hdf5")
+        cmd = [
+            "python",
+            os.path.join(os.environ["PIPELINE"], "to_hdf5.py"),
+            filtered_data,
+            hdf5_file,
+            dm.output_hdf5,
+            str(n)
+        ]
+        subprocess.run(cmd, check=True)
 
-        print(f" Iteration {n} done")
+        print(f"Iteration {n} completed.")
 
     end_loop = time.time()
     print(f"Finished workflow on {hostname} Total main loop time: {end_loop - start_loop:.2f} seconds")
