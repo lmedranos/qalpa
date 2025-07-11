@@ -42,92 +42,107 @@ def main(args):
         # Step 1: Run data split
         print(" Running Data split ")
         splited_data = os.path.join(dm.current_data, "splited")
-        # cmd = [
-        #     "python",
-        #     os.path.join(os.environ["MODEL_CODE"],"e3mol_aqm/experiments/data/aqm/split_data.py"),
-        #     "--file-path", hdf5_file,
-        #     "--out-path", splited_data
-        #     ]
-        # subprocess.run(cmd, check=True)
+        cmd = [
+            "python",
+            os.path.join(os.environ["MODEL_CODE"],"e3mol_aqm/experiments/data/aqm/split_data.py"),
+            "--file-path", hdf5_file,
+            "--out-path", splited_data
+            ]
+        subprocess.run(cmd, check=True)
 
 
         # step 2: Diffusion model training
         print("  Running Diffusion model training ")
         model_dir = os.path.join(os.environ["MODEL_REGISTRY"], f"model_iter_{n}")
-        # cmd = [
-        #     "python",
-        #     os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_train.py"),
-        #     "--conf", os.path.join(os.environ["CONFIG"], "diffusion_aqm.yaml"),
-        #     "--save-dir", model_dir,
-        #     "--dataset", dataset_name,
-        #     "--dataset-root", splited_data,
-        #     "--gpus", "2",
-        #     "--batch-size", "32"
-        # ]
-        # subprocess.run(cmd, check=True)
+        cmd = [
+            "python",
+            os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_train.py"),
+            "--conf", os.path.join(os.environ["CONFIG"], "diffusion_aqm.yaml"),
+            "--save-dir", model_dir,
+            "--dataset", dataset_name,
+            "--dataset-root", splited_data,
+            "--gpus", "2",
+            "--batch-size", "32"
+        ]
+        subprocess.run(cmd, check=True)
 
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
         generated_data = os.path.join(dm.current_data, "generated")
-        n_nodes = 24                # add function to updaten_node, embd and hlgap to target different set of molecules
-        embd = -1.2
-        hlgap = 6
-        # cmd = [
-        #     "python",
-        #     os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_evaluation_qm.py"),
-        #     "--model-path", os.path.join(model_dir, "best_mol_stab.ckpt"),
-        #     "--save-dir", generated_data,
-        #     "--save-xyz",
-        #     "--calculate-relax-change",
-        #     "--calculate-props",
-        #     "--batch-size", "20",
-        #     "--ngraphs", "200",
-        #     "--generate-ngraphs-valid",
-        #     "--num-nodes", n_nodes,
-        #     "--fixed-context", embd, hlgap
-        # ]
-        # subprocess.run(cmd, check=True)
+        n_nodes = 40                # add function to updaten_node, embd and hlgap to target different set of molecules
+        embd = -0.9
+        hlgap = -4
+        cmd = [
+            "python",
+            os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_evaluation_qm.py"),
+            "--model-path", os.path.join(model_dir, "best_mol_stab.ckpt"),
+            "--save-dir", generated_data,
+            "--save-xyz",
+            "--calculate-relax-change",
+            "--calculate-props",
+            "--batch-size", "20",
+            "--ngraphs", "200",
+            "--generate-ngraphs-valid",
+            "--num-nodes", n_nodes,
+            "--fixed-context", embd, hlgap
+        ]
+        subprocess.run(cmd, check=True)
 
-        # # Step 4: Relax molecules
-        # print("  Running Relax molecules  ")
-        # relaxed_data = os.path.join(dm.current_data, "relaxed")
-        # parallelize("relax_molecules", generated_data, relaxed_data, max_parallel_tasks)
+        # Step 4: Relax molecules
+        print("  Running Relax molecules  ")
+        relaxed_data = os.path.join(dm.current_data, "relaxed")
+        parallelize(f"{os.environ['PIPELINE']}/relax_molecules.py", generated_data, relaxed_data, max_parallel_tasks)
         
-        # # Step 5: Calculate SAScore and Filter molecules with low SAScore
-        # print("  Running Filter molecules  ")
+        # Step 5: Calculate SAScore and Filter molecules with low SAScore
+        print("  Running Filter molecules  ")
         filtered_data = os.path.join(dm.current_data, "filtered")
-        # parallelize("calculate_sascore", relaxed_data, relaxed_data, max_parallel_tasks)
-        # cmd = [
-        #     "python",
-        #     os.path.join(os.environ["PIPELINE"], "filter_molecules.py"),
-        #     relaxed_data,
-        #     filtered_data
-        # ]
-        # subprocess.run(cmd, check=True)
+        parallelize(f"{os.environ['PIPELINE']}/calculate_sascore.py", relaxed_data, relaxed_data, max_parallel_tasks)
+        cmd = [
+            "python",
+            os.path.join(os.environ["PIPELINE"], "filter_molecules.py"),
+            relaxed_data,
+            filtered_data
+        ]
+        subprocess.run(cmd, check=True)
 
         # Step 6: Calculate properties and convert output to JSON
-        # print("  Running Calculate properties ")
-        # control_data = os.path.join(os.environ["CONFIG"], "nctr1.in")
-        # parallelize("calculate_properties", filtered_data, control_data, max_parallel_tasks)
-        
+        print("  Running Calculate properties ")
+        control_data = os.path.join(os.environ["CONFIG"], "nctr1.in")
+        parallelize(f"{os.environ['PIPELINE']}/propcalc_preprocess.py", filtered_data, control_data, max_parallel_tasks)
+        fih_aims_exc = "/software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x > aims.out"
+        parallelize(fih_aims_exc, filtered_data, control_data, max_parallel_tasks)
+        parallelize(f"{os.environ['PIPELINE']}/propcalc_postprocess.py", filtered_data, control_data, max_parallel_tasks)
+
+
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
-        hdf5_file = os.path.join(dm.current_data, "hdf5", "output.hdf5")
+        hdf5_itr = os.path.join(dm.current_data, "hdf5", "output.hdf5") if dm.hdf5_iter_flag else 'None'
+        extra_prop_itr = os.path.join(dm.current_data, "hdf5", "extra_properties.hdf5") if (dm.hdf5_iter_flag & dm.extra_properties_flag) else 'None'
         cmd = [
             "python",
             os.path.join(os.environ["PIPELINE"], "to_hdf5.py"),
             filtered_data,
-            hdf5_file,
+            str(dm.hdf5_appending_flag),
             dm.output_hdf5,
+            dm.extra_prop_hdf5,
+            hdf5_itr,
+            extra_prop_itr,
             str(n)
         ]
+        subprocess.run(cmd, check=True)
+
+        #step 8: Compress iteration files and clean up
+        print("  Running Compress iteration directory ")
+        cmd = ["tar", "-czf", f"{os.environ['DATA']}/iter_{n}.tar.gz", "-C", dm.current_data, "."]
+        subprocess.run(cmd, check=True)
+        cmd = ["rm", "-rf", dm.current_data]
         subprocess.run(cmd, check=True)
 
         print(f"Iteration {n} completed.")
 
     end_loop = time.time()
     print(f"Finished workflow on {hostname} Total main loop time: {end_loop - start_loop:.2f} seconds")
-
+    print(f"Total time: {time.strftime('%H:%M:%S', time.gmtime(end_loop - start_loop))}")
 
 if __name__ == "__main__":
     '''
