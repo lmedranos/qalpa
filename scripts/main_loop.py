@@ -130,7 +130,10 @@ def main(args):
             str(n)
         ]
         subprocess.run(cmd, check=True)
-
+        
+        # Set the loop dataset input 
+        hdf5_file = dm.output_hdf5
+        
         #step 8: Compress iteration files and clean up
         print("  Running Compress iteration directory ")
         cmd = ["tar", "-czf", f"{os.environ['DATA']}/iter_{n}.tar.gz", "-C", dm.current_data, "."]
