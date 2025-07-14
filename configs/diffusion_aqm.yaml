@@ -1,4 +1,3 @@
-load_ckpt_from_pretrained: /data/horse/ws/miha493e-research_project/activediffusion/models_registry/model_iter_0/best_mol_stab.ckpt
 
 #load_ckpt: /hpfs/userws/cremej01/workspace/logs/aqm_new/baseline_no_t_weighting/run0/last.ckpt
 #load_ckpt_from_pretrained: /sharedhome/cremej01/workspace/logs/pubchem/x0_pretraining_0_snr_t_bs300/run0/last.ckpt
