@@ -1,5 +1,6 @@
 import os
 import shutil
+from pathlib import Path
 
 class DataManager: 
     def __init__(self, data_source, data_directory):
@@ -66,7 +67,32 @@ class DataManager:
                 os.makedirs(hdf5_iter_path)
         print(f"Created iteration directory: {self.current_data}")
 
+    def edit_config(self, config_path, model_dir, update_model_dir=False):
+        """
+        Edit the configuration file to include the model directory.
+        
+        Parameters:
+        - config_path: Path to the configuration file.
+        - model_dir: Directory of the model to be added to the config.
+        """
+        try:
+            config_file = Path(config_path, 'diffusion_aqm.yaml')
+            with open(config_file, 'r') as file:
+                lines = file.readlines()
 
+            # Remove existing 'load_ckpt_from_pretrained' lines
+            lines = [line for line in lines if not line.strip().startswith("load_ckpt_from_pretrained:")]
+
+            if update_model_dir:
+                # Add new line at the beginning
+                lines.insert(0, f"load_ckpt_from_pretrained: {model_dir}\n")
+
+            # Write back to file
+            with open(config_file, "w") as file:
+                file.writelines(lines)
+
+        except Exception as e:
+            print(f"Error updating config file: {e}")
     
 
 

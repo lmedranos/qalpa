@@ -41,8 +41,8 @@ def parallelize(script, input_dir, aux_dir, max_parallel_tasks=1):
     print(f"max_parallel_tasks: {max_parallel_tasks}")
     for f in files:
         base_cmd = [
-            "srun", "--nodes=1", "--ntasks=1", 
-            "--cpus-per-task=6", "--cpu-bind=cores", #"--mem-bind=local"   
+            "srun", "--ntasks=1", # "--mpi=pmi2",
+            "--cpus-per-task=3", "--exclusive", "--cpu-bind=cores", 
             f"--export={export_vars}",
         ]
         cmd = " ".join(base_cmd + [exec_cmd]) + " &" if exec_flag else base_cmd + exec_cmd + [os.path.join(input_dir, f), aux_dir]

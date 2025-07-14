@@ -6,6 +6,7 @@ import time
 import socket
 from data_manage import DataManager
 from parallelize import parallelize
+from pathlib import Path
 
 
 def main(args):
@@ -65,7 +66,9 @@ def main(args):
             "--batch-size", "32"
         ]
         subprocess.run(cmd, check=True)
-
+        dm.edit_config(os.environ["CONFIG"], Path(model_dir,"best_mol_stab.ckpt"), n< (NUM_ITERATIONS-1))
+        
+        
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
         generated_data = os.path.join(dm.current_data, "generated")
@@ -139,6 +142,12 @@ def main(args):
         cmd = ["tar", "-czf", f"{os.environ['DATA']}/iter_{n}.tar.gz", "-C", dm.current_data, "."]
         subprocess.run(cmd, check=True)
         cmd = ["rm", "-rf", dm.current_data]
+        subprocess.run(cmd, check=True)
+        # Compress the model
+        print("  Running Compress model directory ")
+        cmd = ["tar", "-czf", f"{os.environ['MODEL_REGISTRY']}/model_iter_{n}.tar.gz", "-C", model_dir, "."]
+        subprocess.run(cmd, check=True)
+        cmd = ["rm", "-rf", model_dir]
         subprocess.run(cmd, check=True)
 
         print(f"Iteration {n} completed.")
