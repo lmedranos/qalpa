@@ -7,11 +7,13 @@ class DataManager:
         self.data_source = Path(data_source)
         self.data_directory = Path(data_directory) 
         self.diffusion_data_dir = None
+        self.diffusion_log_dir = None
         self.diffusion_model_dir = None
         self.current_data = None
         self.input_hdf5 = None
         self.output_hdf5 = None
         self.extra_prop_hdf5 = None
+        # Remember to set these flags based on your requirements
         self.hdf5_appending_flag = True
         self.hdf5_iter_flag = True
         self.extra_properties_flag = True
@@ -22,10 +24,10 @@ class DataManager:
         Create the initial data directory structure and copy the base dataset.
         """
         # Ensure the data directory exists
-        self.data_directory.makedir(parents=True, exist_ok=True)
+        self.data_directory.mkdir(parents=True, exist_ok=True)
         # Create HDF5 directory
         hdf5_dir = self.data_directory / "hdf5"
-        hdf5_dir.makedir(parents=True, exist_ok=True)
+        hdf5_dir.mkdir(parents=True, exist_ok=True)
         # Copy the base dataset to HDF5 directory
         try:
             data_base_name = Path(self.data_source).stem
@@ -45,10 +47,11 @@ class DataManager:
         # Create deffustion temp directory if it doesn't exist
         self.diffusion_data_dir = self.data_directory / "diffusion_wdir" / "data"
         self.diffusion_data_dir.mkdir(parents=True, exist_ok=True)
+        self.diffusion_log_dir = Path(self.data_directory, "diffusion_wdir", "logs")
+        self.diffusion_log_dir.mkdir(parents=True, exist_ok=True)
         self.diffusion_model_dir = self.data_directory / "diffusion_wdir" / "model_registry"
         self.diffusion_model_dir.mkdir(parents=True, exist_ok=True)
-        Path(self.data_directory, "diffusion_wdir", "logs").mkdir(parents=True, exist_ok=True)
-
+        
 
     def create_iteration_directories(self, iteration):
         """
@@ -58,7 +61,7 @@ class DataManager:
         - iteration: The iteration number.
         """
         self.current_data = self.data_directory / f"iter_{iteration}"
-        self.current_data.makedir(parents=True, exist_ok=True)
+        self.current_data.mkdir(parents=True, exist_ok=True)
         # Create subdirectories for the iteration
         subfolders = ["generated", "relaxed", "filtered"]
         for subfolder in subfolders:
@@ -69,28 +72,34 @@ class DataManager:
             
         print(f"Created iteration directory: {self.current_data}")
 
-    def edit_config(self, config_path, model_dir, update_model_dir=False):
+
+    def edit_config(self, config_file, key, value, update=True):
         """
         Edit the configuration file to include the model directory.
         
         Parameters:
-        - config_path: Path to the configuration file.
+        - config_file: Path to the configuration file.
         - model_dir: Directory of the model to be added to the config.
         """
         try:
-            config_file = Path(config_path, 'diffusion_aqm.yaml')
-            with open(config_file, 'r') as file:
+            with config_file.open('r') as file:
                 lines = file.readlines()
 
-            # Remove existing 'load_ckpt_from_pretrained' lines
-            lines = [line for line in lines if not line.strip().startswith("load_ckpt_from_pretrained:")]
+            # replace the value of the specified key
+            for i, line in enumerate(lines):
+                if line.strip().startswith(key + ":"):
+                    key_found = True
+                    if update:
+                        lines[i] = f"{key}: {value}\n"
+                    else:
+                        lines[i] = ""  # delete line
+                    break  # no need to continue after key is found
 
-            if update_model_dir:
-                # Add new line at the beginning
-                lines.insert(0, f"load_ckpt_from_pretrained: {model_dir}\n")
+            if not key_found and update:
+                lines.append(f"{key}: {value}\n")
 
             # Write back to file
-            with open(config_file, "w") as file:
+            with config_file.open('w') as file:
                 file.writelines(lines)
 
         except Exception as e:

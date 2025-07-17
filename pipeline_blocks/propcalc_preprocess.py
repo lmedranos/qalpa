@@ -3,6 +3,7 @@ import shutil
 import os
 from os import path
 from ase.io import read, write
+from pathlib import Path
 #from os import environ
 # from mpi4py import MPI
 
@@ -18,7 +19,8 @@ if __name__ == "__main__":
 
     # read input file path and output directory from command line arguments
     ifile = sys.argv[1]  
-    cdata = sys.argv[2]
+    # cdata = sys.argv[2]
+    cdata = Path(os.environ["CONFIG"],"nctr1")
     #env = os.environ.copy()
 
     idir = os.path.dirname(ifile)
