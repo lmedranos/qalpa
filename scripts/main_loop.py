@@ -54,113 +54,113 @@ def main(args):
         # Create directories for the current iteration
         dm.create_iteration_directories(n)
 
-       #  # Step 1: Run data split
-       #  print(" Running Data split ")
-       #  script_path = model_code_path / "e3mol_aqm" / "experiments" / "data" / "aqm" / "split_data.py"
-       #  cmd = ["python", str(script_path), 
-       #         "--file-path", str(hdf5_file_path), 
-       #         "--out-path", str(dm.diffusion_data_dir)]
-       #  subprocess.run(cmd, check=True)
+        # Step 1: Run data split
+        print(" Running Data split ")
+        script_path = model_code_path / "e3mol_aqm" / "experiments" / "data" / "aqm" / "split_data.py"
+        cmd = ["python", str(script_path), 
+               "--file-path", str(hdf5_file_path), 
+               "--out-path", str(dm.diffusion_data_dir)]
+        subprocess.run(cmd, check=True)
 
-       #  # step 2: Diffusion model training
-       #  print("  Running Diffusion model training ")
-       #  script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_train.py"
-       #  itr_model_path = dm.diffusion_model_dir / f"model_iter_{n}"
-       #  itr_model_path.mkdir(parents=True, exist_ok=True)
-       #  cmd = ["python", str(script_path),
-       #         "--conf", str(model_config_path), 
-       #         "--save-dir", str(itr_model_path),
-       #         "--dataset", dataset_name, 
-       #         "--dataset-root", str(dm.diffusion_data_dir),
-       #         "--gpus", "2", "--batch-size", "32"]
-       #  subprocess.run(cmd, check=True)
-       #  model_path = itr_model_path / "best_mol_stab.ckpt"
-       #  # Update or just delete the model path in the config file for the next iteration
-       #  update_flag = n < (num_iterations - 1)
-       #  dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
+        # step 2: Diffusion model training
+        print("  Running Diffusion model training ")
+        script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_train.py"
+        itr_model_path = dm.diffusion_model_dir / f"model_iter_{n}"
+        itr_model_path.mkdir(parents=True, exist_ok=True)
+        cmd = ["python", str(script_path),
+               "--conf", str(model_config_path), 
+               "--save-dir", str(itr_model_path),
+               "--dataset", dataset_name, 
+               "--dataset-root", str(dm.diffusion_data_dir),
+               "--gpus", "2", "--batch-size", "32"]
+        subprocess.run(cmd, check=True)
+        model_path = itr_model_path / "best_mol_stab.ckpt"
+        # Update or just delete the model path in the config file for the next iteration
+        update_flag = n < (num_iterations - 1)
+        dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
         
-       #  # Step 3: Generate molecules
-       #  print("  Running Generate molecules  ")
-       #  script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
-       #  generated_data_path = dm.current_data / "generated"
-       #  n_nodes = "40"                # add function to updaten_node, embd and hlgap to target different set of molecules
-       #  embd = "-0.9"
-       #  hlgap = "-4"
-       #  cmd = ["python", str(script_path),
-       #         "--model-path", str(model_path),
-       #         "--save-dir", str(generated_data_path),
-       #          "--save-xyz",
-       #          "--calculate-relax-change",
-       #          "--calculate-props",
-       #          "--batch-size", "20",
-       #          "--ngraphs", "200",
-       #          "--generate-ngraphs-valid",
-       #          "--num-nodes", n_nodes,
-       #          "--fixed-context", embd, hlgap]
-       #  subprocess.run(cmd, check=True)
+        # Step 3: Generate molecules
+        print("  Running Generate molecules  ")
+        script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
+        generated_data_path = dm.current_data / "generated"
+        n_nodes = "40"                # add function to updaten_node, embd and hlgap to target different set of molecules
+        embd = "-0.9"
+        hlgap = "-4"
+        cmd = ["python", str(script_path),
+               "--model-path", str(model_path),
+               "--save-dir", str(generated_data_path),
+                "--save-xyz",
+                "--calculate-relax-change",
+                "--calculate-props",
+                "--batch-size", "20",
+                "--ngraphs", "200",
+                "--generate-ngraphs-valid",
+                "--num-nodes", n_nodes,
+                "--fixed-context", embd, hlgap]
+        subprocess.run(cmd, check=True)
 
-       #  # Step 4: Relax molecules
-       #  print("  Running Relax molecules  ")
-       #  script_path = blocks_path / "relax_molecules.py"
+        # Step 4: Relax molecules
+        print("  Running Relax molecules  ")
+        script_path = blocks_path / "relax_molecules.py"
         relaxed_data_path = dm.current_data / "relaxed"
-       #  parallelize(script_path, generated_data_path, relaxed_data_path, max_parallel_tasks)
+        parallelize(script_path, generated_data_path, relaxed_data_path, max_parallel_tasks)
         
-       #  # Step 5: Calculate SAScore and Filter molecules with low SAScore
+        # Step 5: Calculate SAScore and Filter molecules with low SAScore
         print("  Running Filter molecules  ")
         script_path = blocks_path / "calculate_sascore.py"
         filtered_data_path = dm.current_data / "filtered"
         parallelize(script_path, relaxed_data_path, relaxed_data_path, max_parallel_tasks)
-       #  # Filter molecules based on SAScore
-       #  script_path = blocks_path / "filter_molecules.py"
-       #  cmd = ["python3", str(script_path),
-       #         str(relaxed_data_path),
-       #         str(filtered_data_path)]
-       #  try:
-       #      subprocess.run(cmd, check=True)
-       #  except subprocess.CalledProcessError as e:
-       #        print(f"Filtering script failed with exit code {e.returncode}", file=sys.stderr)
-       #        sys.exit(e.returncode)
+        # Filter molecules based on SAScore
+        script_path = blocks_path / "filter_molecules.py"
+        cmd = ["python3", str(script_path),
+               str(relaxed_data_path),
+               str(filtered_data_path)]
+        try:
+            subprocess.run(cmd, check=True)
+        except subprocess.CalledProcessError as e:
+              print(f"Filtering script failed with exit code {e.returncode}", file=sys.stderr)
+              sys.exit(e.returncode)
 
-       #  # Step 6: Calculate properties and convert output to JSON
-       #  print("  Running Calculate properties ")
-       #  script_path = blocks_path / "propcalc_preprocess.py"
-       #  parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
-       #  parallelize(fih_aims_exc, filtered_data_path, filtered_data_path, max_parallel_tasks)
-       #  script_path = blocks_path / "propcalc_postprocess.py"
-       #  parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
+        # Step 6: Calculate properties and convert output to JSON
+        print("  Running Calculate properties ")
+        script_path = blocks_path / "propcalc_preprocess.py"
+        parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
+        parallelize(fih_aims_exc, filtered_data_path, filtered_data_path, max_parallel_tasks)
+        script_path = blocks_path / "propcalc_postprocess.py"
+        parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
 
 
-       #  # Step 7: Create HDF5
-       #  print("  Running Create HDF5  ")
-       #  script_path = blocks_path / "to_hdf5.py"
-       #  itr_hdf5_path = dm.current_data / "hdf5" / "output.hdf5" if dm.hdf5_iter_flag else None
-       #  itr_extra_prop_path = dm.current_data / "hdf5" / "extra_properties.hdf5" if (dm.hdf5_iter_flag & dm.extra_properties_flag) else None
-       #  cmd = ["python", str(script_path),
-       #         str(filtered_data_path),
-       #          str(dm.hdf5_appending_flag),
-       #          str(dm.output_hdf5),
-       #          str(dm.extra_prop_hdf5),
-       #          str(itr_hdf5_path),
-       #          str(itr_extra_prop_path),
-       #          str(n)]
-       #  subprocess.run(cmd, check=True)
+        # Step 7: Create HDF5
+        print("  Running Create HDF5  ")
+        script_path = blocks_path / "to_hdf5.py"
+        itr_hdf5_path = dm.current_data / "hdf5" / "output.hdf5" if dm.hdf5_iter_flag else None
+        itr_extra_prop_path = dm.current_data / "hdf5" / "extra_properties.hdf5" if (dm.hdf5_iter_flag & dm.extra_properties_flag) else None
+        cmd = ["python", str(script_path),
+               str(filtered_data_path),
+                str(dm.hdf5_appending_flag),
+                str(dm.output_hdf5),
+                str(dm.extra_prop_hdf5),
+                str(itr_hdf5_path),
+                str(itr_extra_prop_path),
+                str(n)]
+        subprocess.run(cmd, check=True)
         
-       #  # Set the loop dataset input 
-       #  hdf5_file_path = dm.output_hdf5
+        # Set the loop dataset input 
+        hdf5_file_path = dm.output_hdf5
         
-       #  #step 8: Compress iteration files and clean up
-       #  print("  Running Compress and clean up  ")
-       #  cmd = ["tar", "-czf", f"{os.environ['DATA']}/iter_{n}.tar.gz", "-C", str(dm.current_data), "."]
-       #  subprocess.run(cmd, check=True)
-       #  cmd = ["rm", "-rf", str(dm.current_data)]
-       #  subprocess.run(cmd, check=True)
-       #  # Compress the model
-       #  cmd = ["tar", "-czf", f"{itr_model_path}.tar.gz", "-C", itr_model_path, "."]
-       #  subprocess.run(cmd, check=True)
-       #  cmd = ["rm", "-rf", itr_model_path]
-       #  subprocess.run(cmd, check=True)
-       #  # Clean content of data and logs in diffusion working directory
-       #  cmd = ["rm", "-rf", str(dm.diffusion_data_dir), str(dm.diffusion_log_dir)]
+        #step 8: Compress iteration files and clean up
+        print("  Running Compress and clean up  ")
+        cmd = ["tar", "-czf", f"{os.environ['DATA']}/iter_{n}.tar.gz", "-C", str(dm.current_data), "."]
+        subprocess.run(cmd, check=True)
+        cmd = ["rm", "-rf", str(dm.current_data)]
+        subprocess.run(cmd, check=True)
+        # Compress the model
+        cmd = ["tar", "-czf", f"{itr_model_path}.tar.gz", "-C", itr_model_path, "."]
+        subprocess.run(cmd, check=True)
+        cmd = ["rm", "-rf", itr_model_path]
+        subprocess.run(cmd, check=True)
+        # Clean content of data and logs in diffusion working directory
+        cmd = ["rm", "-rf", str(dm.diffusion_data_dir), str(dm.diffusion_log_dir)]
        
         print(f"Iteration {n} completed.")
 
