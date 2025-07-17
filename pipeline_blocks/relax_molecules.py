@@ -1,17 +1,18 @@
 import os
 import sys
-import time
-import socket
-import sys
+# import time
+# import sys
 #import ase
 from ase.io import read, write
 from os import chdir
-from os import path
+# from os import path
 from ase.optimize import BFGS
 from mace.calculators import MACECalculator
+import argparse
+from pathlib import Path
 
 
-def relax_molecule(file_path, model_path, output_folder):
+def relax_molecule(args):
     """Relax a molecule using the MACE calculator.
      This function reads a molecule from the specified file, applies the MACE calculator,
     and optimizes its geometry using the BFGS algorithm. The relaxed molecule is then saved
@@ -20,34 +21,51 @@ def relax_molecule(file_path, model_path, output_folder):
     
     parameters:
     ---------------
-        - file_path: Path to the input molecule file (e.g., .xyz).
-        - model_path: Path to the MACE model.
-        - output_folder: Directory where the relaxed molecule will be saved.
+        - input: Path to the input molecule file (e.g., .xyz).
+        - model: Path to the MACE model.
+        - output: Directory where the relaxed molecule will be saved.
    """
-
-    start_time = time.time()
-    hostname = socket.gethostname()
-    filename = os.path.basename(file_path)
-    #print(f"Starting processing {filename} on {hostname}")
-
+    file = Path(args.input)
+    output_folder = Path(args.output)
+    model_path = args.model
+    
     SPcalc = MACECalculator(model_paths=model_path, device='cpu', default_dtype="float32")   # should we change device
-    fname = file_path.split('/')[-1]
-    chdir(output_folder)
-    if str(fname[-3:]) == 'xyz':
-        if path.exists(output_folder+"opt-"+str(fname)) == True: return
-        atoms = read(file_path)
+    fname = file.name
+    if file.suffix == 'xyz':
+        print(f"Relaxing {fname} using MACE...")
+        output_file = output_folder / f"opt-{fname}"
+        if output_file.exists():
+            return
+        atoms = read(str(file))
         #atoms.set_calculator(SPcalc)
         atoms.calc = SPcalc
         qn = BFGS(atoms)
         qn.run(fmax=0.001,steps=4000)
-        write("opt-"+str(fname), atoms, format='xyz')
-
-    end_time = time.time()
-    #print(f"Finished processing {filename} on {hostname} in {end_time - start_time:.2f} seconds")
+        write(str(output_file), atoms, format='xyz')
+        print(f"Relaxed molecule saved as {output_file}")
 
 
 if __name__ == "__main__":
-    file_path = sys.argv[1]
-    output_folder = sys.argv[2]
-    model_mace = os.path.join(os.environ["CONFIG"],"MACE_model_swa.model")
-    relax_molecule(file_path, model_mace, output_folder)
+    parser = argparse.ArgumentParser(description="Relax a molecule using MACE.")
+    parser.add_argument("--input", type=str, help="Path to the input molecule file")
+    parser.add_argument("--output", type=str, help="Output folder for the relaxed molecule")
+    
+    try:
+        config_dir = os.environ["CONFIG"]
+        default_model_path = Path(config_dir) / "MACE_model_swa.model"
+        if not default_model_path.exists():
+            print(f"Error: Default model not found at {default_model_path}", file=sys.stderr)
+            sys.exit(1)
+        default_model_path = str(default_model_path)  # Convert after check
+    except KeyError:
+        print("Error: CONFIG environment variable not set.", file=sys.stderr)
+        sys.exit(1)
+
+    parser.add_argument("--model", type=str, default=default_model_path, help="Path to the MACE model")
+
+    args = parser.parse_args()
+    # file_path = sys.argv[1]
+    # output_folder = sys.argv[2]
+    # model_mace = os.path.join(os.environ["CONFIG"],"MACE_model_swa.model")
+    print(f"Relaxing molecule {args.input} with model {args.model} and saving to {args.output}")
+    relax_molecule(args)
