@@ -41,7 +41,7 @@ if __name__ == "__main__":
         write('geometry.in', atoms, scaled=False)
         shutil.copy2(cdata, opath / 'control.in')
         # move input files to output directory
-        # shutil.move(ifile, opath / fname)
+        shutil.move(ifile, opath / fname)
 
 
         
