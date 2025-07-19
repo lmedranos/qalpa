@@ -31,8 +31,7 @@ def relax_molecule(args):
     
     SPcalc = MACECalculator(model_paths=model_path, device='cpu', default_dtype="float32")   # should we change device
     fname = file.name
-    if file.suffix == 'xyz':
-        print(f"Relaxing {fname} using MACE...")
+    if file.suffix == '.xyz':
         output_file = output_folder / f"opt-{fname}"
         if output_file.exists():
             return
@@ -49,7 +48,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Relax a molecule using MACE.")
     parser.add_argument("--input", type=str, help="Path to the input molecule file")
     parser.add_argument("--output", type=str, help="Output folder for the relaxed molecule")
-    
     try:
         config_dir = os.environ["CONFIG"]
         default_model_path = Path(config_dir) / "MACE_model_swa.model"
@@ -60,12 +58,7 @@ if __name__ == "__main__":
     except KeyError:
         print("Error: CONFIG environment variable not set.", file=sys.stderr)
         sys.exit(1)
-
     parser.add_argument("--model", type=str, default=default_model_path, help="Path to the MACE model")
-
     args = parser.parse_args()
-    # file_path = sys.argv[1]
-    # output_folder = sys.argv[2]
-    # model_mace = os.path.join(os.environ["CONFIG"],"MACE_model_swa.model")
-    print(f"Relaxing molecule {args.input} with model {args.model} and saving to {args.output}")
+
     relax_molecule(args)

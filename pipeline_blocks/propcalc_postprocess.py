@@ -1,6 +1,8 @@
 import sys
 import os
 from os import path
+import argparse
+from pathlib import Path
 # from os import environ
 from parserFHItoJSON import get_data as create_json
 
@@ -11,18 +13,23 @@ if __name__ == "__main__":
     """
     
     # read input file path and output directory from command line arguments
-    ifile = sys.argv[1]  
-    cdata = sys.argv[2]
-    # env = os.environ.copy()
+    parser = argparse.ArgumentParser(description="Create JSON output from FHI-aims output.")
+    parser.add_argument("--input", type=str, help="Path to the FHI-aims output file")
+    parser.add_argument("--output", type=str, help="Output folder for the JSON file")
+    args = parser.parse_args()
 
-    idir = os.path.dirname(ifile)
-    if ifile.lower().endswith('.xyz'):
-        fname = str(ifile.split('/')[-1][:-4])  # Extract filename without extension
-        opath = os.path.join(idir, fname)
-        os.chdir(opath)
-        if path.exists(opath+'/aims.out'):
-          create_json(opath+'/aims.out')
-          # rename the file from file.json to fnam.json
-          os.rename("file.json", f"{fname}.json")
+    ifolder = Path(args.input)
+    ofolder = Path(args.output)
+    fname = ifolder.name
+    ifile = ifolder / "aims.out"
+    print(f"Input file: {ifile}, Output folder: {ofolder}")
+    if ifile.exists():
+        os.chdir(ifolder)
+        try:
+            create_json(str(ifile))
+        except Exception as e:
+            print(f"Error creating JSON from {ifile}: {e}")
+            sys.exit(1)
+        os.rename("file.json", ofolder / f"{fname}.json")
         
         
