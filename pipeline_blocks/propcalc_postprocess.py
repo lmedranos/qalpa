@@ -5,6 +5,7 @@ import argparse
 from pathlib import Path
 # from os import environ
 from parserFHItoJSON import get_data as create_json
+import shutil
 
 if __name__ == "__main__":
     
@@ -31,5 +32,7 @@ if __name__ == "__main__":
             print(f"Error creating JSON from {ifile}: {e}")
             sys.exit(1)
         os.rename("file.json", ofolder / f"{fname}.json")
+        # move back xyz file to output directory
+        shutil.move(f"{fname}.xyz", ofolder / f"{fname}.xyz")
         
         
