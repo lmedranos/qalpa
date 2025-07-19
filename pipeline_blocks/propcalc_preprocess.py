@@ -2,6 +2,8 @@ import sys
 import shutil
 import os
 from os import path
+import argparse
+from pathlib import Path
 from ase.io import read, write
 from pathlib import Path
 #from os import environ
@@ -18,24 +20,28 @@ if __name__ == "__main__":
     #size = comm.Get_size()
 
     # read input file path and output directory from command line arguments
-    ifile = sys.argv[1]  
-    # cdata = sys.argv[2]
-    cdata = Path(os.environ["CONFIG"],"nctr1")
-    #env = os.environ.copy()
+    parser = argparse.ArgumentParser(description="Create input files for FHI-aims.")
+    parser.add_argument("--input", type=str, help="Path to the input XYZ file")
+    parser.add_argument("--output", type=str, help="Output folder for the FHI-aims input files")
+    args = parser.parse_args()
 
-    idir = os.path.dirname(ifile)
-    os.chdir(idir)   
-    if ifile.lower().endswith('.xyz'):
-        fname = str(ifile.split('/')[-1][:-4])  # Extract filename without extension
-        opath = os.path.join(idir, fname)
+    ifile = Path(args.input) 
+    parent_path = Path(args.output)
+    cdata = Path(os.environ["CONFIG"],"nctr1.in")
+
+    os.chdir(parent_path)   
+    if ifile.suffix == '.xyz':
+        fname = ifile.name
+        mol_dir = ifile.stem
+        opath = parent_path / mol_dir
         atoms = read(ifile, format='xyz')
         Z = atoms.get_atomic_numbers()
-        os.makedirs(opath, exist_ok=True)
+        opath.mkdir(parents=True, exist_ok=True)
         os.chdir(opath)
         write('geometry.in', atoms, scaled=False)
-        shutil.copy2(cdata, opath+'/control.in')
+        shutil.copy2(cdata, opath / 'control.in')
         # move input files to output directory
-        shutil.move(ifile, os.path.join(opath, f'{fname}.xyz'))
+        # shutil.move(ifile, opath / fname)
 
 
         

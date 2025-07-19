@@ -1,5 +1,7 @@
 import sys, math, os
 import logging
+import argparse
+from pathlib import Path
 import numpy as np
 from ase.io import read, write
 from os import environ, listdir, mkdir, chdir
@@ -11,56 +13,61 @@ from ase.io import read
 import h5py
 from contextlib import ExitStack
 
-## initialize database
-EPBE0_atom = {1:-13.64136507, 6:-1027.59344601, \
-              7:-1484.25358313, 8:-2039.74560236, 9: -3139.751675679, 15:-9283.01120606, 16: -10828.726222083, 17: -12516.462339357}
+def run_to_hdf5(filtered_dir, appending_flag, h5file_output, output_extra_prop, h5file_itr, itr_extra_prop, itr):
+    """
+    Function to convert filtered molecules into HDF5 format.
+    It reads filtered molecules from a directory, extracts properties,
+    and writes them into HDF5 files for both the full dataset and the current iteration.
+    
+    Parameters:
+    ---------------
+        - filtered_dir: Directory containing filtered molecules in JSON format.
+        - h5file_output: Path to the output HDF5 file for the full dataset.
+        - output_extra_prop: Path to the output HDF5 file for extra properties.
+        - h5file_itr: Path to the output HDF5 file for the current iteration.
+        - itr_extra_prop: Path to the output HDF5 file for extra properties in iteration files.
+        - itr: Current iteration number.
+    """
+    ## initialize database
+    EPBE0_atom = {1:-13.64136507, 6:-1027.59344601, \
+                7:-1484.25358313, 8:-2039.74560236, 9: -3139.751675679, 15:-9283.01120606, 16: -10828.726222083, 17: -12516.462339357}
 
-filtered_dir = sys.argv[1]           # input directory with filtered molecules
-h5file_output = sys.argv[3]          # output file path of full dataset
-output_extra_prop = sys.argv[4]      # output file path of extra properties
-h5file_itr = sys.argv[5]             # output file path of current iteration
-itr_extra_prop = sys.argv[6]         # output file path of extra properties in iteration files
-itr = sys.argv[7]
+    folders = sorted([p.name for p in filtered_dir.iterdir() if p.is_dir()])
+    
+    mode = 'a' if appending_flag else 'w'
 
-folders = sorted(listdir(filtered_dir))
+    with ExitStack() as stack:
+        data_output = stack.enter_context(h5py.File(h5file_output, mode)) if h5file_output  else None 
+        data_extra_prop = stack.enter_context(h5py.File(output_extra_prop, mode)) if output_extra_prop else None
+        data_iter_output = stack.enter_context(h5py.File(h5file_itr, 'w')) if h5file_itr else None
+        data_itr_extra_prop = stack.enter_context(h5py.File(itr_extra_prop, 'w')) if itr_extra_prop else None
 
-mode = 'a' if (sys.argv[2]=='True') else 'w'
+        files = {
+            'data_output': data_output,
+            'data_extra_prop': data_extra_prop,
+            'data_iter_output': data_iter_output,
+            'data_itr_extra_prop': data_itr_extra_prop
+        }
 
-with ExitStack() as stack:
-    data_output = stack.enter_context(h5py.File(h5file_output, mode)) if (h5file_output != 'None') else None 
-    data_extra_prop = stack.enter_context(h5py.File(output_extra_prop, mode)) if (output_extra_prop!= 'None') else None
-    data_iter_output = stack.enter_context(h5py.File(h5file_itr, 'w')) if (h5file_itr!= 'None') else None
-    data_itr_extra_prop = stack.enter_context(h5py.File(itr_extra_prop, 'w')) if (itr_extra_prop!= 'None') else None
+        for name, hdf5_file in files.items():
+            if hdf5_file is not None:
+                grp = hdf5_file.create_group(f"G-{itr}") 
+                #for fdir in folders:
 
-    files = {
-        'data_output': data_output,
-        'data_extra_prop': data_extra_prop,
-        'data_iter_output': data_iter_output,
-        'data_itr_extra_prop': data_itr_extra_prop
-    }
-
-    for name, hdf5_file in files.items():
-        if hdf5_file is not None:
-            grp = hdf5_file.create_group(f"G-{itr}") 
-            for fdir in folders:
-
-                #grp = hdf5_file.create_group(f"{fdir}_itr_{itr}")
                 molecule = {}
 
-                # folders2 = sorted(listdir(xyz_pre+fdir))
-                folder_path = os.path.join(filtered_dir, fdir)
-                jfils = [f for f in listdir(folder_path) if f.endswith('.json')]  #As folder have non json files
+                jfiles = [f for f in filtered_dir.iterdir() if f.is_file() and f.suffix == '.json']  #As folder have non json files
 
-                for confid in jfils:
+                for jf in jfiles:
 
-                    with open(filtered_dir+'/'+str(fdir)+'/'+str(confid)) as json_file:
+                    with jf.open("r") as json_file:
                         data = json.load(json_file)
 
-                    sysname = confid[:-5]
-
-                    subgrp = grp.create_group(sysname)
+                    mol_name = jf.stem
+                    print(f"Processing {mol_name} in {itr}")
+                    subgrp = grp.create_group(f"{mol_name}_itr{itr}")
     
-                    xyz_file_path = os.path.join(folder_path, sysname + '.xyz')       # path to the xyz file if coordinate is not in json file
+                    xyz_file_path = filtered_dir / f"{mol_name}.xyz"       # path to the xyz file if coordinate is not in json file
                     atoms = read(xyz_file_path)
                     Z = atoms.get_atomic_numbers()
                     POS = atoms.get_positions()
@@ -104,7 +111,7 @@ with ExitStack() as stack:
                         molecule['ePBE0'] = pbe0
                         molecule['ePBE0+MBD'] = ener     
                         molecule['eXC'] = np.array([data["SUM"]["Total XC energy"]], dtype=np.float64)
-                        molecule['eXX_eHF'] = np.array([data["SUM"]["Hartree-Fock Energy"]], dtype=np.float64)
+                        molecule['eXX'] = np.array([data["SUM"]["Hartree-Fock Energy"]], dtype=np.float64)
 
                     
 
@@ -112,3 +119,16 @@ with ExitStack() as stack:
                     for key, value in molecule.items():
                         dset = subgrp.create_dataset(key, value.shape, dtype=value.dtype)
                         dset[...] = value
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Convert filtered molecules to HDF5 format.")
+    parser.add_argument("--input", type=str, required=True, help="Path to the filtered directory containing JSON files.")
+    parser.add_argument("--appending_flag", type=bool, required=True, help="Flag to indicate if the HDF5 file should be appended to (True) or overwritten (False).")
+    parser.add_argument("--h5file_output", type=str, required=True, help="Path to the output HDF5 file for the full dataset.")
+    parser.add_argument("--output_extra_prop", type=str, help="Path to the output HDF5 file for extra properties.")
+    parser.add_argument("--h5file_itr", type=str, help="Path to the output HDF5 file for the current iteration.")
+    parser.add_argument("--itr_extra_prop", type=str, help="Path to the output HDF5 file for extra properties in iteration files.")
+    parser.add_argument("--itr", type=int, required=True, help="Current iteration number.")
+    args = parser.parse_args()  
+    
+    run_to_hdf5(args.input, args.appending_flag, args.h5file_output, args.output_extra_prop, args.h5file_itr, args.itr_extra_prop, args.itr)
