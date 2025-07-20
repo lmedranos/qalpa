@@ -37,6 +37,10 @@ def main(args):
 
     # Diffusion model directories
     model_code_path = Path(args.model_code)
+    sys.path.insert(0,str(model_code_path / "e3mol_aqm" / "experiments" / "data"))
+    sys.path.insert(0,str(model_code_path / "e3mol_aqm"))
+    from aqm import split_data
+    from experiments import run_train, run_evaluation_qm
     model_config_path = Path(args.config, "diffusion_aqm.yaml")
     
     # Define FIH-aims executable
@@ -62,23 +66,23 @@ def main(args):
 
         # Step 1: Run data split
         print(" Running Data split ")
-        script_path = model_code_path / "e3mol_aqm" / "experiments" / "data" / "aqm" / "split_data.py"
-        cmd = ["python", str(script_path), 
-               "--file-path", str(hdf5_file_path), 
-               "--out-path", str(dm.diffusion_data_dir)]
-        subprocess.run(cmd, check=True)
+        split_data.split_data(str(hdf5_file_path), str(dm.diffusion_data_dir))
+        
 
         # step 2: Diffusion model training
         print("  Running Diffusion model training ")
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_train.py"
         itr_model_path = dm.diffusion_model_dir / f"model_iter_{n}"
         itr_model_path.mkdir(parents=True, exist_ok=True)
-        cmd = ["python", str(script_path),
+        cmd = ["srun", "--ntasks=1", "--cpus-per-task=98",
+               "--exclusive", "--export=ALL",
+               "python", str(script_path),
                "--conf", str(model_config_path), 
                "--save-dir", str(itr_model_path),
                "--dataset", dataset_name, 
                "--dataset-root", str(dm.diffusion_data_dir),
-               "--gpus", "2", "--batch-size", "32"]
+            #    "--gpus", "2",
+               "--batch-size", "32"]
         subprocess.run(cmd, check=True)
         model_path = itr_model_path / "best_mol_stab.ckpt"
         # Update or just delete the model path in the config file for the next iteration
@@ -103,7 +107,7 @@ def main(args):
                 "--generate-ngraphs-valid",
                 "--num-nodes", n_nodes,
                 "--fixed-context", embd, hlgap]
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True, env=os.environ.copy())
 
         # Step 4: Relax molecules
         print("  Running Relax molecules  ")
@@ -176,15 +180,18 @@ if __name__ == "__main__":
     # Set environment variables
     os.environ["CONFIG"] = args.config
 
-#     num_threads = int(os.environ.get("SLURM_CPUS_ON_NODE", "1"))
-#     env = os.environ.copy()
-#     env["OMP_NUM_THREADS"] = str(num_threads)
-#     env["MKL_NUM_THREADS"] = str(num_threads)
-#     env["OPENBLAS_NUM_THREADS"] = str(num_threads)
-#     env["NUMEXPR_NUM_THREADS"] = str(num_threads)
-#     env["TF_NUM_INTEROP_THREADS"] = str(num_threads)
-#     env["TF_NUM_INTRAOP_THREADS"] = str(num_threads)
-#     os.environ.update(env)
+    cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
+    env = os.environ.copy()
+    env["OMP_NUM_THREADS"] = str(cpus_per_task)
+    env["MKL_NUM_THREADS"] = str(cpus_per_task)
+    env["OPENBLAS_NUM_THREADS"] = str(cpus_per_task)
+    env["NUMEXPR_NUM_THREADS"] = str(cpus_per_task)
+    # env["TF_NUM_INTEROP_THREADS"] = str(cpus_per_task)    # for tensorflow
+    # env["TF_NUM_INTRAOP_THREADS"] = str(cpus_per_task)    # for tensorflow
+
+    # env["GLOO_SOCKET_IFNAME"] = "eth0"
+    # env["NCCL_SOCKET_IFNAME"] = "eth0"
+    os.environ.update(env)
 
     main(args)
  
