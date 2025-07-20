@@ -1,12 +1,12 @@
 #!/bin/bash -l
 #SBATCH -J active-loop
 #SBATCH -A p_nanoparticle
-#SBATCH --time=00:30:00                    
+#SBATCH --time=30:00:00                    
 #SBATCH --partition=barnard
-#SBATCH --cpus-per-task=12                                                        
-#SBATCH --mem-per-cpu=12000                       
+#SBATCH --cpus-per-task=32                                                       
+#SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=2
 #SBATCH -o check-log.out
 #SBATCH -e check-log.err
 #SBATCH --mail-type=all
@@ -39,8 +39,12 @@ conda activate $root/conda_envs/env-activeloop
 export PYTHON_EXEC=$(which python3)
 #export LD_LIBRARY_PATH=/software/rome/r24.04/imkl/2023.2.0/mkl/2023.2.0/lib/intel64:$LD_LIBRARY_PATH
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-export MKL_NUM_THREADS=1
+export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
 export MKL_DYNAMIC=FALSE
+
+# # Set environment variables for distributed training
+# export GLOO_SOCKET_IFNAME=eth0
+# export NCCL_SOCKET_IFNAME=eth0
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
 python3 main_loop.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data --model_code $model_code --pipeline_blocks $blocks --config $config --num_iterations 1
