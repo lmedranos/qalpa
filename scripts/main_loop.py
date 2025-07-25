@@ -44,7 +44,7 @@ def main(args):
     model_config_path = Path(args.config, "diffusion_aqm.yaml")
     
     # Define FIH-aims executable
-    fih_aims_exc = "/software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x > aims.out"
+    fih_aims_exc = " /software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x"
 
     # Create the intial hdf5 data directory if it doesn't exist
     dm = DataManager(base_dataset, args.data)
@@ -128,7 +128,7 @@ def main(args):
         print("  Running Calculate properties ")
         script_path = blocks_path / "propcalc_preprocess.py"
         parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
-        parallelize(fih_aims_exc, filtered_data_path, filtered_data_path, max_parallel_tasks)
+        parallelize(fih_aims_exc, filtered_data_path, 'aims.out', max_parallel_tasks)
         script_path = blocks_path / "propcalc_postprocess.py"
         parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
 
