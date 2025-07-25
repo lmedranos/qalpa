@@ -2,10 +2,14 @@ import argparse
 import os
 import sys
 import subprocess
+from pathlib import Path
 import time
 import socket
 from data_manage import DataManager
 from parallelize import parallelize
+import tarfile
+import shutil
+
 
 
 def main(args):
@@ -13,134 +17,142 @@ def main(args):
     Main function to run the workflow.
     It sets up the environment, runs pipeline units in a loop.
     '''
-    # import necessary functions from the pipeline
-    sys.path.append(os.environ["PIPELINE"])
-
-    # Number of iterations and max parallel tasks
-    base_dataset = args.base_dataset
-    data_base_name = os.path.basename(base_dataset)
-    dataset_name = args.dataset_name
-    global NUM_ITERATIONS, max_parallel_tasks
-    NUM_ITERATIONS = args.num_iterations
-    max_parallel_tasks = args.max_parallel_tasks
-
-
+    # Read time and hostname for logging
     start_loop = time.time()
     hostname = socket.gethostname()
     print(f"Starting iterating on {hostname}")
 
+    # Number of iterations and max parallel tasks
+    num_iterations = args.num_iterations
+    max_parallel_tasks = args.max_parallel_tasks
+
+    # data and code directories 
+    base_dataset = args.base_dataset
+    dataset_name = args.dataset_name
+    blocks_path =Path(args.pipeline_blocks)
+    sys.path.insert(0,str(blocks_path))
+    from filter_molecules import run_filter_molecules
+    from to_hdf5 import run_to_hdf5
+
+
+    # Diffusion model directories
+    model_code_path = Path(args.model_code)
+    sys.path.insert(0,str(model_code_path / "e3mol_aqm" / "experiments" / "data"))
+    sys.path.insert(0,str(model_code_path / "e3mol_aqm"))
+    from aqm import split_data
+    from experiments import run_train, run_evaluation_qm
+    model_config_path = Path(args.config, "diffusion_aqm.yaml")
+    
+    # Define FIH-aims executable
+    fih_aims_exc = " /software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x"
+
     # Create the intial hdf5 data directory if it doesn't exist
-    dm = DataManager(base_dataset, os.environ["DATA"])
+    dm = DataManager(base_dataset, args.data)
     dm.initialize_data_directory()
-    hdf5_file = dm.input_hdf5
-    # Create active learning loop
-    for n in range(NUM_ITERATIONS):
+    # Set diffusion data and log directories in the ymal configuration file 
+    dm.edit_config(model_config_path, "dataset_root", str(dm.diffusion_data_dir))
+    dm.edit_config(model_config_path, "save_dir", str(dm.diffusion_log_dir))
+
+    # Set the current hdf5 data for the loop
+    hdf5_file_path = dm.input_hdf5
+
+    # Run active learning loop
+    for n in range(num_iterations):
+        
         print(f"\n Iteration {n}")
+
         # Create directories for the current iteration
         dm.create_iteration_directories(n)
 
         # Step 1: Run data split
         print(" Running Data split ")
-        splited_data = os.path.join(dm.current_data, "splited")
-        cmd = [
-            "python",
-            os.path.join(os.environ["MODEL_CODE"],"e3mol_aqm/experiments/data/aqm/split_data.py"),
-            "--file-path", hdf5_file,
-            "--out-path", splited_data
-            ]
-        subprocess.run(cmd, check=True)
-
+        split_data.split_data(str(hdf5_file_path), str(dm.diffusion_data_dir))
+        
 
         # step 2: Diffusion model training
         print("  Running Diffusion model training ")
-        model_dir = os.path.join(os.environ["MODEL_REGISTRY"], f"model_iter_{n}")
-        cmd = [
-            "python",
-            os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_train.py"),
-            "--conf", os.path.join(os.environ["CONFIG"], "diffusion_aqm.yaml"),
-            "--save-dir", model_dir,
-            "--dataset", dataset_name,
-            "--dataset-root", splited_data,
-            "--gpus", "2",
-            "--batch-size", "32"
-        ]
+        script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_train.py"
+        itr_model_path = dm.diffusion_model_dir / f"model_iter_{n}"
+        itr_model_path.mkdir(parents=True, exist_ok=True)
+        cmd = ["srun", "--ntasks=1", "--cpus-per-task=98",
+               "--exclusive", "--export=ALL",
+               "python", str(script_path),
+               "--conf", str(model_config_path), 
+               "--save-dir", str(itr_model_path),
+               "--dataset", dataset_name, 
+               "--dataset-root", str(dm.diffusion_data_dir),
+            #    "--gpus", "2",
+               "--batch-size", "32"]
         subprocess.run(cmd, check=True)
-
+        model_path = itr_model_path / "best_mol_stab.ckpt"
+        # Update or just delete the model path in the config file for the next iteration
+        update_flag = n < (num_iterations - 1)
+        dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
+        
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
-        generated_data = os.path.join(dm.current_data, "generated")
-        n_nodes = 40                # add function to updaten_node, embd and hlgap to target different set of molecules
-        embd = -0.9
-        hlgap = -4
-        cmd = [
-            "python",
-            os.path.join(os.environ["MODEL_CODE"], "e3mol_aqm/experiments/run_evaluation_qm.py"),
-            "--model-path", os.path.join(model_dir, "best_mol_stab.ckpt"),
-            "--save-dir", generated_data,
-            "--save-xyz",
-            "--calculate-relax-change",
-            "--calculate-props",
-            "--batch-size", "20",
-            "--ngraphs", "200",
-            "--generate-ngraphs-valid",
-            "--num-nodes", n_nodes,
-            "--fixed-context", embd, hlgap
-        ]
-        subprocess.run(cmd, check=True)
+        script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
+        generated_data_path = dm.current_data / "generated"
+        n_nodes = "40"                # add function to updaten_node, embd and hlgap to target different set of molecules
+        embd = "-0.9"
+        hlgap = "-4"
+        cmd = ["python", str(script_path),
+               "--model-path", str(model_path),
+               "--save-dir", str(generated_data_path),
+                "--save-xyz",
+                "--calculate-relax-change",
+                "--calculate-props",
+                "--batch-size", "20",
+                "--ngraphs", "200",
+                "--generate-ngraphs-valid",
+                "--num-nodes", n_nodes,
+                "--fixed-context", embd, hlgap]
+        subprocess.run(cmd, check=True, env=os.environ.copy())
 
         # Step 4: Relax molecules
         print("  Running Relax molecules  ")
-        relaxed_data = os.path.join(dm.current_data, "relaxed")
-        parallelize(f"{os.environ['PIPELINE']}/relax_molecules.py", generated_data, relaxed_data, max_parallel_tasks)
+        script_path = blocks_path / "relax_molecules.py"
+        relaxed_data_path = dm.current_data / "relaxed"
+        parallelize(script_path, generated_data_path, relaxed_data_path, max_parallel_tasks)
         
         # Step 5: Calculate SAScore and Filter molecules with low SAScore
         print("  Running Filter molecules  ")
-        filtered_data = os.path.join(dm.current_data, "filtered")
-        parallelize(f"{os.environ['PIPELINE']}/calculate_sascore.py", relaxed_data, relaxed_data, max_parallel_tasks)
-        cmd = [
-            "python",
-            os.path.join(os.environ["PIPELINE"], "filter_molecules.py"),
-            relaxed_data,
-            filtered_data
-        ]
-        subprocess.run(cmd, check=True)
+        script_path = blocks_path / "calculate_sascore.py"
+        filtered_data_path = dm.current_data / "filtered"
+        parallelize(script_path, relaxed_data_path, relaxed_data_path, max_parallel_tasks)
+        # Filter molecules based on SAScore
+        run_filter_molecules(relaxed_data_path, filtered_data_path)
 
+        
         # Step 6: Calculate properties and convert output to JSON
         print("  Running Calculate properties ")
-        control_data = os.path.join(os.environ["CONFIG"], "nctr1.in")
-        parallelize(f"{os.environ['PIPELINE']}/propcalc_preprocess.py", filtered_data, control_data, max_parallel_tasks)
-        fih_aims_exc = "/software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x > aims.out"
-        parallelize(fih_aims_exc, filtered_data, control_data, max_parallel_tasks)
-        parallelize(f"{os.environ['PIPELINE']}/propcalc_postprocess.py", filtered_data, control_data, max_parallel_tasks)
+        script_path = blocks_path / "propcalc_preprocess.py"
+        parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
+        parallelize(fih_aims_exc, filtered_data_path, 'aims.out', max_parallel_tasks)
+        script_path = blocks_path / "propcalc_postprocess.py"
+        parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
 
 
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
-        hdf5_itr = os.path.join(dm.current_data, "hdf5", "output.hdf5") if dm.hdf5_iter_flag else 'None'
-        extra_prop_itr = os.path.join(dm.current_data, "hdf5", "extra_properties.hdf5") if (dm.hdf5_iter_flag & dm.extra_properties_flag) else 'None'
-        cmd = [
-            "python",
-            os.path.join(os.environ["PIPELINE"], "to_hdf5.py"),
-            filtered_data,
-            str(dm.hdf5_appending_flag),
-            dm.output_hdf5,
-            dm.extra_prop_hdf5,
-            hdf5_itr,
-            extra_prop_itr,
-            str(n)
-        ]
-        subprocess.run(cmd, check=True)
-        
+        run_to_hdf5(filtered_data_path, dm.hdf5_appending_flag, dm.output_hdf5, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n)
         # Set the loop dataset input 
-        hdf5_file = dm.output_hdf5
+        hdf5_file_path = dm.output_hdf5
         
-        #step 8: Compress iteration files and clean up
-        print("  Running Compress iteration directory ")
-        cmd = ["tar", "-czf", f"{os.environ['DATA']}/iter_{n}.tar.gz", "-C", dm.current_data, "."]
-        subprocess.run(cmd, check=True)
-        cmd = ["rm", "-rf", dm.current_data]
-        subprocess.run(cmd, check=True)
-
+        # step 8: Compress iteration files and clean up
+        print("  Running Compress and clean up  ")
+        archive_path = f"{args.data}/iter_{n}.tar.gz"
+        with tarfile.open(archive_path, "w:gz") as tar:
+            tar.add(str(dm.current_data), arcname=".")
+        shutil.rmtree(dm.current_data)
+        # Compress the model and clean diffusion working directories
+        archive_path = itr_model_path.with_suffix('.tar.gz')
+        with tarfile.open(archive_path, "w:gz") as tar:
+            tar.add(str(itr_model_path), arcname=".")
+        shutil.rmtree(itr_model_path)
+        shutil.rmtree(dm.diffusion_data_dir)
+        shutil.rmtree(dm.diffusion_log_dir)
+    
         print(f"Iteration {n} completed.")
 
     end_loop = time.time()
@@ -155,34 +167,31 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--base_dataset", type=str)
     parser.add_argument("--dataset_name", type=str)
-    parser.add_argument("--root", type=str)
     parser.add_argument("--data", type=str)
-    parser.add_argument("--model_registry", type=str)
     parser.add_argument("--model_code", type=str)
-    parser.add_argument("--pipeline", type=str)
+    parser.add_argument("--pipeline_blocks", type=str)
     parser.add_argument("--config", type=str)
     parser.add_argument("--num_iterations", type=int, default=10)
 
-    max_parallel_tasks = int(os.environ.get("SLURM_NTASKS", 8))
+    max_parallel_tasks = int(os.environ.get("SLURM_NTASKS", 1))
     parser.add_argument("--max_parallel_tasks", type=int, default=max_parallel_tasks)
     args = parser.parse_args()
     
     # Set environment variables
-    os.environ["ROOT"] = args.root
-    os.environ["DATA"] = args.data
-    os.environ["MODEL_REGISTRY"] = args.model_registry
-    os.environ["MODEL_CODE"] = args.model_code
-    os.environ["PIPELINE"] = args.pipeline
     os.environ["CONFIG"] = args.config
 
-    num_threads = int(os.environ.get("SLURM_CPUS_ON_NODE", "1"))
+    cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
     env = os.environ.copy()
-    env["OMP_NUM_THREADS"] = str(num_threads)
-    env["MKL_NUM_THREADS"] = str(num_threads)
-    env["OPENBLAS_NUM_THREADS"] = str(num_threads)
-    env["NUMEXPR_NUM_THREADS"] = str(num_threads)
-    env["TF_NUM_INTEROP_THREADS"] = str(num_threads)
-    env["TF_NUM_INTRAOP_THREADS"] = str(num_threads)
+    env["OMP_NUM_THREADS"] = str(cpus_per_task)
+    env["MKL_NUM_THREADS"] = str(cpus_per_task)
+    env["OPENBLAS_NUM_THREADS"] = str(cpus_per_task)
+    env["NUMEXPR_NUM_THREADS"] = str(cpus_per_task)
+    # env["TF_NUM_INTEROP_THREADS"] = str(cpus_per_task)    # for tensorflow
+    # env["TF_NUM_INTRAOP_THREADS"] = str(cpus_per_task)    # for tensorflow
+
+    # env["GLOO_SOCKET_IFNAME"] = "eth0"
+    # env["NCCL_SOCKET_IFNAME"] = "eth0"
     os.environ.update(env)
+
     main(args)
  

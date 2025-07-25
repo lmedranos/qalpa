@@ -36,7 +36,7 @@ vector_aggr: mean
 
 #DATA
 dataset: aqm
-dataset_root: /data/horse/ws/miha493e-activediffusion_hanna/experiments/exp2/data/dataset
+dataset_root: /data/horse/ws/miha493e-research_project/activediffusion/data/diffusion_wdir/data
 # DIFFUSION
 additional_feats: false
 continuous: false
@@ -54,7 +54,7 @@ num_context_features: 2
 properties_list: [eMBD , HLgap]
 
 #LOGGING
-save_dir: /data/horse/ws/miha493e-activediffusion_hanna/experiments/exp2/run/logs/geom/pretrain_x0
+save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/diffusion_wdir/logs
 id: 0
 
 #LEARNING
