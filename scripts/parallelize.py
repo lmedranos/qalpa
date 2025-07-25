@@ -2,6 +2,7 @@ import subprocess
 import os
 import time
 from pathlib import Path
+from mpi4py import MPI
 
 
 def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
@@ -18,32 +19,24 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
         - output_path: Path to store output files.
         - max_parallel_tasks: Maximum number of parallel tasks to run at once.
     """
-    env = os.environ.copy()
-    #env["LD_LIBRARY_PATH"] = "/software/rome/r24.04/imkl/2023.2.0/mkl/2023.2.0/lib/intel64:" + env.get("LD_LIBRARY_PATH", "")
-
+    shell_flag = not str(script_path).endswith(".py")
 
     base_cmd = [
-        "srun", "--ntasks=1", # "--mpi=pmi2", "--cpus-per-task=6",
-        "--exclusive",# "--cpu-bind=cores",
-        "--export=ALL", 
-        f"--export=CONFIG={os.environ['CONFIG']}",
+        "srun", "--ntasks=1", # "--cpus-per-task=6",
+        "--exclusive",
+        f"--export=ALL,CONFIG={os.environ['CONFIG']}",
     ]
 
-    if str(script_path).endswith(".py"):
-        python_exec = Path(os.environ["CONDA_PREFIX"]) / "bin" / "python"
-        exec_cmd = [str(python_exec), str(script_path)]
-        exec_flag = False
-    else:
-        exec_cmd =  str(script_path)
-        exec_flag = True
-    # Find all files in the input directory
     paths = [f for f in input_path.iterdir()]    
     processes = []
 
     for fpath in paths:
-        cmd = " ".join(base_cmd + [exec_cmd]) if exec_flag else base_cmd + exec_cmd + ["--input", str(fpath), "--output", str(output_path)]
-        cwd_path = str(fpath) if exec_flag else None
-        p = subprocess.Popen(cmd, shell=exec_flag, cwd= cwd_path, env=env)
+        if shell_flag:
+            cmd = " ".join(base_cmd + [str(script_path), ">", str(fpath / output_path)])
+        else:
+            cmd = base_cmd + ["python3", str(script_path), "--input", str(fpath), "--output", str(output_path)]
+        
+        p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if shell_flag else None)
         processes.append(p)
 
         # Control max parallelism
