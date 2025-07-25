@@ -1,9 +1,11 @@
 import subprocess
 import os
 import time
+from pathlib import Path
+from mpi4py import MPI
 
 
-def parallelize(script, input_dir, aux_dir, max_parallel_tasks=1):
+def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
     """
     Parallelize a function over an iterable using multiprocessing.
     This function runs a specified script in parallel for each file in the input directory.
@@ -12,44 +14,31 @@ def parallelize(script, input_dir, aux_dir, max_parallel_tasks=1):
 
     Parameters:
     ---------------
-        - script: The function to parallelize.
-        - input_dir: Directory containing input files.
-        - aux_dir: auxiliary Directory to store output files or to load config.
+        - script: Path to the function to parallelize.
+        - input_dir: Path of the directory containing input files.
+        - output_path: Path to store output files.
         - max_parallel_tasks: Maximum number of parallel tasks to run at once.
     """
+    shell_flag = not str(script_path).endswith(".py")
 
-    export_vars = "ALL,ROOT={},PIPELINE={},DATA={},MODEL_REGISTRY={},MODEL_CODE={},CONFIG={}".format(
-    os.environ["ROOT"],
-    os.environ["PIPELINE"],
-    os.environ["DATA"],
-    os.environ["MODEL_REGISTRY"],
-    os.environ["MODEL_CODE"],
-    os.environ["CONFIG"]
-    )
+    base_cmd = [
+        "srun", "--ntasks=1", # "--cpus-per-task=6",
+        "--exclusive",
+        f"--export=ALL,CONFIG={os.environ['CONFIG']}",
+    ]
 
-    if script.endswith(".py"):
-        exec_cmd = ["python3", script]
-        exec_flag = False
-    else:
-        exec_cmd = script
-        exec_flag = True
-
-    # Find all files in the input directory
-    files = [f for f in os.listdir(input_dir)]
-    # Start parallel processing
+    paths = [f for f in input_path.iterdir()]    
     processes = []
-    print(f"max_parallel_tasks: {max_parallel_tasks}")
-    for f in files:
-        base_cmd = [
-            "srun", "--nodes=1", "--ntasks=1", 
-            "--cpus-per-task=6", "--cpu-bind=cores", #"--mem-bind=local"   
-            f"--export={export_vars}",
-        ]
-        cmd = " ".join(base_cmd + [exec_cmd]) + " &" if exec_flag else base_cmd + exec_cmd + [os.path.join(input_dir, f), aux_dir]
-        cwd_path = os.path.join(input_dir, f) if exec_flag else None
-        p = subprocess.Popen(cmd, shell=exec_flag, cwd= cwd_path)
+
+    for fpath in paths:
+        if shell_flag:
+            cmd = " ".join(base_cmd + [str(script_path), ">", str(fpath / output_path)])
+        else:
+            cmd = base_cmd + ["python3", str(script_path), "--input", str(fpath), "--output", str(output_path)]
+        
+        p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if shell_flag else None)
         processes.append(p)
-        print(f"number of processes: {len(processes)}")
+
         # Control max parallelism
         if len(processes) >= max_parallel_tasks:
             # Wait for any to finish before launching more
