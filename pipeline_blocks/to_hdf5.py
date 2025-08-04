@@ -13,7 +13,7 @@ from ase.io import read
 import h5py
 from contextlib import ExitStack
 
-def run_to_hdf5(filtered_dir, appending_flag, h5file_output, output_extra_prop, h5file_itr, itr_extra_prop, itr):
+def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr):
     """
     Function to convert filtered molecules into HDF5 format.
     It reads filtered molecules from a directory, extracts properties,
@@ -71,49 +71,46 @@ def run_to_hdf5(filtered_dir, appending_flag, h5file_output, output_extra_prop, 
                     atoms = read(xyz_file_path)
                     Z = atoms.get_atomic_numbers()
                     POS = atoms.get_positions()
-
+                    molecule['atNUM'] = np.array(Z, dtype=np.float64)
+                    molecule['atXYZ'] = np.array(POS, dtype=np.int64)       
                     # os.remove('tmp-'+str(sysname)+'.xyz')
 
-                    ener= np.array([data["Total energy (eV):"]], dtype=np.float64)
-                    mbd= np.array([data["SUM"]["MBD"]], dtype=np.float64)
-                    pbe0 = ener - mbd
-                    EDFTatoms = np.array([sum([ EPBE0_atom[zi] for zi in Z ])], dtype=np.float64)
-                    Eat = pbe0 - EDFTatoms
+                    if context_flag:                        # add context properties
 
-                    totfor = np.array(data["Total Forces (eV/Ang):"], dtype=np.float64)
-                    vdwfor = np.array(data["van der Waals Forces (eV/Ang):"], dtype=np.float64)
-                    pbe0for = totfor - vdwfor
+                        if 'extra_prop' in name:           # collect collateral properties for the third hdf5
+                            totfor = np.array(data["Total Forces (eV/Ang):"], dtype=np.float64)
+                            vdwfor = np.array(data["van der Waals Forces (eV/Ang):"], dtype=np.float64)
+                            pbe0for = totfor - vdwfor
+                            HChar = np.array(data["Hirshfeld Charges:"], dtype=np.float64)
+                            dipcomp = np.array(data["Total Dipole (eAng)"], dtype=np.float64) 
+                            FVol = np.array(data["Free Atom Volumes:"], dtype=np.float64)
+                            HVol = np.array(data["Hirshfeld Volumes:"], dtype=np.float64)
+                            hvr = np.divide(HVol, FVol, out=np.zeros_like(HVol), where=FVol!=0)    # define hirshfeld ratios
+                            
+                            molecule['totFOR'] = totfor
+                            molecule['pbe0FOR'] = pbe0for
+                            molecule['hCHG'] = HChar
+                            molecule['vDIP'] = dipcomp
+                            molecule['hRAT'] = hvr
 
-                    HChar = np.array(data["Hirshfeld Charges:"], dtype=np.float64)
-                    dipcomp = np.array(data["Total Dipole (eAng)"], dtype=np.float64) 
+                        else:                               # collect main properties for the first two hdf5 files
+                            ener= np.array([data["Total energy (eV):"]], dtype=np.float64)
+                            mbd= np.array([data["SUM"]["MBD"]], dtype=np.float64)
+                            pbe0 = ener - mbd
+                            EDFTatoms = np.array([sum([ EPBE0_atom[zi] for zi in Z ])], dtype=np.float64)
+                            Eat = pbe0 - EDFTatoms
 
-                    FVol = np.array(data["Free Atom Volumes:"], dtype=np.float64)
-                    HVol = np.array(data["Hirshfeld Volumes:"], dtype=np.float64)
-                    hvr = np.divide(HVol, FVol, out=np.zeros_like(HVol), where=FVol!=0)    # define hirshfeld ratios
-                    
-                    if 'extra_prop' in name:           # collect collateral properties for the third hdf5
-                        molecule['totFOR'] = totfor
-                        molecule['pbe0FOR'] = pbe0for
-                        molecule['hCHG'] = HChar
-                        molecule['vDIP'] = dipcomp
-                        molecule['hRAT'] = hvr
-
-                    else:                               # collect main properties for the first two hdf5 files
-                        molecule['DIP'] = np.array([data["Absolute Total Dipole (eAng):"]], dtype=np.float64)
-                        molecule['HLgap'] = np.array([data["HOMO-LUMO gap"]], dtype=np.float64)
-                        molecule['atNUM'] = np.array(Z, dtype=np.float64)
-                        molecule['atXYZ'] = np.array(POS, dtype=np.int64)
-                        molecule['eAT'] = (pbe0) - (EDFTatoms)
-                        molecule['eH'] = np.array([data["HOMO energy"]], dtype=np.float64)
-                        molecule['eKIN'] = np.array([data["SUM"]["Kinetic Energy"]], dtype=np.float64)
-                        molecule['eL'] = np.array([data["LUMO energy"]], dtype=np.float64)
-                        molecule['eMBD'] = np.array([data["SUM"]["MBD"]], dtype=np.float64)
-                        molecule['ePBE0'] = pbe0
-                        molecule['ePBE0+MBD'] = ener     
-                        molecule['eXC'] = np.array([data["SUM"]["Total XC energy"]], dtype=np.float64)
-                        molecule['eXX'] = np.array([data["SUM"]["Hartree-Fock Energy"]], dtype=np.float64)
-
-                    
+                            molecule['DIP'] = np.array([data["Absolute Total Dipole (eAng):"]], dtype=np.float64)
+                            molecule['HLgap'] = np.array([data["HOMO-LUMO gap"]], dtype=np.float64)
+                            molecule['eAT'] = Eat
+                            molecule['eH'] = np.array([data["HOMO energy"]], dtype=np.float64)
+                            molecule['eKIN'] = np.array([data["SUM"]["Kinetic Energy"]], dtype=np.float64)
+                            molecule['eL'] = np.array([data["LUMO energy"]], dtype=np.float64)
+                            molecule['eMBD'] = np.array([data["SUM"]["MBD"]], dtype=np.float64)
+                            molecule['ePBE0'] = pbe0
+                            molecule['ePBE0+MBD'] = ener     
+                            molecule['eXC'] = np.array([data["SUM"]["Total XC energy"]], dtype=np.float64)
+                            molecule['eXX'] = np.array([data["SUM"]["Hartree-Fock Energy"]], dtype=np.float64)
 
                     # Writing properties
                     for key, value in molecule.items():
@@ -125,10 +122,11 @@ if __name__ == "__main__":
     parser.add_argument("--input", type=str, required=True, help="Path to the filtered directory containing JSON files.")
     parser.add_argument("--appending_flag", type=bool, required=True, help="Flag to indicate if the HDF5 file should be appended to (True) or overwritten (False).")
     parser.add_argument("--h5file_output", type=str, required=True, help="Path to the output HDF5 file for the full dataset.")
+    parser.add_argument("--context", default=True ,type=bool, help="Flag to indicate if context properties should be added.")
     parser.add_argument("--output_extra_prop", type=str, help="Path to the output HDF5 file for extra properties.")
     parser.add_argument("--h5file_itr", type=str, help="Path to the output HDF5 file for the current iteration.")
     parser.add_argument("--itr_extra_prop", type=str, help="Path to the output HDF5 file for extra properties in iteration files.")
     parser.add_argument("--itr", type=int, required=True, help="Current iteration number.")
     args = parser.parse_args()  
     
-    run_to_hdf5(args.input, args.appending_flag, args.h5file_output, args.output_extra_prop, args.h5file_itr, args.itr_extra_prop, args.itr)
+    run_to_hdf5(args.input, args.appending_flag, args.h5file_output, args.context, args.output_extra_prop, args.h5file_itr, args.itr_extra_prop, args.itr)
