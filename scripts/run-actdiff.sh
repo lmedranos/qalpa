@@ -1,12 +1,13 @@
 #!/bin/bash -l
 #SBATCH -J active-loop
 #SBATCH -A p_nanoparticle
-#SBATCH --time=03:00:00                    
-#SBATCH --partition=barnard
-#SBATCH --cpus-per-task=16                                                     
-#SBATCH --mem-per-cpu=8000                       
+#SBATCH --time=20:00:00                    
+#SBATCH --partition=alpha
+#SBATCH --gres=gpu:8
+#SBATCH --cpus-per-task=32                                                    
+#SBATCH --mem-per-cpu=12000                       
 #SBATCH --nodes=1
-#SBATCH --ntasks-per-node=4
+#SBATCH --ntasks-per-node=1
 #SBATCH -o check-log.out
 #SBATCH -e check-log.err
 #SBATCH --mail-type=all
@@ -17,7 +18,8 @@ ulimit -s unlimited
 echo "Running active loop script..."
 
 # Please spicify the location of base dataset that is used for intial training of the model
-base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/qm7x-aqm-gas-noP.hdf5"
+# base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/qm7x-aqm-gas-noP.hdf5"
+base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/molecules-fps-40000.hdf5"
 
 # Please specify the paths to the project folders
 root="/data/horse/ws/miha493e-research_project/activediffusion" # Parent folder for the project
@@ -27,21 +29,21 @@ blocks="$root/pipeline_blocks"                                  # A folder conta
 config="$root/configs"                                          # A folder containing yaml of diffusion model configs, Mace model for relaxation, and nctr1.in foe FHI-aims
 
 
-# Load FHI-aims and other necessary modules
-module load release/24.04  intel-compilers/2023.2.1  impi/2021.10.0   #imkl/2023.2.0  
-module load FHI-aims/240507
+# # Load FHI-aims and other necessary modules
+# module load release/24.04  intel-compilers/2023.2.1  impi/2021.10.0   #imkl/2023.2.0  
+# module load FHI-aims/240507
 
 # Load Anaconda environment and activate the conda environment
 source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
-# Set environment variables for OpenMP and MKL
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
-export MKL_NUM_THREADS=1 #$SLURM_CPUS_PER_TASK
-export MKL_DYNAMIC=FALSE
+# # Set environment variables for OpenMP and MKL
+# export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+# export MKL_NUM_THREADS=1 #$SLURM_CPUS_PER_TASK
+# export MKL_DYNAMIC=FALSE
 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 main_loop.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data --model_code $model_code --pipeline_blocks $blocks --config $config --num_iterations 1
+python3 main_loop.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data --model_code $model_code --pipeline_blocks $blocks --config $config --num_iterations 10
 
 echo "Active loop script completed."
