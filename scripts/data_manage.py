@@ -8,6 +8,7 @@ class DataManager:
         self.data_directory = Path(data_directory) 
         self.diffusion_data_dir = None
         self.diffusion_log_dir = None
+        self.diffusion_test_dir = None
         self.diffusion_model_dir = None
         self.current_data = None
         self.input_hdf5 = None
@@ -18,7 +19,7 @@ class DataManager:
         # Remember to set these flags based on your requirements
         self.hdf5_appending_flag = True
         self.hdf5_iter_flag = True
-        self.extra_properties_flag = True
+        self.extra_properties_flag = False
         
 
     def initialize_data_directory(self):
@@ -46,9 +47,22 @@ class DataManager:
         
         # If appending to HDF5, copy the input HDF5 to output HDF5
         if self.hdf5_appending_flag:
-            shutil.copy(self.input_hdf5, self.output_hdf5)
+            if not self.output_hdf5.exists():
+                shutil.copy(self.input_hdf5, self.output_hdf5)
+                print(f"Created output HDF5 file: {self.output_hdf5} from input HDF5 file: {self.input_hdf5}")
+            else:
+                print(f"Output HDF5 file already exists: {self.output_hdf5}, resuming from it.")
+        else:
+            if self.output_hdf5.exists():
+                print(f"Removing existing output HDF5 file: {self.output_hdf5}")
+                self.output_hdf5.unlink()
+            else:
+                print(f"Output HDF5 file does not exist, creating a new one: {self.output_hdf5}")
+
+            
+            
         
-        # Create deffustion temp directory if it doesn't exist
+        # Create diffusion temp directory if it doesn't exist
         self.diffusion_data_dir = self.data_directory / "diffusion_wdir" / "data"
         # if self.diffusion_data_dir.exists():
         #     shutil.rmtree(self.diffusion_data_dir)
@@ -57,6 +71,12 @@ class DataManager:
         # if self.diffusion_log_dir.exists():
         #     shutil.rmtree(self.diffusion_log_dir)
         self.diffusion_log_dir.mkdir(parents=True, exist_ok=True)
+        self.diffusion_test_dir = Path(self.data_directory, "diffusion_wdir", "test")
+        # if self.diffusion_test_dir.exists():
+        #     shutil.rmtree(self.diffusion_test_dir)
+        self.diffusion_test_dir.mkdir(parents=True, exist_ok=True)
+
+        # Create model registry directory
         self.diffusion_model_dir = self.data_directory / "diffusion_wdir" / "model_registry"
         # if self.diffusion_model_dir.exists():
         #     shutil.rmtree(self.diffusion_model_dir)
@@ -100,6 +120,7 @@ class DataManager:
                 lines = file.readlines()
 
             # replace the value of the specified key
+            key_found = False
             for i, line in enumerate(lines):
                 if line.strip().startswith(key + ":"):
                     key_found = True
@@ -108,6 +129,7 @@ class DataManager:
                     else:
                         lines[i] = ""  # delete line
                     break  # no need to continue after key is found
+                
 
             if not key_found and update:
                 lines.append(f"{key}: {value}\n")

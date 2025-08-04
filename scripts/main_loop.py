@@ -11,12 +11,12 @@ import tarfile
 import shutil
 
 
-
 def main(args):
     '''
     Main function to run the workflow.
     It sets up the environment, runs pipeline units in a loop.
     '''
+    
     # Read time and hostname for logging
     start_loop = time.time()
     hostname = socket.gethostname()
@@ -49,16 +49,35 @@ def main(args):
     # Create the intial hdf5 data directory if it doesn't exist
     dm = DataManager(base_dataset, args.data)
     dm.initialize_data_directory()
+    
     # Set diffusion data and log directories in the ymal configuration file 
     dm.edit_config(model_config_path, "dataset_root", str(dm.diffusion_data_dir))
     dm.edit_config(model_config_path, "save_dir", str(dm.diffusion_log_dir))
+    dm.edit_config(model_config_path, "test_save_dir", str(dm.diffusion_test_dir))
 
-    # Set the current hdf5 data for the loop
+    # Set the intial hdf5 data for the loop 
     hdf5_file_path = dm.input_hdf5
 
+
+    # select the context of training to include properties or not
+    context_flag = False
+    dm.edit_config(model_config_path, "context_mapping", str(context_flag))
+
+    # compress flag to compress iteration files
+    compress_flag = False
+
+    # Flag to resume in the midde of the loop
+    resume_itr = 1
+  
     # Run active learning loop
     for n in range(num_iterations):
-        
+
+        # Skip iterations that are already completed
+        if n < resume_itr:
+            hdf5_file_path = dm.output_hdf5
+            print(f"Skipping iteration {n} as it is already completed.")
+            continue
+
         print(f"\n Iteration {n}")
 
         # Create directories for the current iteration
@@ -74,39 +93,43 @@ def main(args):
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_train.py"
         itr_model_path = dm.diffusion_model_dir / f"model_iter_{n}"
         itr_model_path.mkdir(parents=True, exist_ok=True)
-        cmd = ["srun", "--ntasks=1", "--cpus-per-task=98",
-               "--exclusive", "--export=ALL",
-               "python", str(script_path),
-               "--conf", str(model_config_path), 
-               "--save-dir", str(itr_model_path),
-               "--dataset", dataset_name, 
-               "--dataset-root", str(dm.diffusion_data_dir),
-            #    "--gpus", "2",
-               "--batch-size", "32"]
+        cmd = ["srun", "--ntasks=1", #"--cpus-per-task=98",
+            "--exclusive", "--export=ALL",
+            "python", str(script_path),
+            "--conf", str(model_config_path), 
+            "--save-dir", str(itr_model_path),
+            "--dataset", dataset_name, 
+            "--dataset-root", str(dm.diffusion_data_dir),
+            "--gpus", "8",
+            "--batch-size", "32"]
         subprocess.run(cmd, check=True)
         model_path = itr_model_path / "best_mol_stab.ckpt"
         # Update or just delete the model path in the config file for the next iteration
         update_flag = n < (num_iterations - 1)
         dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
-        
+
+            
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
         generated_data_path = dm.current_data / "generated"
         n_nodes = "40"                # add function to updaten_node, embd and hlgap to target different set of molecules
-        embd = "-0.9"
-        hlgap = "-4"
-        cmd = ["python", str(script_path),
+        # embd = "-0.9"
+        # hlgap = "-4"
+        cmd = ["srun", "--ntasks=1", #"--cpus-per-task=98",
+               "--exclusive", "--export=ALL",
+               "python", str(script_path),
                "--model-path", str(model_path),
                "--save-dir", str(generated_data_path),
                 "--save-xyz",
-                "--calculate-relax-change",
-                "--calculate-props",
+                # "--calculate-relax-change",
+                # "--calculate-props",
                 "--batch-size", "20",
                 "--ngraphs", "200",
                 "--generate-ngraphs-valid",
                 "--num-nodes", n_nodes,
-                "--fixed-context", embd, hlgap]
+                # "--fixed-context", embd, hlgap
+                ]
         subprocess.run(cmd, check=True, env=os.environ.copy())
 
         # Step 4: Relax molecules
@@ -125,33 +148,36 @@ def main(args):
 
         
         # Step 6: Calculate properties and convert output to JSON
-        print("  Running Calculate properties ")
-        script_path = blocks_path / "propcalc_preprocess.py"
-        parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
-        parallelize(fih_aims_exc, filtered_data_path, 'aims.out', max_parallel_tasks)
-        script_path = blocks_path / "propcalc_postprocess.py"
-        parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
-
+        if context_flag:
+            print("  Running Calculate properties ")
+            script_path = blocks_path / "propcalc_preprocess.py"
+            parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
+            parallelize(fih_aims_exc, filtered_data_path, 'aims.out', max_parallel_tasks)
+            script_path = blocks_path / "propcalc_postprocess.py"
+            parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
+        else:
+            print("Calculating properties is skipped.")
 
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
-        run_to_hdf5(filtered_data_path, dm.hdf5_appending_flag, dm.output_hdf5, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n)
+        run_to_hdf5(filtered_data_path, dm.hdf5_appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n)
         # Set the loop dataset input 
         hdf5_file_path = dm.output_hdf5
         
         # step 8: Compress iteration files and clean up
-        print("  Running Compress and clean up  ")
-        archive_path = f"{args.data}/iter_{n}.tar.gz"
-        with tarfile.open(archive_path, "w:gz") as tar:
-            tar.add(str(dm.current_data), arcname=".")
-        shutil.rmtree(dm.current_data)
-        # Compress the model and clean diffusion working directories
-        archive_path = itr_model_path.with_suffix('.tar.gz')
-        with tarfile.open(archive_path, "w:gz") as tar:
-            tar.add(str(itr_model_path), arcname=".")
-        shutil.rmtree(itr_model_path)
-        shutil.rmtree(dm.diffusion_data_dir)
-        shutil.rmtree(dm.diffusion_log_dir)
+        if compress_flag:
+            print("  Running Compress and clean up  ")
+            archive_path = f"{args.data}/iter_{n}.tar.gz"
+            with tarfile.open(archive_path, "w:gz") as tar:
+                tar.add(str(dm.current_data), arcname=".")
+            shutil.rmtree(dm.current_data)
+            # Compress the model and clean diffusion working directories
+            archive_path = itr_model_path.with_suffix('.tar.gz')
+            with tarfile.open(archive_path, "w:gz") as tar:
+                tar.add(str(itr_model_path), arcname=".")
+            shutil.rmtree(itr_model_path)
+            shutil.rmtree(dm.diffusion_data_dir)
+            shutil.rmtree(dm.diffusion_log_dir)
     
         print(f"Iteration {n} completed.")
 
@@ -180,18 +206,15 @@ if __name__ == "__main__":
     # Set environment variables
     os.environ["CONFIG"] = args.config
 
-    cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
-    env = os.environ.copy()
-    env["OMP_NUM_THREADS"] = str(cpus_per_task)
-    env["MKL_NUM_THREADS"] = str(cpus_per_task)
-    env["OPENBLAS_NUM_THREADS"] = str(cpus_per_task)
-    env["NUMEXPR_NUM_THREADS"] = str(cpus_per_task)
-    # env["TF_NUM_INTEROP_THREADS"] = str(cpus_per_task)    # for tensorflow
-    # env["TF_NUM_INTRAOP_THREADS"] = str(cpus_per_task)    # for tensorflow
+    # cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
+    # env = os.environ.copy()
+    # env["OMP_NUM_THREADS"] = str(cpus_per_task)
+    # env["MKL_NUM_THREADS"] = str(cpus_per_task)
+    # env["OPENBLAS_NUM_THREADS"] = str(cpus_per_task)
+    # env["NUMEXPR_NUM_THREADS"] = str(cpus_per_task)
+ 
 
-    # env["GLOO_SOCKET_IFNAME"] = "eth0"
-    # env["NCCL_SOCKET_IFNAME"] = "eth0"
-    os.environ.update(env)
+    # os.environ.update(env)
 
     main(args)
  
