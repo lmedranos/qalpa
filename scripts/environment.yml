@@ -11,19 +11,19 @@ dependencies:
   - pip
   - notebook
   - matplotlib
-  - pytorch::pytorch=2.0.1
-  - pyg::pyg=2.3.0
-  - pyg::pytorch-scatter
-  - pyg::pytorch-sparse
-  - pyg::pytorch-cluster
-  - conda-forge::rdkit=2023.03.2
-  - conda-forge::pytorch-lightning=2.0.6
-  - conda-forge::jupyter
-  - conda-forge::openbabel
-  - xtb
+  - pytorch::pytorch=2.0.1  # PyTorch for deep learning and Mace models
+  - pyg::pyg=2.3.0          # PyTorch Geometric for graph neural networks in Mace models
+  - pyg::pytorch-scatter    # PyTorch Geometric dependencies
+  - pyg::pytorch-sparse     # PyTorch Geometric dependencies
+  - pyg::pytorch-cluster    # PyTorch Geometric dependencies
+  - conda-forge::rdkit=2023.03.2    # RDKit for cheminformatics tasks like calculating SAscore
+  - conda-forge::pytorch-lightning=2.0.6  # PyTorch Lightning for training Diffusion models
+  - conda-forge::jupyter                  # Jupyter for interactive notebooks
+  - conda-forge::openbabel                # Open Babel for chemical file format conversions to SMILES or mol
+  - xtb           
   - pip:
       - xtb
-      - ase
+      - ase           # Atomic Simulation Environment for molecular relaxation and properties calculations
       - py3Dmol
       - lmdb
       - nglview
@@ -32,14 +32,15 @@ dependencies:
       - tensorboard
       - biopython
       - xtb
-      - git+https://github.com/ACEsuit/mace.git
-      - sh
+      - git+https://github.com/ACEsuit/mace.git  # Mace for molecular generation and optimization
+      - sh                # to be checked
+      - seaborn           
   # - python=3.12
-  - ase
+  - ase                   # to be checked
   - numpy
-  - openbabel
-  - rdkit
-  - mpi4py
+  - openbabel             # to be checked
+  - rdkit                 # to be checked  
+  - mpi4py                # mpi for parallel processing in FHI-aims, to be checked
 
   # - pytorch=2.4.0 
   # - torchaudio=2.4.0 

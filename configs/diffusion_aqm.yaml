@@ -73,4 +73,4 @@ test_save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/dif
 
 num_workers: 4
 precision: 32
-load_ckpt_from_pretrained: /data/horse/ws/miha493e-research_project/activediffusion/data/diffusion_wdir/model_registry/model_iter_0/best_mol_stab.ckpt
+load_ckpt_from_pretrained: /data/horse/ws/miha493e-research_project/activediffusion/data/diffusion_wdir/model_registry/model_iter_3/best_mol_stab.ckpt
