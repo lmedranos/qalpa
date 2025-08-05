@@ -6,3 +6,13 @@
 conda_envs/
 experiments/
 SKfiles/
+results/
+*.pys
+*.cpython-310.pyc
+__pycache__/
+*.out
+*.err
+*.png
+data/
+diffusion_code/
+*.code-workspace
