@@ -67,8 +67,9 @@ def main(args):
     compress_flag = False
 
     # Flag to resume in the midde of the loop
-    resume_itr = 1
-  
+    resume_itr = 3
+    steps={'split', 'train', 'generate', 'relax', 'filter', 'fih_aims', 'hdf5', 'compress'}
+    skip_step_atstart = {'split', 'train'}
     # Run active learning loop
     for n in range(num_iterations):
 
@@ -85,7 +86,7 @@ def main(args):
 
         # Step 1: Run data split
         print(" Running Data split ")
-        split_data.split_data(str(hdf5_file_path), str(dm.diffusion_data_dir))
+        split_data.split_data(str(hdf5_file_path), str(dm.diffusion_data_dir)) if 'split' not in skip_step_atstart else skip_step_atstart.discard('split')
         
 
         # step 2: Diffusion model training
@@ -102,7 +103,7 @@ def main(args):
             "--dataset-root", str(dm.diffusion_data_dir),
             "--gpus", "8",
             "--batch-size", "32"]
-        subprocess.run(cmd, check=True)
+        subprocess.run(cmd, check=True)  if 'train' not in skip_step_atstart else skip_step_atstart.discard('train')
         model_path = itr_model_path / "best_mol_stab.ckpt"
         # Update or just delete the model path in the config file for the next iteration
         update_flag = n < (num_iterations - 1)
@@ -130,42 +131,42 @@ def main(args):
                 "--num-nodes", n_nodes,
                 # "--fixed-context", embd, hlgap
                 ]
-        subprocess.run(cmd, check=True, env=os.environ.copy())
+        subprocess.run(cmd, check=True, env=os.environ.copy()) if 'generate' not in skip_step_atstart else skip_step_atstart.discard('generate')
 
         # Step 4: Relax molecules
         print("  Running Relax molecules  ")
         script_path = blocks_path / "relax_molecules.py"
         relaxed_data_path = dm.current_data / "relaxed"
-        parallelize(script_path, generated_data_path, relaxed_data_path, max_parallel_tasks)
+        parallelize(script_path, generated_data_path, relaxed_data_path, max_parallel_tasks) if 'relax' not in skip_step_atstart else skip_step_atstart.discard('relax')
         
         # Step 5: Calculate SAScore and Filter molecules with low SAScore
         print("  Running Filter molecules  ")
         script_path = blocks_path / "calculate_sascore.py"
         filtered_data_path = dm.current_data / "filtered"
-        parallelize(script_path, relaxed_data_path, relaxed_data_path, max_parallel_tasks)
+        parallelize(script_path, relaxed_data_path, relaxed_data_path, max_parallel_tasks) if 'filter' not in skip_step_atstart else None
         # Filter molecules based on SAScore
-        run_filter_molecules(relaxed_data_path, filtered_data_path)
+        run_filter_molecules(relaxed_data_path, filtered_data_path) if 'filter' not in skip_step_atstart else skip_step_atstart.discard('filter')
 
         
         # Step 6: Calculate properties and convert output to JSON
         if context_flag:
             print("  Running Calculate properties ")
             script_path = blocks_path / "propcalc_preprocess.py"
-            parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
-            parallelize(fih_aims_exc, filtered_data_path, 'aims.out', max_parallel_tasks)
+            parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks) if 'fih_aims' not in skip_step_atstart else None
+            parallelize(fih_aims_exc, filtered_data_path, 'aims.out', max_parallel_tasks) if 'fih_aims' not in skip_step_atstart else None
             script_path = blocks_path / "propcalc_postprocess.py"
-            parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks)
+            parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks) if 'fih_aims' not in skip_step_atstart  else skip_step_atstart.discard('fih_aims')
         else:
             print("Calculating properties is skipped.")
 
         # Step 7: Create HDF5
         print("  Running Create HDF5  ")
-        run_to_hdf5(filtered_data_path, dm.hdf5_appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n)
+        run_to_hdf5(filtered_data_path, dm.hdf5_appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n) if 'hdf5' not in skip_step_atstart else skip_step_atstart.discard('hdf5')
         # Set the loop dataset input 
         hdf5_file_path = dm.output_hdf5
         
         # step 8: Compress iteration files and clean up
-        if compress_flag:
+        if compress_flag and 'compress' not in skip_step_atstart:
             print("  Running Compress and clean up  ")
             archive_path = f"{args.data}/iter_{n}.tar.gz"
             with tarfile.open(archive_path, "w:gz") as tar:
@@ -178,6 +179,8 @@ def main(args):
             shutil.rmtree(itr_model_path)
             shutil.rmtree(dm.diffusion_data_dir)
             shutil.rmtree(dm.diffusion_log_dir)
+        else:
+            skip_step_atstart.discard('compress')
     
         print(f"Iteration {n} completed.")
 
