@@ -126,8 +126,10 @@ def calculate_sascore(smiles):
         tier = "tier_1"
     elif sascore > 5:
         tier = "tier_2"
-    else:
+    elif sascore > 3:
         tier = "tier_3"
+    else:
+        tier = "tier_4"
     return sascore, tier
 
 
