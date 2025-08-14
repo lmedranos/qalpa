@@ -5,8 +5,6 @@ import subprocess
 from pathlib import Path
 import time
 import socket
-from data_manage import DataManager
-from parallelize import parallelize
 import tarfile
 import shutil
 
@@ -26,9 +24,15 @@ def main(args):
     num_iterations = args.num_iterations
     max_parallel_tasks = args.max_parallel_tasks
 
-    # data and code directories 
+    # utils directories
+    utils_path =Path(args.actdiff_utils)
+    sys.path.insert(0,str(utils_path))
+    from data_manage import DataManager
+    from parallelize import parallelize
+    # data directories 
     base_dataset = args.base_dataset
     dataset_name = args.dataset_name
+    # Code directories 
     blocks_path =Path(args.pipeline_blocks)
     sys.path.insert(0,str(blocks_path))
     from filter_molecules import run_filter_molecules
@@ -67,14 +71,14 @@ def main(args):
     compress_flag = False
 
     # Flag to resume in the midde of the loop
-    resume_itr = 3
+    resume_itr = 1          # from 1 to num_iterations
     steps={'split', 'train', 'generate', 'relax', 'filter', 'fih_aims', 'hdf5', 'compress'}
-    skip_step_atstart = {'split', 'train'}
+    skip_step_atstart = {}
     # Run active learning loop
     for n in range(num_iterations):
 
         # Skip iterations that are already completed
-        if n < resume_itr:
+        if (n+1) < resume_itr:
             hdf5_file_path = dm.output_hdf5
             print(f"Skipping iteration {n} as it is already completed.")
             continue
@@ -101,20 +105,22 @@ def main(args):
             "--save-dir", str(itr_model_path),
             "--dataset", dataset_name, 
             "--dataset-root", str(dm.diffusion_data_dir),
-            "--gpus", "8",
+            "--gpus", "6",
             "--batch-size", "32"]
         subprocess.run(cmd, check=True)  if 'train' not in skip_step_atstart else skip_step_atstart.discard('train')
         model_path = itr_model_path / "best_mol_stab.ckpt"
         # Update or just delete the model path in the config file for the next iteration
         update_flag = n < (num_iterations - 1)
         dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
-
+        
+        # clean temp .ckpt files
+        dm.clean_files(itr_model_path / "run0", ".ckpt")
             
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
         generated_data_path = dm.current_data / "generated"
-        n_nodes = "40"                # add function to updaten_node, embd and hlgap to target different set of molecules
+        n_nodes = args.n_nodes[n]  if len(args.n_nodes) > 1 else args.n_nodes[0]             # add function to updaten_node, embd and hlgap to target different set of molecules
         # embd = "-0.9"
         # hlgap = "-4"
         cmd = ["srun", "--ntasks=1", #"--cpus-per-task=98",
@@ -128,7 +134,7 @@ def main(args):
                 "--batch-size", "20",
                 "--ngraphs", "200",
                 "--generate-ngraphs-valid",
-                "--num-nodes", n_nodes,
+                "--num-nodes", str(n_nodes),
                 # "--fixed-context", embd, hlgap
                 ]
         subprocess.run(cmd, check=True, env=os.environ.copy()) if 'generate' not in skip_step_atstart else skip_step_atstart.discard('generate')
@@ -139,6 +145,10 @@ def main(args):
         relaxed_data_path = dm.current_data / "relaxed"
         parallelize(script_path, generated_data_path, relaxed_data_path, max_parallel_tasks) if 'relax' not in skip_step_atstart else skip_step_atstart.discard('relax')
         
+        # clean temp generated files .pickle and .xyz
+        dm.clean_files(generated_data_path, '.pickle')
+        dm.clean_files(generated_data_path, '.xyz')
+
         # Step 5: Calculate SAScore and Filter molecules with low SAScore
         print("  Running Filter molecules  ")
         script_path = blocks_path / "calculate_sascore.py"
@@ -147,7 +157,10 @@ def main(args):
         # Filter molecules based on SAScore
         run_filter_molecules(relaxed_data_path, filtered_data_path) if 'filter' not in skip_step_atstart else skip_step_atstart.discard('filter')
 
-        
+        # clean temp relaxed files .xyz
+        dm.clean_files(relaxed_data_path, '.xyz')
+
+
         # Step 6: Calculate properties and convert output to JSON
         if context_flag:
             print("  Running Calculate properties ")
@@ -165,6 +178,9 @@ def main(args):
         # Set the loop dataset input 
         hdf5_file_path = dm.output_hdf5
         
+        # clean temp filtered files .xyz
+        # dm.clean_files(filtered_data_path, '.xyz')
+
         # step 8: Compress iteration files and clean up
         if compress_flag and 'compress' not in skip_step_atstart:
             print("  Running Compress and clean up  ")
@@ -199,8 +215,11 @@ if __name__ == "__main__":
     parser.add_argument("--data", type=str)
     parser.add_argument("--model_code", type=str)
     parser.add_argument("--pipeline_blocks", type=str)
+    parser.add_argument("--actdiff_utils", type=str)
     parser.add_argument("--config", type=str)
     parser.add_argument("--num_iterations", type=int, default=10)
+    parser.add_argument("--n_nodes", type=int, nargs='+', default=[20, 30, 40, 50, 60, 70, 80, 90, 100, 110])
+
 
     max_parallel_tasks = int(os.environ.get("SLURM_NTASKS", 1))
     parser.add_argument("--max_parallel_tasks", type=int, default=max_parallel_tasks)

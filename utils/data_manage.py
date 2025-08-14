@@ -18,7 +18,7 @@ class DataManager:
         self.itr_extra_prop_path = None
         # Remember to set these flags based on your requirements
         self.hdf5_appending_flag = True
-        self.hdf5_iter_flag = True
+        self.hdf5_iter_flag = False
         self.extra_properties_flag = False
         
 
@@ -143,3 +143,21 @@ class DataManager:
     
 
 
+
+    def clean_files(self, dir_path: Path, file_type: str):
+        if not dir_path.exists():
+            return
+        
+        if not dir_path.is_dir():
+            print(f"Not a directory: {dir_path}")
+            return
+
+        files = list(dir_path.rglob(f"*{file_type}"))
+        if not files:
+            return
+        
+        for file in files:
+            try:
+                file.unlink()
+            except Exception as e:
+                print(f"Error deleting {file}: {e}")
