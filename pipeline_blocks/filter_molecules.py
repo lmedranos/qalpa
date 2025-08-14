@@ -12,8 +12,8 @@ def run_filter_molecules(input, output):
     and copies the molecules with a SAScore above a specified threshold to an output directory.
     """
     # Define the accepted tiers for filtering
-    accepted_tires = {"tier_3", "tier_2"}     # need to be moved to configration file
-
+    # accepted_tires = {"tier_3", "tier_2"}     # need to be moved to configration file
+    accepted_tires = {"tier_4", "tire_3"}
     ipath = Path(input)
     opath = Path(output)
   
