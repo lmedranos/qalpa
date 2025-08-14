@@ -1,11 +1,11 @@
 #!/bin/bash -l
 #SBATCH -J active-loop
 #SBATCH -A p_nanoparticle
-#SBATCH --time=20:00:00                    
+#SBATCH --time=40:00:00                    
 #SBATCH --partition=alpha
 #SBATCH --gres=gpu:8
-#SBATCH --cpus-per-task=32                                                    
-#SBATCH --mem-per-cpu=12000                       
+#SBATCH --cpus-per-task=36                                                  
+#SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
 #SBATCH -o check-log.out
@@ -26,6 +26,7 @@ root="/data/horse/ws/miha493e-research_project/activediffusion" # Parent folder 
 data="$root/data"                                               # A folder for storing data 
 model_code="$root/diffusion_code"                               # A folder containing e3mol_aqm folder with the diffusion model code
 blocks="$root/pipeline_blocks"                                  # A folder containing Python files for different steps in the loop
+utils="$root/utils"                                            # A folder containing utility functions for data management and parallelization
 config="$root/configs"                                          # A folder containing yaml of diffusion model configs, Mace model for relaxation, and nctr1.in foe FHI-aims
 
 
@@ -44,6 +45,6 @@ conda activate $root/conda_envs/env-activeloop
 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 main_loop.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data --model_code $model_code --pipeline_blocks $blocks --config $config --num_iterations 10
+python3 main_loop.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config --num_iterations 10
 
 echo "Active loop script completed."
