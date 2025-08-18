@@ -13,7 +13,7 @@ def run_filter_molecules(input, output):
     """
     # Define the accepted tiers for filtering
     # accepted_tires = {"tier_3", "tier_2"}     # need to be moved to configration file
-    accepted_tires = {"tier_4", "tire_3"}
+    accepted_tires = {"tier_4", "tier_3"}
     ipath = Path(input)
     opath = Path(output)
   
