@@ -29,6 +29,7 @@ def main(args):
     sys.path.insert(0,str(utils_path))
     from data_manage import DataManager
     from parallelize import parallelize
+    from trajectory import Trajectory
     # data directories 
     base_dataset = args.base_dataset
     dataset_name = args.dataset_name
@@ -62,11 +63,16 @@ def main(args):
     # Set the intial hdf5 data for the loop 
     hdf5_file_path = dm.input_hdf5
 
-
-    # select the context of training to include properties or not
-    context_flag = False
+    # Create exterapolating trajectory for properties
+    if len(args.trajectory_axes) > 0:   # or if context_flag:
+        my_trajectory = Trajectory(args.config, child_names=args.trajectory_axes) 
+        context_flag = True
+    else:
+        my_trajectory = None
+        context_flag = False
+        print("No trajectory axes provided, skipping trajectory creation.")
     dm.edit_config(model_config_path, "context_mapping", str(context_flag))
-
+    
     # compress flag to compress iteration files
     compress_flag = False
 
@@ -118,11 +124,15 @@ def main(args):
             
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
+        
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
-        generated_data_path = dm.current_data / "generated"
-        n_nodes = args.n_nodes[n]  if len(args.n_nodes) > 1 else args.n_nodes[0]             # add function to updaten_node, embd and hlgap to target different set of molecules
-        # embd = "-0.9"
-        # hlgap = "-4"
+        generated_data_path = dm.current_data / "generated" 
+        # Find Target for the current iteration
+        if my_trajectory is not None:
+            target = my_trajectory.get_target(n)
+        else:
+            n_nodes = args.n_nodes[n]  if len(args.n_nodes) > 1 else args.n_nodes[0]
+            target = ["--num-nodes", str(n_nodes)]           
         cmd = ["srun", "--ntasks=1", #"--cpus-per-task=98",
                "--exclusive", "--export=ALL",
                "python", str(script_path),
@@ -134,9 +144,11 @@ def main(args):
                 "--batch-size", "20",
                 "--ngraphs", "200",
                 "--generate-ngraphs-valid",
-                "--num-nodes", str(n_nodes),
+                # "--num-nodes", str(n_nodes),
                 # "--fixed-context", embd, hlgap
+                *target,
                 ]
+        print(f"  Command: {' '.join(cmd)}")
         subprocess.run(cmd, check=True, env=os.environ.copy()) if 'generate' not in skip_step_atstart else skip_step_atstart.discard('generate')
 
         # Step 4: Relax molecules
@@ -218,6 +230,7 @@ if __name__ == "__main__":
     parser.add_argument("--actdiff_utils", type=str)
     parser.add_argument("--config", type=str)
     parser.add_argument("--num_iterations", type=int, default=10)
+    parser.add_argument("--trajectory_axes", type=str, nargs='+', default=[])
     parser.add_argument("--n_nodes", type=int, nargs='+', default=[20, 30, 40, 50, 60, 70, 80, 90, 100, 110])
 
 

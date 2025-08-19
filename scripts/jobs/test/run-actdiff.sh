@@ -1,10 +1,10 @@
 #!/bin/bash -l
-#SBATCH -J active-loop-test
+#SBATCH -J active-loop-test-prop
 #SBATCH -A p_nanoparticle
-#SBATCH --time=00:15:00                    
-#SBATCH --partition=capella
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=4                                                  
+#SBATCH --time=10:00:00                    
+#SBATCH --partition=alpha
+#SBATCH --gres=gpu:4
+#SBATCH --cpus-per-task=24                                                  
 #SBATCH --mem-per-cpu=2000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -45,11 +45,11 @@ conda activate $root/conda_envs/env-activeloop
 # export MKL_DYNAMIC=FALSE
 
 # define experiment
-n_atoms=110
-data_natoms="$data/data_${n_atoms}" 
-config_natoms="$config/config_${n_atoms}"
+exp="embd_natoms"
+data_exp="$data/data_${exp}" 
+config_exp="$config/config_${exp}"
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 main_test.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_natoms --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_natoms --num_iterations 1 --n_nodes 110
+python3 main_loop.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --trajectory_axes "embd" "natoms"
 
 echo "Active loop script completed."
