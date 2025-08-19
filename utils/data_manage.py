@@ -20,6 +20,7 @@ class DataManager:
         self.hdf5_appending_flag = True
         self.hdf5_iter_flag = False
         self.extra_properties_flag = False
+
         
 
     def initialize_data_directory(self):

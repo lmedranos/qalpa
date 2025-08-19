@@ -1,14 +1,28 @@
 import pandas as pd
 import numpy as np
-
+from pathlib import Path
 
 class Trajectory:
-    def __init__(self, csv_path, child_names):
+    def __init__(self, directory, child_names):
         self.names = child_names
-        df = pd.read_csv(csv_path)
+        directory = Path(directory)
+
+        # find the trajectory file
+        csv_files = list(directory.glob("trajectory_*.csv"))
+        if not csv_files:
+            raise FileNotFoundError(f"No trajectory CSV files found in {directory}")
+        csv_path = csv_files[0]
+
+        # read only requested columns
+        df = pd.read_csv(csv_path, usecols=self.names)
+
+        # store axes
         self._axes = {}
-        for i, name in enumerate(child_names):
-            self._axes[name] = df.iloc[:, i].to_numpy()
+        for name in self.names:
+            col = df[name].to_numpy()
+            if "NUM" in name.upper():  # cast integer-like axes
+                col = col.astype(int)
+            self._axes[name] = col
 
     def __getitem__(self, name):
         return self._axes[name]
@@ -36,5 +50,3 @@ class Trajectory:
         row_list.append("--fixed-context")
         row_list.extend(self.names)
         return row_list
-
-   
