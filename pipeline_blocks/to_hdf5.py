@@ -54,8 +54,6 @@ def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, outpu
                 grp = hdf5_file.create_group(f"G-active-loop-{itr}") 
                 #for fdir in folders:
 
-                molecule = {}
-
                 if context_flag:                        # add context properties
                     jfiles = [f for f in filtered_dir.iterdir() if f.is_file() and f.suffix == '.json']  #As folder have non json files
 
@@ -72,6 +70,9 @@ def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, outpu
                         atoms = read(xyz_file_path)
                         Z = atoms.get_atomic_numbers()
                         POS = atoms.get_positions()
+
+                        molecule = {}
+
                         molecule['atNUM'] = np.array(Z, dtype=np.float64)
                         molecule['atXYZ'] = np.array(POS, dtype=np.int64)       
                         # os.remove('tmp-'+str(sysname)+'.xyz')
@@ -124,6 +125,8 @@ def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, outpu
                         atoms = read(xyzfile)
                         Z = atoms.get_atomic_numbers()
                         POS = atoms.get_positions()
+
+                        molecule = {}
                         molecule['atNUM'] = np.array(Z, dtype=np.float64)
                         molecule['atXYZ'] = np.array(POS, dtype=np.int64)
 
