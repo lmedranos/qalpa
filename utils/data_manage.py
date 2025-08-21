@@ -95,7 +95,7 @@ class DataManager:
         # if self.current_data.exists():
         #     shutil.rmtree(self.current_data)
         self.current_data.mkdir(parents=True, exist_ok=True)
-        subfolders = ["generated", "relaxed", "filtered"]
+        subfolders = ["generated", "relaxed", "query", "score_filtered", "accuracy_filtered"]
         for subfolder in subfolders:
             (self.current_data / subfolder).mkdir(parents=True, exist_ok=True)
 
