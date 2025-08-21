@@ -36,7 +36,7 @@ def main(args):
     # Code directories 
     blocks_path =Path(args.pipeline_blocks)
     sys.path.insert(0,str(blocks_path))
-    from filter_molecules import run_filter_molecules
+    from filter_molecules import MolecularFilter
     from to_hdf5 import run_to_hdf5
 
 
@@ -73,12 +73,16 @@ def main(args):
         print("No trajectory axes provided, skipping trajectory creation.")
     dm.edit_config(model_config_path, "context_mapping", str(context_flag))
     
+    # Create Molecular Filter
+    molecular_filter = MolecularFilter()
+    filteration_scheme = {"sascore", "qed", "accuracy"}
+
     # compress flag to compress iteration files
     compress_flag = False
 
     # Flag to resume in the midde of the loop
     resume_itr = 1          # from 1 to num_iterations
-    steps={'split', 'train', 'generate', 'relax', 'filter', 'fih_aims', 'hdf5', 'compress'}
+    steps={'split', 'train', 'generate', 'relax', 'sascore', 'qed', 'acc_filter', 'fih_aims', 'hdf5', 'compress'}
     skip_step_atstart = {}
     # Run active learning loop
     for n in range(num_iterations):
@@ -161,13 +165,32 @@ def main(args):
         dm.clean_files(generated_data_path, '.pickle')
         dm.clean_files(generated_data_path, '.xyz')
 
+        # ---- query path to choose molecules fot the next iteration ----
+        query_data_path = dm.current_data / "query"
+
         # Step 5: Calculate SAScore and Filter molecules with low SAScore
-        print("  Running Filter molecules  ")
-        script_path = blocks_path / "calculate_sascore.py"
-        filtered_data_path = dm.current_data / "filtered"
-        parallelize(script_path, relaxed_data_path, relaxed_data_path, max_parallel_tasks) if 'filter' not in skip_step_atstart else None
-        # Filter molecules based on SAScore
-        run_filter_molecules(relaxed_data_path, filtered_data_path) if 'filter' not in skip_step_atstart else skip_step_atstart.discard('filter')
+        if 'sascore' in filteration_scheme:
+            print("  Running Filter molecules based on SAScore  ")
+            script_path = blocks_path / "calculate_sascore.py"
+            score_filtered_path = dm.current_data / "score_filtered"
+            parallelize(script_path, relaxed_data_path, relaxed_data_path, max_parallel_tasks) if 'filter' not in skip_step_atstart else None
+            # Filter molecules based on SAScore
+            molecular_filter.sacore_filter(
+                input_path=relaxed_data_path,
+                output_path=score_filtered_path,
+                sascore_file=relaxed_data_path / 'sascore.txt',
+                trajectory=my_trajectory,
+                iter=n
+            ) if 'sascore' not in skip_step_atstart else skip_step_atstart.discard('sascore')
+            # copy filtered molecules to the query data path
+            shutil.copytree(score_filtered_path, query_data_path, dirs_exist_ok=True)
+        else:
+            print("Skipping SAScore filtering.")
+            # copy relaxed molecules to the query data path
+            shutil.copytree(relaxed_data_path, query_data_path, dirs_exist_ok=True)
+
+        # clean temp score filtered files .xyz
+        # dm.clean_files(score_filtered_path)
 
         # clean temp relaxed files .xyz
         dm.clean_files(relaxed_data_path, '.xyz')
@@ -177,23 +200,43 @@ def main(args):
         if context_flag:
             print("  Running Calculate properties ")
             script_path = blocks_path / "propcalc_preprocess.py"
-            parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks) if 'fih_aims' not in skip_step_atstart else None
-            parallelize(fih_aims_exc, filtered_data_path, 'aims.out', max_parallel_tasks) if 'fih_aims' not in skip_step_atstart else None
+            parallelize(script_path, query_data_path, query_data_path, max_parallel_tasks) if 'fih_aims' not in skip_step_atstart else None
+            parallelize(fih_aims_exc, query_data_path, 'aims.out', max_parallel_tasks) if 'fih_aims' not in skip_step_atstart else None
             script_path = blocks_path / "propcalc_postprocess.py"
-            parallelize(script_path, filtered_data_path, filtered_data_path, max_parallel_tasks) if 'fih_aims' not in skip_step_atstart  else skip_step_atstart.discard('fih_aims')
+            parallelize(script_path, query_data_path, query_data_path, max_parallel_tasks) if 'fih_aims' not in skip_step_atstart  else skip_step_atstart.discard('fih_aims')
         else:
             print("Calculating properties is skipped.")
 
-        # Step 7: Create HDF5
+        
+        # Step 7: Filter molecules based on properties
+        if 'accuracy' in filteration_scheme:
+            print("  Running Filter molecules based on properties  ")
+            accuracy_filtered_path = dm.current_data / "accuracy_filtered"
+            for trajprop in my_trajectory.child_names:
+                if trajprop == "SAScore":
+                    continue
+                prop_path = query_data_path / trajprop
+                molecular_filter.accuracy_filter(
+                    input_path=query_data_path,
+                    output_path=prop_path,
+                    prop=trajprop,
+                    pjsons=prop_path,
+                    trajectory=my_trajectory,
+                    iter=n
+                ) if 'acc_filter' not in skip_step_atstart else skip_step_atstart.discard('acc_filter')
+            # copy filtered molecules to the query data path
+            shutil.copytree(prop_path, query_data_path, dirs_exist_ok=True)
+            
+        # Step 8: Create HDF5
         print("  Running Create HDF5  ")
-        run_to_hdf5(filtered_data_path, dm.hdf5_appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n) if 'hdf5' not in skip_step_atstart else skip_step_atstart.discard('hdf5')
+        run_to_hdf5(query_data_path, dm.hdf5_appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n) if 'hdf5' not in skip_step_atstart else skip_step_atstart.discard('hdf5')
         # Set the loop dataset input 
         hdf5_file_path = dm.output_hdf5
         
-        # clean temp filtered files .xyz
-        # dm.clean_files(filtered_data_path, '.xyz')
+        # Clean accuracy filtered files
+        # dm.clean_files(accuracy_filtered_path)
 
-        # step 8: Compress iteration files and clean up
+        # step 9: Compress iteration files and clean up
         if compress_flag and 'compress' not in skip_step_atstart:
             print("  Running Compress and clean up  ")
             archive_path = f"{args.data}/iter_{n}.tar.gz"
