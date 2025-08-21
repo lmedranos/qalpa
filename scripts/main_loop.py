@@ -82,7 +82,7 @@ def main(args):
 
     # Flag to resume in the midde of the loop
     resume_itr = 1          # from 1 to num_iterations
-    steps={'split', 'train', 'generate', 'relax', 'sascore', 'qed', 'acc_filter', 'fih_aims', 'hdf5', 'compress'}
+    steps={'split', 'train', 'generate', 'relax', 'sascore', 'qedscore', 'acc_filter', 'fih_aims', 'hdf5', 'compress'}
     skip_step_atstart = {}
     # Run active learning loop
     for n in range(num_iterations):
@@ -213,7 +213,7 @@ def main(args):
             print("  Running Filter molecules based on properties  ")
             accuracy_filtered_path = dm.current_data / "accuracy_filtered"
             for trajprop in my_trajectory.child_names:
-                if trajprop == "SAScore":
+                if "Score" in trajprop:
                     continue
                 prop_path = query_data_path / trajprop
                 molecular_filter.accuracy_filter(
