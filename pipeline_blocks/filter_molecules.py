@@ -44,8 +44,7 @@ def run_filter_molecules(input, output):
 class MolecularFilter:
     """
     Class to filter molecules based on their features.
-    This class reads a file containing molecule names and their SAScore values,
-    and copies the molecules with a SAScore above a specified threshold to an output directory.
+    This class provides methods to filter molecules based on SAScore, accuracy, and QED.
     """
     def __init__(self):
         pass   
@@ -88,7 +87,13 @@ class MolecularFilter:
                 print(f"Invalid SAScore value: {sascore} for molecule {molecule_name}")
 
     def accuracy_filter(self, input_path, output_path, prop, pjsons, trajectory, iter, threshold=0.1):
-        """ Filter molecules based on accuracy from a file."""
+        """ Filter molecules based on accuracy from a file.
+        This function filters molecules based on a property value (e.g., eMBD) from a trajectory.
+        It checks if the property value of each molecule is within a specified threshold
+        of the reference value from the trajectory at a given iteration.
+        The molecules that meet the criteria are copied to the output directory.
+        """
+
         ref_value = trajectory[prop][iter] 
         lower_bound = ref_value - (threshold * ref_value)
         upper_bound = ref_value + (threshold * ref_value)
@@ -106,7 +111,10 @@ class MolecularFilter:
                 shutil.copy(src_file, dst_file)
 
     def qed_filter(self, input_path, output_path, qed_file, trajectory, iter):
-        """ Filter molecules based on QED from a file."""
+        """ Filter molecules based on QED from a file.
+        This function reads a file containing molecule names and their QED values,
+        and copies the molecules with a QED above a specified threshold to an output directory.
+        """
         prop = "QED"
         ref_value = trajectory[prop][iter] 
         ipath = Path(input_path)
