@@ -95,9 +95,12 @@ class DataManager:
         # if self.current_data.exists():
         #     shutil.rmtree(self.current_data)
         self.current_data.mkdir(parents=True, exist_ok=True)
-        subfolders = ["generated", "relaxed", "filtered"]
+        subfolders = ["generated", "relaxed", "query", "score_filtered", "prop_calc", "accuracy_filtered"]
         for subfolder in subfolders:
             (self.current_data / subfolder).mkdir(parents=True, exist_ok=True)
+
+        # Create filtered directory which will be deprecated in the future
+        (self.current_data / "filtered").mkdir(parents=True, exist_ok=True)
 
         if self.hdf5_iter_flag:
             (self.current_data / "hdf5").mkdir(parents=True, exist_ok=True)
@@ -145,14 +148,14 @@ class DataManager:
 
 
 
-    def clean_files(self, dir_path: Path, file_type: str):
+    def clean_files(self, dir_path: Path, file_type: str = ''):
         if not dir_path.exists():
             return
         
         if not dir_path.is_dir():
             print(f"Not a directory: {dir_path}")
             return
-
+   
         files = list(dir_path.rglob(f"*{file_type}"))
         if not files:
             return
