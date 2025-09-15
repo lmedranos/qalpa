@@ -2,9 +2,12 @@ import pandas as pd
 import numpy as np
 from pathlib import Path
 
+
 class Trajectory:
-    def __init__(self, directory, child_names):
-        self.names = child_names
+    def __init__(self, directory, prop_names, score_names):
+        self.prop_names = prop_names
+        self.score_names = score_names
+        self.names = prop_names + score_names
         directory = Path(directory)
 
         # find the trajectory file
@@ -16,37 +19,74 @@ class Trajectory:
         # read only requested columns
         df = pd.read_csv(csv_path, usecols=self.names)
 
-        # store axes
-        self._axes = {}
-        for name in self.names:
+        # store axes in two groups
+        self._props = {}
+        self._scores = {}
+
+        for name in self.prop_names:
             col = df[name].to_numpy()
-            if "NUM" in name.upper():  # cast integer-like axes
+            if "NUM" in name.upper():
                 col = col.astype(int)
-            self._axes[name] = col
+            self._props[name] = col
+
+        for name in self.score_names:
+            col = df[name].to_numpy()
+            self._scores[name] = col.astype(float)
 
     def __getitem__(self, name):
-        return self._axes[name]
-    
-    def __getattr__(self, name):
-        if name in self._axes:
-            return self._axes[name]
-        raise AttributeError(f"'Trajectory' object has no attribute '{name}'")
-    
-    def __len__(self):
-        return len(next(iter(self._axes.values())))
+        if name in self._props:
+            return self._props[name]
+        if name in self._scores:
+            return self._scores[name]
+        raise KeyError(f"No axis named {name}")
 
-    def get_target(self, index, prefix="--"):
+    def __getattr__(self, name):
+        if name in self._props:
+            return self._props[name]
+        if name in self._scores:
+            return self._scores[name]
+        raise AttributeError(f"'Trajectory' object has no attribute '{name}'")
+
+    def __len__(self):
+        # length is consistent across all axes
+        return len(next(iter(self._props.values()))) if self._props else len(next(iter(self._scores.values())))
+
+    @property
+    def properties(self):
+        return self._props
+
+    @property
+    def scores(self):
+        return self._scores
+
+    @property
+    def has_properties(self):
+        return len(self._props) > 0
+
+    @property
+    def has_scores(self):
+        return len(self._scores) > 0
+
+    def get_target(self, index):
         """
-        Returns a flattened list like [--axis1, value1, --axis2, value2, ...]
-        for all axes at the given row index.
+        Returns a flattened list like:
+        [--prop1, value1, --prop2, value2, ...]
+        for all property axes at the given row index.
         """
         if index < 0 or index >= len(self):
             raise IndexError(f"Index {index} out of range for trajectory with length {len(self)}")
-    
+        
+        context = [self._props[p][index] for p in self.prop_names if p != "atNUM"]
+        num_nodes = self._props["atNUM"][index] if "atNUM" in self.prop_names else None
         row_list = []
-        for name in self.names:
-            row_list.append(f"{prefix}{name}")
-            row_list.append(str(self._axes[name][index]))
-        row_list.append("--fixed-context")
-        row_list.extend(self.names)
+
+        if num_nodes is not None:
+            row_list.append(f"--num-nodes")
+            row_list.append(str(num_nodes))
+        if context:
+            row_list.append(f"--fixed-context")
+            row_list.extend(str(c) for c in context)
+            # row_list.append("--calculate-props")
+            # row_list.append("--calculate-relax-change")
+            
         return row_list
