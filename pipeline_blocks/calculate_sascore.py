@@ -19,42 +19,6 @@ except ImportError as e:
     sys.exit(1)
 
 
-# def xyz_to_mol(xyz_file):
-#     """
-#     Convert an XYZ file to a MOL file using OpenBabel.
-
-#     This function reads an XYZ file, converts it to a molecule object using OpenBabel,
-#     and writes the molecule to a MOL file. If the conversion fails, it prints an error message.
-
-#     Parameters
-#     ----------
-#     xyz_file : str
-#         Path to the XYZ file.
-
-#     Returns
-#     -------
-#     rdkit_mol : rdkit.Chem.rdchem.Mol
-#         RDKit molecule object.
-    
-#     Raises
-#     ------
-#     Exception
-#         If there is an error during the conversion process.
-#     """
-#     mol = next(pybel.readfile("xyz", str(xyz_file)))
-#     mol.addh()
-#     #mol.make3D()
-#     #mol.localopt()
-#     mol.OBMol.ConnectTheDots()
-#     mol.OBMol.PerceiveBondOrders()
-#     rdkit_mol = Chem.MolFromMolBlock(mol.write("mol"))
-
-#     if rdkit_mol is None:
-#         raise ValueError(f"Failed to convert {xyz_file} to RDKit molecule.")
-#     return rdkit_mol
-
-
-
 def xyz_to_smiles(xyz_file):
     """
     Convert an XYZ file to a SMILES string.
@@ -111,17 +75,11 @@ def calculate_sascore(smiles):
     ValueError
         If the SMILES string is invalid or cannot be processed.
     """
-    mol = Chem.MolFromSmiles(smiles)
-    if mol is None:
-        raise ValueError("Invalid SMILES string.")
     try:
-        Chem.SanitizeMol(mol)
-        Chem.Kekulize(mol, clearAromaticFlags=True)
+        mol = Chem.MolFromSmiles(smiles)
+        sascore = sascorer.calculateScore(mol)
     except Exception as e:
         return None, "tier_0"  # Invalid structure
-
-    sascore = sascorer.calculateScore(mol)
-    
     if sascore > 7:
         tier = "tier_1"
     elif sascore > 5:

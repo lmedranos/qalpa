@@ -31,8 +31,5 @@ if __name__ == "__main__":
         except Exception as e:
             print(f"Error creating JSON from {ifile}: {e}")
             sys.exit(1)
-        os.rename("file.json", ofolder / f"{fname}.json")
-        # move back xyz file to output directory
-        shutil.move(f"{fname}.xyz", ofolder / f"{fname}.xyz")
-        
+        os.rename("file.json", ofolder / f"{fname}.json")        
         

@@ -30,9 +30,11 @@ def main(args):
     from data_manage import DataManager
     from parallelize import parallelize
     from trajectory import Trajectory
+    
     # data directories 
     base_dataset = args.base_dataset
     dataset_name = args.dataset_name
+    
     # Code directories 
     blocks_path =Path(args.pipeline_blocks)
     sys.path.insert(0,str(blocks_path))
@@ -44,8 +46,6 @@ def main(args):
     model_code_path = Path(args.model_code)
     sys.path.insert(0,str(model_code_path / "e3mol_aqm" / "experiments" / "data"))
     sys.path.insert(0,str(model_code_path / "e3mol_aqm"))
-    from aqm import split_data
-    from experiments import run_train, run_evaluation_qm
     model_config_path = Path(args.config, "diffusion_aqm.yaml")
     
     # Define FIH-aims executable
@@ -63,26 +63,23 @@ def main(args):
     # Set the intial hdf5 data for the loop 
     hdf5_file_path = dm.input_hdf5
 
-    # Create exterapolating trajectory for properties
-    if len(args.trajectory_axes) > 0:   # or if context_flag:
-        my_trajectory = Trajectory(args.config, child_names=args.trajectory_axes) 
-        context_flag = True
-    else:
-        my_trajectory = None
-        context_flag = False
-        print("No trajectory axes provided, skipping trajectory creation.")
+    # Create exterapolating trajectory for properties and scores
+    my_trajectory = Trajectory(args.config, prop_names=args.props, score_names=args.scores) 
+    context_flag = True if my_trajectory.has_properties else False
     dm.edit_config(model_config_path, "context_mapping", str(context_flag))
+    dm.edit_config(model_config_path, "properties_list", [p for p in my_trajectory.prop_names if p != "atNUM"])   # Exclude 'atNUM' from properties list in the config file
+    dm.edit_config(model_config_path, "num_context_features", str(len(my_trajectory.prop_names)- (1 if "atNUM" in my_trajectory.prop_names else 0)))  # Exclude 'atNUM' from context features in the config file
     
     # Create Molecular Filter
-    molecular_filter = MolecularFilter()
-    filteration_scheme = {"sascore", "qed", "accuracy"}
+    molecular_filter = MolecularFilter(my_trajectory)
+    filteration_scheme = args.filter_scheme
 
     # compress flag to compress iteration files
     compress_flag = False
 
     # Flag to resume in the midde of the loop
     resume_itr = 1          # from 1 to num_iterations
-    steps={'split', 'train', 'generate', 'relax', 'sascore', 'qedscore', 'acc_filter', 'fih_aims', 'hdf5', 'compress'}
+    steps={'split', 'train', 'generate', 'relax', 'score_filter', 'fih_aims', 'acc_filter', 'hdf5', 'compress'}
     skip_step_atstart = {}
     # Run active learning loop
     for n in range(num_iterations):
@@ -95,146 +92,185 @@ def main(args):
 
         print(f"\n Iteration {n}")
 
+        # Setup environment for GNN
+        gpus_per_task = int(os.environ.get("SLURM_GPUS_PER_TASK", 0))
+        cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
+        # env = os.environ.copy()   
+        # env["OMP_NUM_THREADS"] = str(cpus_per_task)
+        # env["MKL_NUM_THREADS"] = str(cpus_per_task)
+        # os.environ.update(env)
+        
         # Create directories for the current iteration
         dm.create_iteration_directories(n)
 
+
         # Step 1: Run data split
         print(" Running Data split ")
-        split_data.split_data(str(hdf5_file_path), str(dm.diffusion_data_dir)) if 'split' not in skip_step_atstart else skip_step_atstart.discard('split')
-        
+        script_path = model_code_path / "e3mol_aqm" / "experiments" / "data" / "aqm" / "split_data.py"
+        cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
+            "--exclusive", "--export=ALL",
+            "python", str(script_path),
+            "--file-path", str(hdf5_file_path),
+            "--out-path", str(dm.diffusion_data_dir)
+            ]
+        subprocess.run(cmd, check=True)  if 'split' not in skip_step_atstart else skip_step_atstart.discard('split')
 
         # step 2: Diffusion model training
         print("  Running Diffusion model training ")
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_train.py"
         itr_model_path = dm.diffusion_model_dir / f"model_iter_{n}"
         itr_model_path.mkdir(parents=True, exist_ok=True)
-        cmd = ["srun", "--ntasks=1", #"--cpus-per-task=98",
+        cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}", "--gres=gpu:2",
             "--exclusive", "--export=ALL",
             "python", str(script_path),
             "--conf", str(model_config_path), 
             "--save-dir", str(itr_model_path),
             "--dataset", dataset_name, 
             "--dataset-root", str(dm.diffusion_data_dir),
-            "--gpus", "6",
+            "--gpus", str(gpus_per_task),
             "--batch-size", "32"]
-        subprocess.run(cmd, check=True)  if 'train' not in skip_step_atstart else skip_step_atstart.discard('train')
+        subprocess.run(cmd, check=True, env=os.environ.copy())  if 'train' not in skip_step_atstart else skip_step_atstart.discard('train')
         model_path = itr_model_path / "best_mol_stab.ckpt"
         # Update or just delete the model path in the config file for the next iteration
         update_flag = n < (num_iterations - 1)
         dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
-        
-        # clean temp .ckpt files
-        dm.clean_files(itr_model_path / "run0", ".ckpt")
-            
-        # Step 3: Generate molecules
+
+    # Step 3: Generate molecules
         print("  Running Generate molecules  ")
-        
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
         generated_data_path = dm.current_data / "generated" 
         # Find Target for the current iteration
-        if my_trajectory is not None:
+        if my_trajectory.has_properties:
             target = my_trajectory.get_target(n)
         else:
             n_nodes = args.n_nodes[n]  if len(args.n_nodes) > 1 else args.n_nodes[0]
             target = ["--num-nodes", str(n_nodes)]           
-        cmd = ["srun", "--ntasks=1", #"--cpus-per-task=98",
-               "--exclusive", "--export=ALL",
-               "python", str(script_path),
-               "--model-path", str(model_path),
-               "--save-dir", str(generated_data_path),
-                "--save-xyz",
-                # "--calculate-relax-change",
-                # "--calculate-props",
+        cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
+                "--exclusive", "--export=ALL",
+                "python", str(script_path),
+                "--model-path", str(model_path),
+                "--save-dir", str(generated_data_path),
+                "--save-xyz", 
                 "--batch-size", "20",
                 "--ngraphs", "200",
                 "--generate-ngraphs-valid",
-                # "--num-nodes", str(n_nodes),
-                # "--fixed-context", embd, hlgap
                 *target,
                 ]
-        print(f"  Command: {' '.join(cmd)}")
+        print(f"  Command: {cmd}")
         subprocess.run(cmd, check=True, env=os.environ.copy()) if 'generate' not in skip_step_atstart else skip_step_atstart.discard('generate')
+
+
+        # ---- query path to choose molecules fot the next iteration ----
+        
+        # clean temp .ckpt files
+        dm.clean_files(itr_model_path / "run0", ".ckpt")
+        dm.clean_files(dm.diffusion_data_dir/'raw')
+        dm.clean_files(dm.diffusion_data_dir/'processed')
+        
+        # create query directory and copy all generated molecules to the query data path
+        query_data_path = dm.current_data / "query"
+        shutil.copytree(generated_data_path, query_data_path, dirs_exist_ok=True)
+        
+        #delete all files except .xyz
+        for item in query_data_path.iterdir():
+            if item.is_file() and item.suffix != '.xyz':
+                item.unlink()  
+        # clean temp generated files .xyz
+        # dm.clean_files(generated_data_path, '.xyz')
+
 
         # Step 4: Relax molecules
         print("  Running Relax molecules  ")
         script_path = blocks_path / "relax_molecules.py"
         relaxed_data_path = dm.current_data / "relaxed"
-        parallelize(script_path, generated_data_path, relaxed_data_path, max_parallel_tasks) if 'relax' not in skip_step_atstart else skip_step_atstart.discard('relax')
-        
-        # clean temp generated files .pickle and .xyz
-        dm.clean_files(generated_data_path, '.pickle')
-        dm.clean_files(generated_data_path, '.xyz')
-
-        # ---- query path to choose molecules fot the next iteration ----
-        query_data_path = dm.current_data / "query"
-
-        # Step 5: Calculate SAScore and Filter molecules with low SAScore
-        if 'sascore' in filteration_scheme:
-            print("  Running Filter molecules based on SAScore  ")
-            script_path = blocks_path / "calculate_sascore.py"
-            score_filtered_path = dm.current_data / "score_filtered"
-            parallelize(script_path, relaxed_data_path, relaxed_data_path, max_parallel_tasks) if 'filter' not in skip_step_atstart else None
-            # Filter molecules based on SAScore
-            molecular_filter.sacore_filter(
-                input_path=relaxed_data_path,
-                output_path=score_filtered_path,
-                sascore_file=relaxed_data_path / 'sascore.txt',
-                trajectory=my_trajectory,
-                iter=n
-            ) if 'sascore' not in skip_step_atstart else skip_step_atstart.discard('sascore')
-            # copy filtered molecules to the query data path
-            shutil.copytree(score_filtered_path, query_data_path, dirs_exist_ok=True)
-        else:
-            print("Skipping SAScore filtering.")
-            # copy relaxed molecules to the query data path
-            shutil.copytree(relaxed_data_path, query_data_path, dirs_exist_ok=True)
-
-        # clean temp score filtered files .xyz
-        # dm.clean_files(score_filtered_path)
-
+        parallelize(script_path, query_data_path, relaxed_data_path, max_parallel_tasks) if 'relax' not in skip_step_atstart else skip_step_atstart.discard('relax')
+        # Copy all relaxed molecules to the query data path
+        shutil.copytree(relaxed_data_path, query_data_path, dirs_exist_ok=True)
         # clean temp relaxed files .xyz
-        dm.clean_files(relaxed_data_path, '.xyz')
+        # dm.clean_files(relaxed_data_path, '.xyz')
 
 
-        # Step 6: Calculate properties and convert output to JSON
-        if context_flag:
+        # Step 5: Calculate Score and Filter molecules 
+        if 'score_filter' not in skip_step_atstart:
+            if 'score' in filteration_scheme and my_trajectory.has_scores:
+                print("  Running Filter molecules based on Score  ")
+                score_filtered_path = dm.current_data / "score_filtered"
+                for score_name in my_trajectory.score_names:
+                    print(f"    Filtering based on {score_name}  ")
+                    fscored_path = score_filtered_path / score_name
+                    fscored_path.mkdir(parents=True, exist_ok=True)
+                    if score_name.lower() == 'sascore':
+                        script_path = blocks_path / "calculate_sascore.py"
+                    # elif score_name.lower() == 'qed':  # To be implemented
+                        # script_path = blocks_path / "calculate_qed.py"
+                    parallelize(script_path, query_data_path, score_filtered_path, max_parallel_tasks)
+                    # Filter molecules based on SAScore
+                    molecular_filter.score_filter(
+                        input_path=query_data_path,
+                        output_path=fscored_path,
+                        score_name=score_name,
+                        score_file= score_filtered_path / f'{score_name.lower()}.txt',
+                        iter=n
+                    )
+                    # clean query directory
+                    dm.clean_files(query_data_path)
+                    # copy filtered molecules to the query data path
+                    shutil.copytree(fscored_path, query_data_path, dirs_exist_ok=True)
+                    # clean temp score filtered files .xyz
+                    # dm.clean_files(fscored_path, '.xyz')
+        else:
+            skip_step_atstart.discard('score_filter')
+
+
+
+        # Step 6: Calculate properties 
+        prop_calc_path = dm.current_data / "prop_calc"
+        if context_flag and 'fih_aims' not in skip_step_atstart:
             print("  Running Calculate properties ")
             script_path = blocks_path / "propcalc_preprocess.py"
-            parallelize(script_path, query_data_path, query_data_path, max_parallel_tasks) if 'fih_aims' not in skip_step_atstart else None
-            parallelize(fih_aims_exc, query_data_path, 'aims.out', max_parallel_tasks) if 'fih_aims' not in skip_step_atstart else None
+            parallelize(script_path, query_data_path, prop_calc_path, max_parallel_tasks) 
+            parallelize(fih_aims_exc, prop_calc_path, 'aims.out', max_parallel_tasks) 
             script_path = blocks_path / "propcalc_postprocess.py"
-            parallelize(script_path, query_data_path, query_data_path, max_parallel_tasks) if 'fih_aims' not in skip_step_atstart  else skip_step_atstart.discard('fih_aims')
+            parallelize(script_path, prop_calc_path, prop_calc_path, max_parallel_tasks)  
+        elif context_flag:
+            skip_step_atstart.discard('fih_aims')
         else:
             print("Calculating properties is skipped.")
-
+        
         
         # Step 7: Filter molecules based on properties
-        if 'accuracy' in filteration_scheme:
-            print("  Running Filter molecules based on properties  ")
-            accuracy_filtered_path = dm.current_data / "accuracy_filtered"
-            for trajprop in my_trajectory.child_names:
-                if "Score" in trajprop:
-                    continue
-                prop_path = query_data_path / trajprop
-                molecular_filter.accuracy_filter(
-                    input_path=query_data_path,
-                    output_path=prop_path,
-                    prop=trajprop,
-                    pjsons=prop_path,
-                    trajectory=my_trajectory,
-                    iter=n
-                ) if 'acc_filter' not in skip_step_atstart else skip_step_atstart.discard('acc_filter')
-            # copy filtered molecules to the query data path
-            shutil.copytree(prop_path, query_data_path, dirs_exist_ok=True)
+        if 'acc_filter' not in skip_step_atstart:
+            if 'accuracy' in filteration_scheme and my_trajectory.has_properties:
+                print("  Running Filter molecules based on properties  ")
+                accuracy_filtered_path = dm.current_data / "accuracy_filtered"
+                for trajprop in my_trajectory.prop_names:
+                    if trajprop.lower() == 'atnum':
+                        continue
+                    print(f"    Filtering based on {trajprop}  ")
+                    fprop_path = accuracy_filtered_path / trajprop
+                    fprop_path.mkdir(parents=True, exist_ok=True)
+                    molecular_filter.accuracy_filter(
+                        input_path=query_data_path,
+                        output_path=fprop_path,
+                        prop=trajprop,
+                        pjsons=prop_calc_path,
+                        iter=n,
+                        threshold=0.1
+                    )
+                    # clean query directory 
+                    dm.clean_files(query_data_path)
+                    # copy filtered molecules to the query data path
+                    shutil.copytree(fprop_path, query_data_path, dirs_exist_ok=True)
+                    # clean temp accuracy filtered files .xyz
+                    # dm.clean_files(fprop_path, '.xyz')
+        else:
+            skip_step_atstart.discard('acc_filter')
             
+
         # Step 8: Create HDF5
         print("  Running Create HDF5  ")
-        run_to_hdf5(query_data_path, dm.hdf5_appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n) if 'hdf5' not in skip_step_atstart else skip_step_atstart.discard('hdf5')
-        # Set the loop dataset input 
-        hdf5_file_path = dm.output_hdf5
+        run_to_hdf5(query_data_path, prop_calc_path, dm.hdf5_appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n) if 'hdf5' not in skip_step_atstart else skip_step_atstart.discard('hdf5')
         
-        # Clean accuracy filtered files
-        # dm.clean_files(accuracy_filtered_path)
 
         # step 9: Compress iteration files and clean up
         if compress_flag and 'compress' not in skip_step_atstart:
@@ -250,9 +286,12 @@ def main(args):
             shutil.rmtree(itr_model_path)
             shutil.rmtree(dm.diffusion_data_dir)
             shutil.rmtree(dm.diffusion_log_dir)
-        else:
+        elif "compress" in skip_step_atstart:
             skip_step_atstart.discard('compress')
-    
+
+        # Set the loop dataset input 
+        hdf5_file_path = dm.output_hdf5
+        
         print(f"Iteration {n} completed.")
 
     end_loop = time.time()
@@ -273,12 +312,11 @@ if __name__ == "__main__":
     parser.add_argument("--actdiff_utils", type=str)
     parser.add_argument("--config", type=str)
     parser.add_argument("--num_iterations", type=int, default=10)
-    parser.add_argument("--trajectory_axes", type=str, nargs='+', default=[])
+    parser.add_argument("--props", type=str, nargs='+', default=[])
+    parser.add_argument("--scores", type=str, nargs='+', default=[])
     parser.add_argument("--n_nodes", type=int, nargs='+', default=[20, 30, 40, 50, 60, 70, 80, 90, 100, 110])
-
-
-    max_parallel_tasks = int(os.environ.get("SLURM_NTASKS", 1))
-    parser.add_argument("--max_parallel_tasks", type=int, default=max_parallel_tasks)
+    parser.add_argument("--filter_scheme", type=str, nargs='+', default=[])
+    parser.add_argument("--max_parallel_tasks", type=int, default=1)
     args = parser.parse_args()
     
     # Set environment variables
