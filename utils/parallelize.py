@@ -2,7 +2,6 @@ import subprocess
 import os
 import time
 from pathlib import Path
-from mpi4py import MPI
 
 
 def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
@@ -19,10 +18,21 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
         - output_path: Path to store output files.
         - max_parallel_tasks: Maximum number of parallel tasks to run at once.
     """
+    
+    # Setup environment for parallel calculations of molecules
+    # env = os.environ.copy()
+    cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) #*int(os.environ.get("SLURM_TASKS_PER_NODE"))*int(os.environ.get("SLURM_NNODES"))// (max_parallel_tasks)  
+    # env["OMP_NUM_THREADS"] = str(cpus_per_task)
+    # env["MKL_NUM_THREADS"] = str(cpus_per_task)
+    # env["OPENBLAS_NUM_THREADS"] = str(cpus_per_task)
+    # env["NUMEXPR_NUM_THREADS"] = str(cpus_per_task)
+    # os.environ.update(env)
+    
+    
     shell_flag = not str(script_path).endswith(".py")
 
     base_cmd = [
-        "srun", "--ntasks=1", # "--cpus-per-task=6",
+        "srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
         "--exclusive",
         f"--export=ALL,CONFIG={os.environ['CONFIG']}",
     ]
@@ -38,7 +48,6 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
         
         p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if shell_flag else None)
         processes.append(p)
-
         # Control max parallelism
         if len(processes) >= max_parallel_tasks:
             # Wait for any to finish before launching more

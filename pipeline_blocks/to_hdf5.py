@@ -13,7 +13,7 @@ from ase.io import read
 import h5py
 from contextlib import ExitStack
 
-def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr):
+def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr):
     """
     Function to convert filtered molecules into HDF5 format.
     It reads filtered molecules from a directory, extracts properties,
@@ -21,7 +21,8 @@ def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, outpu
     
     Parameters:
     ---------------
-        - filtered_dir: Directory containing filtered molecules in JSON format.
+        - query_dir: Directory containing filtered molecules in xyz format.
+        - prop_dir: Directory containing JSON files with molecular properties.
         - h5file_output: Path to the output HDF5 file for the full dataset.
         - output_extra_prop: Path to the output HDF5 file for extra properties.
         - h5file_itr: Path to the output HDF5 file for the current iteration.
@@ -32,7 +33,6 @@ def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, outpu
     EPBE0_atom = {1:-13.64136507, 6:-1027.59344601, \
                 7:-1484.25358313, 8:-2039.74560236, 9: -3139.751675679, 15:-9283.01120606, 16: -10828.726222083, 17: -12516.462339357}
 
-    folders = sorted([p.name for p in filtered_dir.iterdir() if p.is_dir()])
     
     mode = 'a' if appending_flag else 'w'
 
@@ -51,31 +51,25 @@ def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, outpu
 
         for name, hdf5_file in files.items():
             if hdf5_file is not None:
-                grp = hdf5_file.create_group(f"G-{itr}") 
-                #for fdir in folders:
-
-                molecule = {}
-
-                jfiles = [f for f in filtered_dir.iterdir() if f.is_file() and f.suffix == '.json']  #As folder have non json files
-
-                for jf in jfiles:
-
-                    with jf.open("r") as json_file:
-                        data = json.load(json_file)
-
-                    mol_name = jf.stem
-                    print(f"Processing {mol_name} in {itr}")
-                    subgrp = grp.create_group(f"{mol_name}_itr{itr}")
-    
-                    xyz_file_path = filtered_dir / f"{mol_name}.xyz"       # path to the xyz file if coordinate is not in json file
+                grp = hdf5_file.create_group(f"G-active-loop-{itr}")
+                xyzfiles = [f for f in query_dir.iterdir() if f.is_file() and f.suffix == '.xyz']
+                
+                for xyzfile in xyzfiles:
+                    mol_name = xyzfile.stem
+                    subgrp = grp.create_group(f"{mol_name}")
+                    xyz_file_path = query_dir / f"{mol_name}.xyz"       # path to the xyz file if coordinate is not in json file
                     atoms = read(xyz_file_path)
                     Z = atoms.get_atomic_numbers()
                     POS = atoms.get_positions()
+                    molecule = {}
                     molecule['atNUM'] = np.array(Z, dtype=np.float64)
-                    molecule['atXYZ'] = np.array(POS, dtype=np.int64)       
-                    # os.remove('tmp-'+str(sysname)+'.xyz')
-
+                    molecule['atXYZ'] = np.array(POS, dtype=np.int64) 
+                          
                     if context_flag:                        # add context properties
+                        jf = prop_dir / f"{mol_name}.json"
+                             
+                        with jf.open("r") as json_file:
+                            data = json.load(json_file)
 
                         if 'extra_prop' in name:           # collect collateral properties for the third hdf5
                             totfor = np.array(data["Total Forces (eV/Ang):"], dtype=np.float64)
@@ -107,8 +101,9 @@ def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, outpu
                             molecule['eKIN'] = np.array([data["SUM"]["Kinetic Energy"]], dtype=np.float64)
                             molecule['eL'] = np.array([data["LUMO energy"]], dtype=np.float64)
                             molecule['eMBD'] = np.array([data["SUM"]["MBD"]], dtype=np.float64)
-                            molecule['ePBE0'] = pbe0
-                            molecule['ePBE0+MBD'] = ener     
+                            # molecule['ePBE0'] = pbe0
+                            molecule['eTS'] = pbe0
+                            # molecule['ePBE0+MBD'] = ener     
                             molecule['eXC'] = np.array([data["SUM"]["Total XC energy"]], dtype=np.float64)
                             molecule['eXX'] = np.array([data["SUM"]["Hartree-Fock Energy"]], dtype=np.float64)
 
@@ -116,10 +111,14 @@ def run_to_hdf5(filtered_dir, appending_flag, h5file_output, context_flag, outpu
                     for key, value in molecule.items():
                         dset = subgrp.create_dataset(key, value.shape, dtype=value.dtype)
                         dset[...] = value
-
+                        print(f"Written {key} for {mol_name} in {name}")
+                        
+  
+                
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert filtered molecules to HDF5 format.")
-    parser.add_argument("--input", type=str, required=True, help="Path to the filtered directory containing JSON files.")
+    parser.add_argument("--input_xyz", type=str, required=True, help="Path to the directory containing xyz files.")
+    parser.add_argument("--input_prop", type=str, required=True, help="Path to the directory containing JSON files.")
     parser.add_argument("--appending_flag", type=bool, required=True, help="Flag to indicate if the HDF5 file should be appended to (True) or overwritten (False).")
     parser.add_argument("--h5file_output", type=str, required=True, help="Path to the output HDF5 file for the full dataset.")
     parser.add_argument("--context", default=True ,type=bool, help="Flag to indicate if context properties should be added.")
