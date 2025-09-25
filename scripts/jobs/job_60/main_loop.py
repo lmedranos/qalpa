@@ -71,7 +71,7 @@ def main(args):
     compress_flag = False
 
     # Flag to resume in the midde of the loop
-    resume_itr = 0
+    resume_itr = 1
     steps={'split', 'train', 'generate', 'relax', 'filter', 'fih_aims', 'hdf5', 'compress'}
     skip_step_atstart = {}
     # Run active learning loop
@@ -112,9 +112,6 @@ def main(args):
         # Update or just delete the model path in the config file for the next iteration
         update_flag = n < (num_iterations - 1)
         dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
-        
-        # clean temp .ckpt files
-        dm.clean_files(itr_model_path / "run0", ".ckpt")
             
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
@@ -138,6 +135,11 @@ def main(args):
                 # "--fixed-context", embd, hlgap
                 ]
         subprocess.run(cmd, check=True, env=os.environ.copy()) if 'generate' not in skip_step_atstart else skip_step_atstart.discard('generate')
+
+        # clean temp .ckpt files
+        dm.clean_files(itr_model_path / "run0", ".ckpt")
+        dm.clean_files(dm.diffusion_data_dir/'raw')
+        dm.clean_files(dm.diffusion_data_dir/'processed')
 
         # Step 4: Relax molecules
         print("  Running Relax molecules  ")
