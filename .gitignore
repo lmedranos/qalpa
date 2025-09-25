@@ -16,4 +16,4 @@ __pycache__/
 data/
 diffusion_code/
 *.code-workspace
-scripts/jobs/
+*.txt
