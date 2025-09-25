@@ -16,4 +16,5 @@ __pycache__/
 data/
 diffusion_code/
 *.code-workspace
-*.txt
+None
+job_embd/
