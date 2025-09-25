@@ -55,9 +55,9 @@ def main(args):
     print(f"\n Iteration {n}")
 
     # Setup environment for GNN
-    gpus_per_task = 2 #int(os.environ.get("SLURM_GPUS_PER_TASK", 0))
-    # env = os.environ.copy()
+    gpus_per_task = int(os.environ.get("SLURM_GPUS_ON_NODE", 1))
     cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))   
+    # env = os.environ.copy()
     # env["OMP_NUM_THREADS"] = str(cpus_per_task)
     # env["MKL_NUM_THREADS"] = str(cpus_per_task)
     # os.environ.update(env)
@@ -106,7 +106,8 @@ def main(args):
         target = my_trajectory.get_target(n)
     else:
         n_nodes = args.n_nodes[n]  if len(args.n_nodes) > 1 else args.n_nodes[0]
-        target = ["--num-nodes", str(n_nodes)]           
+        target = ["--num-nodes", str(n_nodes)]     
+    print(f"    Target: {target}  ")      
     cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
             "--exclusive", "--export=ALL",
             "python", str(script_path),

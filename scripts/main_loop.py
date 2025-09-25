@@ -93,7 +93,7 @@ def main(args):
         print(f"\n Iteration {n}")
 
         # Setup environment for GNN
-        gpus_per_task = int(os.environ.get("SLURM_GPUS_PER_TASK", 0))
+        gpus_per_task = int(os.environ.get("SLURM_GPUS_ON_NODE", 0))
         cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))
         # env = os.environ.copy()   
         # env["OMP_NUM_THREADS"] = str(cpus_per_task)
