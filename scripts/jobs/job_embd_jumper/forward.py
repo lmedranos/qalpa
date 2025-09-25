@@ -65,61 +65,68 @@ def main(args):
     # Create directories for the current iteration
     dm.create_iteration_directories(n)
 
-
     # Step 1: Run data split
-    print(" Running Data split ")
     script_path = model_code_path / "e3mol_aqm" / "experiments" / "data" / "aqm" / "split_data.py"
-    cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
-        "--exclusive", "--export=ALL",
-        "python", str(script_path),
-        "--file-path", str(hdf5_file_path),
-        "--out-path", str(dm.diffusion_data_dir)
-        ]
-    subprocess.run(cmd, check=True)  if 'split' not in skip_step_atstart else skip_step_atstart.discard('split')
-
+    if 'split' not in skip_step_atstart:
+        print(" Running Data split ")
+        cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
+            "--exclusive", "--export=ALL",
+            "python", str(script_path),
+            "--file-path", str(hdf5_file_path),
+            "--out-path", str(dm.diffusion_data_dir)
+            ]
+        subprocess.run(cmd, check=True)  
+    else:
+        skip_step_atstart.discard('split')
+        
     # step 2: Diffusion model training
-    print("  Running Diffusion model training ")
     script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_train.py"
     itr_model_path = dm.diffusion_model_dir / f"model_iter_{n}"
     itr_model_path.mkdir(parents=True, exist_ok=True)
-    cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}", "--gres=gpu:2",
-        "--exclusive", "--export=ALL",
-        "python", str(script_path),
-        "--conf", str(model_config_path), 
-        "--save-dir", str(itr_model_path),
-        "--dataset", dataset_name, 
-        "--dataset-root", str(dm.diffusion_data_dir),
-        "--gpus", str(gpus_per_task),
-        "--batch-size", "32"]
-    subprocess.run(cmd, check=True, env=os.environ.copy())  if 'train' not in skip_step_atstart else skip_step_atstart.discard('train')
-    model_path = itr_model_path / "best_mol_stab.ckpt"
-    # Update or just delete the model path in the config file for the next iteration
-    update_flag = n < (num_iterations - 1)
-    dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
-
-    # Step 3: Generate molecules
-    print("  Running Generate molecules  ")
-    script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
-    generated_data_path = dm.current_data / "generated" 
-    # Find Target for the current iteration
-    if my_trajectory.has_properties:
-        target = my_trajectory.get_target(n)
-    else:
-        n_nodes = args.n_nodes[n]  if len(args.n_nodes) > 1 else args.n_nodes[0]
-        target = ["--num-nodes", str(n_nodes)]           
-    cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
+    if 'train' not in skip_step_atstart:
+        print("  Running Diffusion model training ")
+        cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}", "--gres=gpu:2",
             "--exclusive", "--export=ALL",
             "python", str(script_path),
-            "--model-path", str(model_path),
-            "--save-dir", str(generated_data_path),
-            "--save-xyz", 
-            "--batch-size", "20",
-            "--ngraphs", "200",
-            "--generate-ngraphs-valid",
-            *target,
-            ]
-    print(f"  Command: {cmd}")
-    subprocess.run(cmd, check=True, env=os.environ.copy()) if 'generate' not in skip_step_atstart else skip_step_atstart.discard('generate')
+            "--conf", str(model_config_path), 
+            "--save-dir", str(itr_model_path),
+            "--dataset", dataset_name, 
+            "--dataset-root", str(dm.diffusion_data_dir),
+            "--gpus", str(gpus_per_task),
+            "--batch-size", "32"]
+        subprocess.run(cmd, check=True, env=os.environ.copy())  
+        model_path = itr_model_path / "best_mol_stab.ckpt"
+        # Update or just delete the model path in the config file for the next iteration
+        update_flag = n < (num_iterations - 1)
+        dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
+    else:
+        skip_step_atstart.discard('train')
+        
+    # Step 3: Generate molecules
+    script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
+    generated_data_path = dm.current_data / "generated" 
+    if 'generate' not in skip_step_atstart:
+        print("  Running Generate molecules  ")
+        # Find Target for the current iteration
+        if my_trajectory.has_properties:
+            target = my_trajectory.get_target(n)
+        else:
+            n_nodes = args.n_nodes[n]  if len(args.n_nodes) > 1 else args.n_nodes[0]
+            target = ["--num-nodes", str(n_nodes)]           
+        cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
+                "--exclusive", "--export=ALL",
+                "python", str(script_path),
+                "--model-path", str(model_path),
+                "--save-dir", str(generated_data_path),
+                "--save-xyz", 
+                "--batch-size", "20",
+                "--ngraphs", "200",
+                "--generate-ngraphs-valid",
+                *target,
+                ]
+        subprocess.run(cmd, check=True, env=os.environ.copy()) 
+    else:
+        skip_step_atstart.discard('generate')
 
     
     # clean temp .ckpt files
