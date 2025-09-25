@@ -8,8 +8,8 @@
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH -o /data/horse/ws/miha493e-research_project/activediffusion/scripts/jobs/job_embd_jumper/check-log.out
-#SBATCH -e /data/horse/ws/miha493e-research_project/activediffusion/scripts/jobs/job_embd_jumper/check-log.err
+#SBATCH -o check-log.out
+#SBATCH -e check-log.err
 #SBATCH --mail-type=all
 #SBATCH --mail-user=michael_gamal_nassif.hanna@mailbox.tu-dresden.de
 
