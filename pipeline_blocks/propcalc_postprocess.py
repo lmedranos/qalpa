@@ -23,7 +23,7 @@ if __name__ == "__main__":
     ofolder = Path(args.output)
     fname = ifolder.name
     ifile = ifolder / "aims.out"
-    print(f"Input file: {ifile}, Output folder: {ofolder}")
+    # print(f"Input file: {ifile}, Output folder: {ofolder}")
     if ifile.exists():
         os.chdir(ifolder)
         try:

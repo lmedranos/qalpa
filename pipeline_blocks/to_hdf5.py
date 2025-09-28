@@ -115,7 +115,7 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
                     for key, value in molecule.items():
                         dset = subgrp.create_dataset(key, value.shape, dtype=value.dtype)
                         dset[...] = value
-                        print(f"Written {key} for {mol_name} in {name}")
+                        # print(f"Written {key} for {mol_name} in {name}")
                         
   
                 
