@@ -36,7 +36,7 @@ vector_aggr: mean
 
 #DATA
 dataset: aqm
-dataset_root: /data/horse/ws/miha493e-research_project/activediffusion/data/data_test/diffusion_wdir/data
+dataset_root: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd/diffusion_wdir/data
 # DIFFUSION
 additional_feats: false
 continuous: false
@@ -49,12 +49,12 @@ max_time: 06:00:00:00
 loss_weighting: snr_t
 
 #CONTEXT
-context_mapping: False
+context_mapping: True
 num_context_features: 2
-properties_list: [eMBD , HLgap]
+properties_list: [eMBD, HLgap]
 
 #LOGGING
-save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/data_test/diffusion_wdir/logs
+save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd/diffusion_wdir/logs
 id: 0
 
 #LEARNING
@@ -69,7 +69,7 @@ max_num_neighbors: 128
 weight_decay: 1.e-12
 
 #TESTING
-test_save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/data_test/diffusion_wdir/test
+test_save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd/diffusion_wdir/test
 
 num_workers: 4
 precision: 32

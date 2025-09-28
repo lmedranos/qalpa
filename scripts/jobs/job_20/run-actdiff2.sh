@@ -2,7 +2,7 @@
 #SBATCH -J active-loop_20
 #SBATCH -A p_nanoparticle
 #SBATCH --time=165:00:00                    
-#SBATCH --partition=capella
+#SBATCH --partition=capella     
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8                                                  
 #SBATCH --mem-per-cpu=8000                       

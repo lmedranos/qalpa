@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH -J active-loop_100
 #SBATCH -A p_nanoparticle
-#SBATCH --time=160:00:00                    
+#SBATCH --time=100:00:00                    
 #SBATCH --partition=capella
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=8                                              

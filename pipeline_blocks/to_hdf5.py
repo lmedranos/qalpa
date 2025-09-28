@@ -56,6 +56,9 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
                 
                 for xyzfile in xyzfiles:
                     mol_name = xyzfile.stem
+                    if mol_name in grp:
+                        print(f"{mol_name} already exists in {name}, skipping...")
+                        continue
                     subgrp = grp.create_group(f"{mol_name}")
                     xyz_file_path = query_dir / f"{mol_name}.xyz"       # path to the xyz file if coordinate is not in json file
                     atoms = read(xyz_file_path)

@@ -66,16 +66,22 @@ def main(args):
     query_data_path = dm.current_data / "query"
 
     # Step 4: Relax molecules
-    print("  Running Relax molecules  ")
     script_path = blocks_path / "relax_molecules.py"
     relaxed_data_path = dm.current_data / "relaxed"
-    parallelize(script_path, query_data_path, relaxed_data_path, max_parallel_tasks) if 'relax' not in skip_step_atstart else skip_step_atstart.discard('relax')
-    # Copy all relaxed molecules to the query data path
-    shutil.copytree(relaxed_data_path, query_data_path, dirs_exist_ok=True)
-    # clean temp relaxed files .xyz
-    # dm.clean_files(relaxed_data_path, '.xyz')
+    if 'relax' not in skip_step_atstart:
+        print("  Running Relax molecules  ")
+        parallelize(script_path, query_data_path, relaxed_data_path, max_parallel_tasks) 
+        # clean query directory
+        dm.clean_files(query_data_path)
+        # Copy all relaxed molecules to the query data path
+        shutil.copytree(relaxed_data_path, query_data_path, dirs_exist_ok=True)
+        # # clean temp relaxed files .xyz
+        # dm.clean_files(relaxed_data_path, '.xyz')
+    else:
+        skip_step_atstart.discard('relax')
 
 
+ 
     # Step 5: Calculate Score and Filter molecules 
     if 'score_filter' not in skip_step_atstart:
         if 'score' in filteration_scheme and my_trajectory.has_scores:
@@ -102,7 +108,7 @@ def main(args):
                 dm.clean_files(query_data_path)
                 # copy filtered molecules to the query data path
                 shutil.copytree(fscored_path, query_data_path, dirs_exist_ok=True)
-                # clean temp score filtered files .xyz
+                # # clean temp score filtered files .xyz
                 # dm.clean_files(fscored_path, '.xyz')
     else:
         skip_step_atstart.discard('score_filter')
