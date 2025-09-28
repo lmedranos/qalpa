@@ -51,7 +51,8 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
 
         for name, hdf5_file in files.items():
             if hdf5_file is not None:
-                grp = hdf5_file.create_group(f"G-active-loop-{itr}")
+                group_name =  f"G-active-loop-{itr}"
+                grp = hdf5_file.require_group(group_name)
                 xyzfiles = [f for f in query_dir.iterdir() if f.is_file() and f.suffix == '.xyz']
                 
                 for xyzfile in xyzfiles:
