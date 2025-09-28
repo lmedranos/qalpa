@@ -56,7 +56,7 @@ def main(args):
 
     # Flag to resume in the midde of the loop
     steps={'relax', 'score_filter', 'fih_aims', 'acc_filter', 'hdf5', 'compress'}
-    skip_step_atstart = {'relax', 'score_filter'}
+    skip_step_atstart = {}
     
     
     n = args.iter    
@@ -118,48 +118,48 @@ def main(args):
     if context_flag and 'fih_aims' not in skip_step_atstart:
         print("  Running Calculate properties ")
         script_path = blocks_path / "propcalc_preprocess.py"
-        #parallelize(script_path, query_data_path, prop_calc_path, max_parallel_tasks) 
+        parallelize(script_path, query_data_path, prop_calc_path, max_parallel_tasks) 
         parallelize(fih_aims_exc, prop_calc_path, 'aims.out', max_parallel_tasks) 
         script_path = blocks_path / "propcalc_postprocess.py"
-        # parallelize(script_path, prop_calc_path, prop_calc_path, max_parallel_tasks)  
+        parallelize(script_path, prop_calc_path, prop_calc_path, max_parallel_tasks)  
     elif context_flag:
         skip_step_atstart.discard('fih_aims')
     else:
         print("Calculating properties is skipped.")
 
     
-    # # Step 7: Filter molecules based on properties
-    # if 'acc_filter' not in skip_step_atstart:
-    #     if 'accuracy' in filteration_scheme and my_trajectory.has_properties:
-    #         print("  Running Filter molecules based on properties  ")
-    #         accuracy_filtered_path = dm.current_data / "accuracy_filtered"
-    #         for trajprop in my_trajectory.prop_names:
-    #             if trajprop.lower() == 'atnum':
-    #                 continue
-    #             print(f"    Filtering based on {trajprop}  ")
-    #             fprop_path = accuracy_filtered_path / trajprop
-    #             fprop_path.mkdir(parents=True, exist_ok=True)
-    #             molecular_filter.accuracy_filter(
-    #                 input_path=query_data_path,
-    #                 output_path=fprop_path,
-    #                 prop=trajprop,
-    #                 pjsons=prop_calc_path,
-    #                 iter=n,
-    #                 threshold=0.1
-    #             )
-    #             # clean query directory 
-    #             dm.clean_files(query_data_path)
-    #             # copy filtered molecules to the query data path
-    #             shutil.copytree(fprop_path, query_data_path, dirs_exist_ok=True)
-    #             # clean temp accuracy filtered files .xyz
-    #             # dm.clean_files(fprop_path, '.xyz')
-    # else:
-    #     skip_step_atstart.discard('acc_filter')
+    # Step 7: Filter molecules based on properties
+    if 'acc_filter' not in skip_step_atstart:
+        if 'accuracy' in filteration_scheme and my_trajectory.has_properties:
+            print("  Running Filter molecules based on properties  ")
+            accuracy_filtered_path = dm.current_data / "accuracy_filtered"
+            for trajprop in my_trajectory.prop_names:
+                if trajprop.lower() == 'atnum':
+                    continue
+                print(f"    Filtering based on {trajprop}  ")
+                fprop_path = accuracy_filtered_path / trajprop
+                fprop_path.mkdir(parents=True, exist_ok=True)
+                molecular_filter.accuracy_filter(
+                    input_path=query_data_path,
+                    output_path=fprop_path,
+                    prop=trajprop,
+                    pjsons=prop_calc_path,
+                    iter=n,
+                    threshold=0.1
+                )
+                # clean query directory 
+                dm.clean_files(query_data_path)
+                # copy filtered molecules to the query data path
+                shutil.copytree(fprop_path, query_data_path, dirs_exist_ok=True)
+                # clean temp accuracy filtered files .xyz
+                # dm.clean_files(fprop_path, '.xyz')
+    else:
+        skip_step_atstart.discard('acc_filter')
         
 
-    # # Step 8: Create HDF5
-    # print("  Running Create HDF5  ")
-    # run_to_hdf5(query_data_path, prop_calc_path, dm.hdf5_appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n) if 'hdf5' not in skip_step_atstart else skip_step_atstart.discard('hdf5')
+    # Step 8: Create HDF5
+    print("  Running Create HDF5  ")
+    run_to_hdf5(query_data_path, prop_calc_path, dm.hdf5_appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n) if 'hdf5' not in skip_step_atstart else skip_step_atstart.discard('hdf5')
 
     print(f"Iteration {n} completed.")
 
