@@ -100,7 +100,7 @@ class DataManager:
             (self.current_data / subfolder).mkdir(parents=True, exist_ok=True)
 
         # Create filtered directory which will be deprecated in the future
-        (self.current_data / "filtered").mkdir(parents=True, exist_ok=True)
+        # (self.current_data / "filtered").mkdir(parents=True, exist_ok=True)
 
         if self.hdf5_iter_flag:
             (self.current_data / "hdf5").mkdir(parents=True, exist_ok=True)

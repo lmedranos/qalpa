@@ -29,7 +29,6 @@ def main(args):
     sys.path.insert(0,str(utils_path))
     from data_manage import DataManager
     from parallelize import parallelize
-    from trajectory import Trajectory
     # data directories 
     base_dataset = args.base_dataset
     dataset_name = args.dataset_name
@@ -63,21 +62,16 @@ def main(args):
     # Set the intial hdf5 data for the loop 
     hdf5_file_path = dm.input_hdf5
 
-    # Create exterapolating trajectory for properties
-    if len(args.trajectory_axes) > 0:   # or if context_flag:
-        my_trajectory = Trajectory(args.config, child_names=args.trajectory_axes) 
-        context_flag = True
-    else:
-        my_trajectory = None
-        context_flag = False
-        print("No trajectory axes provided, skipping trajectory creation.")
+
+    # select the context of training to include properties or not
+    context_flag = False
     dm.edit_config(model_config_path, "context_mapping", str(context_flag))
-    
+
     # compress flag to compress iteration files
     compress_flag = False
 
     # Flag to resume in the midde of the loop
-    resume_itr = 1          # from 1 to num_iterations
+    resume_itr = 1
     steps={'split', 'train', 'generate', 'relax', 'filter', 'fih_aims', 'hdf5', 'compress'}
     skip_step_atstart = {}
     # Run active learning loop
@@ -104,14 +98,14 @@ def main(args):
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_train.py"
         itr_model_path = dm.diffusion_model_dir / f"model_iter_{n}"
         itr_model_path.mkdir(parents=True, exist_ok=True)
-        cmd = ["srun", "--ntasks=1", #"--cpus-per-task=98",
+        cmd = ["srun", "--nodes=1", "--ntasks=1", "--gres=gpu:1",
             "--exclusive", "--export=ALL",
             "python", str(script_path),
             "--conf", str(model_config_path), 
             "--save-dir", str(itr_model_path),
             "--dataset", dataset_name, 
             "--dataset-root", str(dm.diffusion_data_dir),
-            "--gpus", "6",
+            "--gpus", "1",
             "--batch-size", "32"]
         subprocess.run(cmd, check=True)  if 'train' not in skip_step_atstart else skip_step_atstart.discard('train')
         model_path = itr_model_path / "best_mol_stab.ckpt"
@@ -119,20 +113,13 @@ def main(args):
         update_flag = n < (num_iterations - 1)
         dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
         
-        # clean temp .ckpt files
-        dm.clean_files(itr_model_path / "run0", ".ckpt")
-            
         # Step 3: Generate molecules
         print("  Running Generate molecules  ")
-        
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_evaluation_qm.py"
-        generated_data_path = dm.current_data / "generated" 
-        # Find Target for the current iteration
-        if my_trajectory is not None:
-            target = my_trajectory.get_target(n)
-        else:
-            n_nodes = args.n_nodes[n]  if len(args.n_nodes) > 1 else args.n_nodes[0]
-            target = ["--num-nodes", str(n_nodes)]           
+        generated_data_path = dm.current_data / "generated"
+        n_nodes = args.n_nodes[n]  if len(args.n_nodes) > 1 else args.n_nodes[0]             # add function to updaten_node, embd and hlgap to target different set of molecules
+        # embd = "-0.9"
+        # hlgap = "-4"
         cmd = ["srun", "--ntasks=1", #"--cpus-per-task=98",
                "--exclusive", "--export=ALL",
                "python", str(script_path),
@@ -144,12 +131,15 @@ def main(args):
                 "--batch-size", "20",
                 "--ngraphs", "200",
                 "--generate-ngraphs-valid",
-                # "--num-nodes", str(n_nodes),
+                "--num-nodes", str(n_nodes),
                 # "--fixed-context", embd, hlgap
-                *target,
                 ]
-        print(f"  Command: {' '.join(cmd)}")
         subprocess.run(cmd, check=True, env=os.environ.copy()) if 'generate' not in skip_step_atstart else skip_step_atstart.discard('generate')
+
+        # clean temp .ckpt files
+        dm.clean_files(itr_model_path / "run0", ".ckpt")
+        dm.clean_files(dm.diffusion_data_dir/'raw')
+        dm.clean_files(dm.diffusion_data_dir/'processed')
 
         # Step 4: Relax molecules
         print("  Running Relax molecules  ")
@@ -207,7 +197,7 @@ def main(args):
             shutil.rmtree(itr_model_path)
             shutil.rmtree(dm.diffusion_data_dir)
             shutil.rmtree(dm.diffusion_log_dir)
-        else:
+        elif 'compress' in skip_step_atstart:
             skip_step_atstart.discard('compress')
     
         print(f"Iteration {n} completed.")
@@ -230,7 +220,6 @@ if __name__ == "__main__":
     parser.add_argument("--actdiff_utils", type=str)
     parser.add_argument("--config", type=str)
     parser.add_argument("--num_iterations", type=int, default=10)
-    parser.add_argument("--trajectory_axes", type=str, nargs='+', default=[])
     parser.add_argument("--n_nodes", type=int, nargs='+', default=[20, 30, 40, 50, 60, 70, 80, 90, 100, 110])
 
 

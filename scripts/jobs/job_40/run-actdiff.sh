@@ -1,10 +1,10 @@
 #!/bin/bash -l
 #SBATCH -J active-loop_40
 #SBATCH -A p_nanoparticle
-#SBATCH --time=100:00:00                    
+#SBATCH --time=165:00:00                    
 #SBATCH --partition=alpha
-#SBATCH --gres=gpu:6
-#SBATCH --cpus-per-task=24                                                  
+#SBATCH --gres=gpu:1
+#SBATCH --cpus-per-task=6                                                  
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1

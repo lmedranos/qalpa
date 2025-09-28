@@ -2,7 +2,22 @@ import subprocess
 import os
 import time
 from pathlib import Path
+from collections import deque
 
+
+def skip_processing(ofile: Path, scope=20, marker=" Have a nice day.") -> bool:
+    """Return True if the output file exists and contains the marker in last 20 lines."""
+    if ofile.exists():
+        if scope is None:
+            # Search entire file directly without building a list
+            with ofile.open('r') as f:
+                return any(marker in line for line in f)
+        else:
+            # Search only the last `scope` lines
+            with ofile.open('r') as f:
+                last_lines = deque(f, maxlen=scope)
+            return any(marker in line for line in last_lines)
+    return False
 
 def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
     """
@@ -20,19 +35,19 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
     """
     
     # Setup environment for parallel calculations of molecules
-    # env = os.environ.copy()
+    env = os.environ.copy()
     cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) #*int(os.environ.get("SLURM_TASKS_PER_NODE"))*int(os.environ.get("SLURM_NNODES"))// (max_parallel_tasks)  
-    # env["OMP_NUM_THREADS"] = str(cpus_per_task)
-    # env["MKL_NUM_THREADS"] = str(cpus_per_task)
+    env["OMP_NUM_THREADS"] = str(cpus_per_task)
+    env["MKL_NUM_THREADS"] = str(cpus_per_task)
     # env["OPENBLAS_NUM_THREADS"] = str(cpus_per_task)
     # env["NUMEXPR_NUM_THREADS"] = str(cpus_per_task)
-    # os.environ.update(env)
+    os.environ.update(env)
     
     
     shell_flag = not str(script_path).endswith(".py")
 
     base_cmd = [
-        "srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
+        "srun", "--nodes=1", "--ntasks=1", f"--cpus-per-task={cpus_per_task}",
         "--exclusive",
         f"--export=ALL,CONFIG={os.environ['CONFIG']}",
     ]
@@ -42,7 +57,11 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
 
     for fpath in paths:
         if shell_flag:
-            cmd = " ".join(base_cmd + [str(script_path), ">", str(fpath / output_path)])
+            if skip_processing(fpath / output_path):
+                print(f"Skipping {fpath}")
+                continue
+            else:
+                cmd = " ".join(base_cmd + [str(script_path), ">", str(fpath / output_path)])
         else:
             cmd = base_cmd + ["python3", str(script_path), "--input", str(fpath), "--output", str(output_path)]
         
@@ -64,4 +83,3 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
     for p in processes:
         p.wait()
 
-    
