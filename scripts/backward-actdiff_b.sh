@@ -1,11 +1,11 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-test-prop
 #SBATCH -A p_nanoparticle
-#SBATCH --time=50:00:00                    
+#SBATCH --time=20:00:00                    
 #SBATCH --partition=barnard
-#SBATCH --cpus-per-task=32                    
-#SBATCH --nodes=8
-#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=1                    
+#SBATCH --nodes=10
+#SBATCH --ntasks-per-node=32
 #SBATCH -o check-log.out
 #SBATCH -e check-log.err
 #SBATCH --mail-type=all
@@ -14,6 +14,7 @@
 ulimit -s unlimited
 
 MY_ITER=1
+n_parallel=${SLURM_NNODES}
 echo "Running backward path active loop script ..."
 echo "Iteration: $MY_ITER"
 
@@ -46,7 +47,7 @@ data_exp="$data/data_${exp}"
 config_exp="$config/config_${exp}"
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 backward.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --max_parallel_tasks 8 --iter $MY_ITER
+python3 backward.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --max_parallel_tasks $n_parallel --iter $MY_ITER
 
 # if [ "${MY_ITER:-0}" -lt 9 ]; then
 #     NEXT_ITER=$((MY_ITER + 1))
