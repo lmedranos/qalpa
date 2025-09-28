@@ -20,7 +20,7 @@ def skip_processing(ofile: Path, scope=20, marker=" Have a nice day.") -> bool:
             return any(marker in line for line in last_lines)
     return False
 
-def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
+def parallelize(script_path, input_path, output_path, max_parallel_tasks=1, ntasks=None):
     """
     Parallelize a function over an iterable using multiprocessing.
     This function runs a specified script in parallel for each file in the input directory.
@@ -35,8 +35,9 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
         - max_parallel_tasks: Maximum number of parallel tasks to run at once.
     """
     cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))  
-    tasks_per_node = int(os.environ.get("SLURM_TASKS_PER_NODE", 1))
-    
+    tasks_per_node = int(os.environ.get("SLURM_TASKS_PER_NODE", 1).split('(')[0])
+    ntasks = ntasks if ntasks and (ntasks <= tasks_per_node) else tasks_per_node
+
     # Setup environment for parallel calculations of molecules
     # env = os.environ.copy()
     # env["OMP_NUM_THREADS"] = str(cpus_per_task)
@@ -48,7 +49,7 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=1):
     shell_flag = not str(script_path).endswith(".py")
 
     base_cmd = [
-        "srun", "--nodes=1", f"--ntasks={tasks_per_node}", f"--cpus-per-task={cpus_per_task}",
+        "srun", "--nodes=1", f"--ntasks={ntasks}", f"--cpus-per-task={cpus_per_task}",
         "--exclusive",
         f"--export=ALL,CONFIG={os.environ['CONFIG']}",
     ]
