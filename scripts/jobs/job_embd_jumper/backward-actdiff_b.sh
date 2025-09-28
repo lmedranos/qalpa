@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-test-prop
 #SBATCH -A p_nanoparticle
-#SBATCH --time=20:00:00                    
+#SBATCH --time=00:20:00                    
 #SBATCH --partition=barnard
 #SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=8000                    

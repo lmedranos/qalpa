@@ -119,10 +119,10 @@ def main(args):
     if context_flag and 'fih_aims' not in skip_step_atstart:
         print("  Running Calculate properties ")
         script_path = blocks_path / "propcalc_preprocess.py"
-        parallelize(script_path, query_data_path, prop_calc_path, max_parallel_tasks) 
+        parallelize(script_path, query_data_path, prop_calc_path, max_parallel_tasks, ntasks=1) 
         parallelize(fih_aims_exc, prop_calc_path, 'aims.out', max_parallel_tasks) 
         script_path = blocks_path / "propcalc_postprocess.py"
-        parallelize(script_path, prop_calc_path, prop_calc_path, max_parallel_tasks)  
+        parallelize(script_path, prop_calc_path, prop_calc_path, max_parallel_tasks, ntasks=1)  
     elif context_flag:
         skip_step_atstart.discard('fih_aims')
     else:
