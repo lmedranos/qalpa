@@ -1,7 +1,7 @@
 #!/bin/bash -l
-#SBATCH -J active-loop-embd
+#SBATCH -J active-loop-forward
 #SBATCH -A p_nanoparticle
-#SBATCH --time=07:00:00                    
+#SBATCH --time=10:00:00                    
 #SBATCH --partition=alpha
 #SBATCH --gres=gpu:2
 #SBATCH --cpus-per-task=12                                            
@@ -15,7 +15,7 @@
 
 ulimit -s unlimited
 
-MY_ITER=1
+MY_ITER=8
 echo "Running forward path active loop script..."
 echo "Iteration: $MY_ITER"
 
