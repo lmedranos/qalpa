@@ -7,6 +7,22 @@ from pathlib import Path
 from parserFHItoJSON import get_data as create_json
 import shutil
 
+def postprocess_fhi(ifolder, ofolder):
+    """
+    Preprocess FHI-aims output file to create a JSON file.
+    """
+    fname = ifolder.name
+    ifile = ifolder / "aims.out"
+    # print(f"Input file: {ifile}, Output folder: {ofolder}")
+    if ifile.exists():
+        os.chdir(ifolder)
+        try:
+            create_json(str(ifile))
+        except Exception as e:
+            print(f"Error creating JSON from {ifile}: {e}")
+            sys.exit(1)
+        os.rename("file.json", ofolder / f"{fname}.json") 
+
 if __name__ == "__main__":
     
     """
@@ -21,15 +37,18 @@ if __name__ == "__main__":
 
     ifolder = Path(args.input)
     ofolder = Path(args.output)
-    fname = ifolder.name
-    ifile = ifolder / "aims.out"
-    # print(f"Input file: {ifile}, Output folder: {ofolder}")
-    if ifile.exists():
-        os.chdir(ifolder)
-        try:
-            create_json(str(ifile))
-        except Exception as e:
-            print(f"Error creating JSON from {ifile}: {e}")
-            sys.exit(1)
-        os.rename("file.json", ofolder / f"{fname}.json")        
+     
+    postprocess_fhi(ifolder, ofolder)
+      
+    # fname = ifolder.name
+    # ifile = ifolder / "aims.out"
+    # # print(f"Input file: {ifile}, Output folder: {ofolder}")
+    # if ifile.exists():
+    #     os.chdir(ifolder)
+    #     try:
+    #         create_json(str(ifile))
+    #     except Exception as e:
+    #         print(f"Error creating JSON from {ifile}: {e}")
+    #         sys.exit(1)
+    #     os.rename("file.json", ofolder / f"{fname}.json")        
         

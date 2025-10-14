@@ -90,21 +90,16 @@ def calculate_sascore(smiles):
         tier = "tier_4"
     return sascore, tier
 
-
-
-if __name__ == "__main__":
-
-    parser = argparse.ArgumentParser(description="Calculate SAScore for molecules in XYZ format.")
-    parser.add_argument("--input", type=str, help="Path to the input XYZ file")
-    parser.add_argument("--output", type=str, help="Output folder for the SAScore results")
-    args = parser.parse_args()
-
-    try:
-        ifile = Path(args.input)
-        opath = Path(args.output)
-    except:
-        print("Usage:", sys.argv[0], "infile")
-        sys.exit(1)
+def sascore(ifile, opath):
+    """
+    Calculate SAScore for a molecule in XYZ format and write the result to a file.
+    Parameters
+    ----------
+    ifile : Path
+        Path to the input XYZ file.
+    opath : Path
+        Path to the output directory where the SAScore results will be saved.
+    """
     if ifile.suffix == '.xyz':
         fname = ifile.name
         # mol = xyz_to_mol(ifile)
@@ -120,4 +115,35 @@ if __name__ == "__main__":
     else:
         print("Input file must be in XYZ format.")
         sys.exit(1)
+
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Calculate SAScore for molecules in XYZ format.")
+    parser.add_argument("--input", type=str, help="Path to the input XYZ file")
+    parser.add_argument("--output", type=str, help="Output folder for the SAScore results")
+    args = parser.parse_args()
+
+    try:
+        ifile = Path(args.input)
+        opath = Path(args.output)
+    except:
+        print("Usage:", sys.argv[0], "infile")
+        sys.exit(1)
+    
+    sascore(ifile, opath)    
+    # if ifile.suffix == '.xyz':
+    #     fname = ifile.name
+    #     # mol = xyz_to_mol(ifile)
+    #     # if mol:
+    #     #     sascore, tier = calculate_sascore(mol)
+    #     smiles = xyz_to_smiles(ifile)
+    #     if smiles:
+    #         sascore, tier  = calculate_sascore(smiles)
+    #         with (opath / 'sascore.txt').open('a') as f:
+    #                 f.write(f"{fname}\t{sascore}\t{tier}\n")
+    #     else:
+    #         print(f"Failed to convert {ifile} to SMILES.")
+    # else:
+    #     print("Input file must be in XYZ format.")
+    #     sys.exit(1)
                 
