@@ -24,7 +24,8 @@ def main(args):
     sys.path.insert(0,str(utils_path))
     
     from data_manage import DataManager
-    from parallelize import parallelize
+    from parallelize import parallelize, node_parallelize
+    rank_parallelize = Path(utils_path) / "parallelize.py"
     from trajectory import Trajectory
     
     # data directories 
@@ -56,7 +57,7 @@ def main(args):
 
     # Flag to resume in the midde of the loop
     steps={'relax', 'score_filter', 'fih_aims', 'acc_filter', 'hdf5', 'compress'}
-    skip_step_atstart = {}
+    skip_step_atstart = {'relax', 'score_filter'}
     
     
     n = args.iter    
@@ -70,7 +71,9 @@ def main(args):
     relaxed_data_path = dm.current_data / "relaxed"
     if 'relax' not in skip_step_atstart:
         print("  Running Relax molecules  ")
-        parallelize(script_path, query_data_path, relaxed_data_path, max_parallel_tasks) 
+        node_parallelize(script_path, query_data_path, relaxed_data_path, max_parallel_tasks, nranks=1)  
+        # cmd = ["srun", "python3", str(rank_parallelize), str(script_path), "--input", str(query_data_path), "--output", str(relaxed_data_path)]
+        # subprocess.run(cmd, check=True, env=os.environ.copy())
         # clean query directory
         dm.clean_files(query_data_path)
         # Copy all relaxed molecules to the query data path
@@ -94,7 +97,7 @@ def main(args):
                     script_path = blocks_path / "calculate_sascore.py"
                 # elif score_name.lower() == 'qed':  # To be implemented
                     # script_path = blocks_path / "calculate_qed.py"
-                parallelize(script_path, query_data_path, score_filtered_path, max_parallel_tasks)
+                node_parallelize(script_path, query_data_path, score_filtered_path, max_parallel_tasks, nranks=1)
                 # Filter molecules based on SAScore
                 molecular_filter.score_filter(
                     input_path=query_data_path,
@@ -118,10 +121,10 @@ def main(args):
     if context_flag and 'fih_aims' not in skip_step_atstart:
         print("  Running Calculate properties ")
         script_path = blocks_path / "propcalc_preprocess.py"
-        parallelize(script_path, query_data_path, prop_calc_path, max_parallel_tasks, ntasks=1) 
-        parallelize(fih_aims_exc, prop_calc_path, 'aims.out', max_parallel_tasks) 
+        node_parallelize(script_path, query_data_path, prop_calc_path, max_parallel_tasks, nranks=1) 
+        node_parallelize(fih_aims_exc, prop_calc_path, 'aims.out', max_parallel_tasks) 
         script_path = blocks_path / "propcalc_postprocess.py"
-        parallelize(script_path, prop_calc_path, prop_calc_path, max_parallel_tasks, ntasks=1)  
+        node_parallelize(script_path, prop_calc_path, prop_calc_path, max_parallel_tasks, nranks=1)  
     elif context_flag:
         skip_step_atstart.discard('fih_aims')
     else:

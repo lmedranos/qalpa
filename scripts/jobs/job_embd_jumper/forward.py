@@ -50,7 +50,10 @@ def main(args):
     num_iterations = args.num_iterations
     n = args.iter
 
-    hdf5_file_path = dm.output_hdf5      # append should be always true for this setup
+    if dm.hdf5_appending_flag:
+        hdf5_file_path = dm.output_hdf5 
+    else:
+        hdf5_file_path = dm.input_hdf5
 
     print(f"\n Iteration {n}")
 
@@ -83,9 +86,10 @@ def main(args):
     script_path = model_code_path / "e3mol_aqm" / "experiments" / "run_train.py"
     itr_model_path = dm.diffusion_model_dir / f"model_iter_{n}"
     itr_model_path.mkdir(parents=True, exist_ok=True)
+    model_path = itr_model_path / "best_mol_stab.ckpt"
     if 'train' not in skip_step_atstart:
         print("  Running Diffusion model training ")
-        cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}", "--gres=gpu:2",
+        cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}", f"--gres=gpu:{gpus_per_task}",
             "--exclusive", "--export=ALL",
             "python", str(script_path),
             "--conf", str(model_config_path), 
@@ -94,8 +98,7 @@ def main(args):
             "--dataset-root", str(dm.diffusion_data_dir),
             "--gpus", str(gpus_per_task),
             "--batch-size", "32"]
-        subprocess.run(cmd, check=True, env=os.environ.copy())  
-        model_path = itr_model_path / "best_mol_stab.ckpt"
+        subprocess.run(cmd, check=True, env=os.environ.copy()) 
         # Update or just delete the model path in the config file for the next iteration
         update_flag = n < (num_iterations - 1)
         dm.edit_config(model_config_path, "load_ckpt_from_pretrained", str(model_path), update_flag)
@@ -120,7 +123,7 @@ def main(args):
                 "--save-dir", str(generated_data_path),
                 "--save-xyz", 
                 "--batch-size", "20",
-                "--ngraphs", "200",
+                "--ngraphs", "100",
                 "--generate-ngraphs-valid",
                 *target,
                 ]
