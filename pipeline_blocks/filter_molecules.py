@@ -53,12 +53,12 @@ class MolecularFilter:
         pass   
 
     
-    def score_filter(self, input_path, output_path, score_name, score_file, iter):
+    def score_filter(self, input_path, output_path, score_name, score_file, target_indx):
         """    Filter molecules based on a score from a file.
     This function reads a file containing molecule names and their score values,
     and copies the molecules with a score above or below a specified threshold to an output directory.
     """
-        ref_value = self.trajectory.scores[score_name][iter] 
+        ref_value = self.trajectory.scores[score_name][target_indx] 
         ipath = Path(input_path)
         opath = Path(output_path)
 
@@ -88,7 +88,7 @@ class MolecularFilter:
                 print(f"Invalid score value: {score} for molecule {molecule_name}")
 
 
-    def accuracy_filter(self, input_path, output_path, prop, pjsons, iter, threshold=0.1):
+    def accuracy_filter(self, input_path, output_path, prop, pjsons, target_indx, threshold=0.1):
         """ Filter molecules based on accuracy from a file.
         This function filters molecules based on a property value (e.g., eMBD) from a trajectory.
         It checks if the property value of each molecule is within a specified threshold
@@ -106,7 +106,7 @@ class MolecularFilter:
             keys if isinstance(keys, (list, tuple)) else (keys,),
             data)
         
-        ref_value = float(self.trajectory.properties[prop][iter])
+        ref_value = float(self.trajectory.properties[prop][target_indx])
         delta = threshold * abs(ref_value)
         lower_bound = ref_value - delta
         upper_bound = ref_value + delta
@@ -126,4 +126,44 @@ class MolecularFilter:
                 dst_file = opath / f"{mol_name}.xyz"
                 shutil.copy(src_file, dst_file)
 
- 
+    def accuracy_calculation(self, input_file, output_path, prop, pjsons, target_indx):
+        """ Calculate accuracy of molecules based on a property from a file.
+        This function calculates the accuracy of molecules based on a specified property
+        (e.g., eMBD, HLgap, DIP) from their corresponding JSON files.
+        The accuracy is determined by comparing the property value of each molecule
+        to a reference value.
+        The results are saved as csv in output path.
+        """
+        # Get the reference value from the trajectory
+        ref_value = float(self.trajectory.properties[prop][target_indx])
+        # Define the property keys for extraction
+        prop_dict = {
+            "eMBD": ("SUM", "MBD"),  # nested path
+            "HLgap": ("HOMO-LUMO gap",),  # top-level
+            "DIP": ("Absolute Total Dipole (eAng):",)  # top-level
+        }
+        keys = prop_dict[prop]
+        # Helper to extract a value of a key from given data
+        get_value = lambda data, keys: reduce(
+            lambda d, k: d.get(k) if isinstance(d, dict) else None,
+            keys if isinstance(keys, (list, tuple)) else (keys,),
+            data)
+        # Read properties from a json file
+        fname = input_file.name
+        mol_name = input_file.stem
+        jf = pjsons / f"{mol_name}.json"
+        with jf.open("r") as json_file:
+            data = json.load(json_file)
+        # Get value
+        value = get_value(data, keys)
+        error = value - ref_value
+        # Appened data on the output file
+        try:
+            with (output_path / f"{prop}.csv").open('a') as f:
+                f.write(f"{fname}\t{value}\t{ref_value}\t{error}\n")
+        except:
+            print(f"Failed to write {fname} in {output_path / f'{prop}.csv'}")
+            
+
+        
+        
