@@ -2,7 +2,10 @@ import os
 import shutil
 from pathlib import Path
 
-class DataManager: 
+class DataManager:
+    def __init__(self):
+        pass
+    
     def __init__(self, data_source, data_directory):
         self.data_source = Path(data_source)
         self.data_directory = Path(data_directory) 
@@ -11,6 +14,7 @@ class DataManager:
         self.diffusion_test_dir = None
         self.diffusion_model_dir = None
         self.current_data = None
+        self.evaluation_data = None
         self.input_hdf5 = None
         self.output_hdf5 = None
         self.extra_prop_hdf5 = None
@@ -20,7 +24,6 @@ class DataManager:
         self.hdf5_appending_flag = True
         self.hdf5_iter_flag = False
         self.extra_properties_flag = False
-
         
 
     def initialize_data_directory(self):
@@ -110,6 +113,21 @@ class DataManager:
             
         print(f"Created iteration directory: {self.current_data}")
 
+    def create_evaluation_directories(self, target_indx, models_indx):
+        """
+        Create evaluation directory structure.
+        """
+        self.evaluation_data = self.data_directory / "evaluation"
+        self.evaluation_data.mkdir(parents=True, exist_ok=True)
+        self.current_data = self.evaluation_data / f"target{target_indx}" / f"model{models_indx}"
+        self.current_data.mkdir(parents=True, exist_ok=True)
+        subfolders = ["generated", "relaxed", "query", "prop_calc", "results"]
+        for subfolder in subfolders:
+            (self.current_data / subfolder).mkdir(parents=True, exist_ok=True)
+        print(f"Created evaluation directories under: {self.evaluation_data} for target {target_indx} and model {models_indx}.")
+        
+        
+        
 
     def edit_config(self, config_file, key, value, update=True):
         """
