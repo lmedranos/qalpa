@@ -9,19 +9,19 @@ import shutil
 
 def postprocess_fhi(ifolder, ofolder):
     """
-    Preprocess FHI-aims output file to create a JSON file.
+    Postprocess FHI-aims output file to create a JSON file.
     """
     fname = ifolder.name
     ifile = ifolder / "aims.out"
+    jfile = ofolder / f"{fname}.json"
     # print(f"Input file: {ifile}, Output folder: {ofolder}")
-    if ifile.exists():
-        os.chdir(ifolder)
+    if (ifile.exists()) and (not jfile.exists()) :
+        # os.chdir(ifolder)
         try:
-            create_json(str(ifile))
+            create_json(str(ifile), str(jfile)) 
         except Exception as e:
             print(f"Error creating JSON from {ifile}: {e}")
-            sys.exit(1)
-        os.rename("file.json", ofolder / f"{fname}.json") 
+             
 
 if __name__ == "__main__":
     

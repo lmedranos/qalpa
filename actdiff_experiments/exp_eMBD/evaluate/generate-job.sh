@@ -1,10 +1,10 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-forward
 #SBATCH -A p_nanoparticle
-#SBATCH --time=50:00:00   
+#SBATCH --time=40:00:00   
 #SBATCH --begin=now                 
 #SBATCH --partition=capella
-#SBATCH --gres=gpu:1
+#SBATCH --gres=gpu:4
 #SBATCH --cpus-per-task=12                                            
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
@@ -38,5 +38,5 @@ config_exp="$config/config_${exp}"
 config_eval="$config_exp/eval" 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 generate.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --num_models 9
+python3 generate.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --geom_optimizer "MACE" --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --num_models 9
 
