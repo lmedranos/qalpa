@@ -131,6 +131,7 @@ if __name__ == "__main__":
     parser.add_argument("--n_nodes", type=int, nargs='+', default=[20, 30, 40, 50, 60, 70, 80, 90, 100, 110])
     parser.add_argument("--filter_scheme", type=str, nargs='+', default=[])
     parser.add_argument("--num_models", type=int, default=10)
+    parser.add_argument("--geom_optimizer", type=str, default="SO3LR")
     
     args = parser.parse_args()
     

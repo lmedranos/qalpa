@@ -10,18 +10,19 @@ from pathlib import Path
 # from mpi4py import MPI
 
 def preprocess_fhi(ifile, ofolder, cdata):
-
-    os.chdir(ofolder)   
+ 
     if ifile.suffix == '.xyz':
         fname = ifile.name
         mol_dir = ifile.stem
         opath = ofolder / mol_dir
-        atoms = read(ifile, format='xyz')
-        Z = atoms.get_atomic_numbers()
         opath.mkdir(parents=True, exist_ok=True)
-        os.chdir(opath)
-        write('geometry.in', atoms, scaled=False)
-        shutil.copy2(cdata, opath / 'control.in')
+        geometry_path = opath / 'geometry.in'
+        control_path = opath / 'control.in'
+        if not geometry_path.exists():
+            atoms = read(ifile, format='xyz')
+            write(geometry_path, atoms, scaled=False)
+        if not control_path.exists():
+            shutil.copy2(cdata, control_path)
         
         
 if __name__ == "__main__":

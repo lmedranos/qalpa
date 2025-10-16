@@ -10,7 +10,7 @@ This script reads the output file from FHI-aims and extracts various properties 
 It then prints these properties and saves them in a JSON file.
 """
 
-def get_data(log):
+def get_data(log, jfile='file.json'):
     lines = open(log, 'r').readlines()
     C = coordinates(lines)
     clength = len(C)
@@ -229,7 +229,7 @@ def get_data(log):
         output["van der Waals Forces (eV/Ang):"]=Fvdw
         output["Total Forces (eV/Ang):"]=F   
       #   print (output)
-        with open('file.json','w') as fd:
+        with open(jfile,'w') as fd:
             #   print("dumping json file ..")
               json.dump(output, fd, indent=4)
 
