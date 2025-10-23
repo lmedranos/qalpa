@@ -15,6 +15,7 @@ class DataManager:
         self.diffusion_model_dir = None
         self.current_data = None
         self.evaluation_data = None
+        self.query_data = None
         self.input_hdf5 = None
         self.output_hdf5 = None
         self.extra_prop_hdf5 = None
@@ -101,7 +102,7 @@ class DataManager:
         subfolders = ["generated", "relaxed", "query", "score_filtered", "prop_calc", "accuracy_filtered"]
         for subfolder in subfolders:
             (self.current_data / subfolder).mkdir(parents=True, exist_ok=True)
-
+        self.query_data = self.current_data / "query"
         # Create filtered directory which will be deprecated in the future
         # (self.current_data / "filtered").mkdir(parents=True, exist_ok=True)
 
@@ -125,7 +126,8 @@ class DataManager:
         for subfolder in subfolders:
             (self.current_data / subfolder).mkdir(parents=True, exist_ok=True)
         print(f"Created evaluation directories under: {self.evaluation_data} for target {target_indx} and model {models_indx}.")
-        
+        self.query_data = self.current_data / "query"
+        self.results = self.current_data / "results"
         
         
 
@@ -163,9 +165,7 @@ class DataManager:
         except Exception as e:
             print(f"Error updating config file: {e}")
     
-
-
-
+    # This meyhode is going to be deprecated in favor of clean_dir
     def clean_files(self, dir_path: Path, file_type: str = ''):
         if not dir_path.exists():
             return
@@ -183,6 +183,37 @@ class DataManager:
                 file.unlink()
             except Exception as e:
                 print(f"Error deleting {file}: {e}")
+
+    def clean_dir(self, dir_path: Path, file_type: str = '', exclude_suffix: str = ''):
+        if not dir_path.exists():
+            return
+
+        if not dir_path.is_dir():
+            print(f"Not a directory: {dir_path}")
+            return
+        
+        
+        if file_type and not file_type.startswith('.'):
+            file_type = '.' + file_type
+        if exclude_suffix and not exclude_suffix.startswith('.'):
+            exclude_suffix = '.' + exclude_suffix
+
+        if exclude_suffix:
+            files = [f for f in dir_path.rglob('*') if f.is_file() and f.suffix != exclude_suffix]
+        elif file_type:
+            files = list(dir_path.rglob(f'*{file_type}'))
+        else:
+            files = [f for f in dir_path.rglob('*') if f.is_file()]
+
+        if not files:
+            return
+        
+        for file in files:
+            try:
+                file.unlink()
+            except Exception as e:
+                print(f"Error deleting {file}: {e}")
+
 
     def unlink_mol(self, fnames, dir_path: Path):
         if not dir_path.exists():
