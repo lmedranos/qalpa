@@ -1,10 +1,10 @@
 import subprocess
+import signal
 import os
 import time
 from pathlib import Path
 from collections import deque
 import sys
-
 from mpi4py import MPI
 
 
@@ -94,7 +94,8 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=None, n
     # Wait for all post-processor jobs to finish
     for p in processes:
         p.wait()
-
+        
+    
 def rank_parallelize(script_path, input_path, output_path):
     """
     Parallelize a function over an iterable using MPI.
@@ -151,7 +152,7 @@ def rank_parallelize(script_path, input_path, output_path):
     if rank == 0:
         print("All files processed on all ranks.")
             
-def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=None, nranks=None):
+def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=None, nranks=None, timeout_hours=5):
     """
     Parallelize a function over an iterable using multiprocessing.
     It parallelizes files processing over nodes.
@@ -192,6 +193,9 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
 
     paths = [f for f in input_path.iterdir()]    
     processes = []
+    start_times = {}
+    proc_to_file = {}
+    fkilled = []
 
     for fpath in paths:
         if shell_flag:
@@ -207,24 +211,66 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
             # else:
             cmd = base_cmd + ["python3", str(script_path), "--input", str(fpath), "--output", str(output_path)]
         
-        p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if fpath.is_dir() else None)
+        p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if fpath.is_dir() else None, preexec_fn= os.setsid if shell_flag else None)
         processes.append(p)
+        start_times[p.pid] = time.time()
+        proc_to_file[p.pid] = fpath.name
         # Control max parallelism
-        if len(processes) >= int(max_parallel_tasks):
-            # Wait for any to finish before launching more
-            finished_proc = None
-            while finished_proc is None:
-                for p in processes:
-                    ret = p.poll()
-                    if ret is not None:  # process finished
-                        finished_proc = p
-                        break
-                time.sleep(0.1)
-            processes.remove(finished_proc)
-    # Wait for all post-processor jobs to finish
-    for p in processes:
-        p.wait()
+        while len(processes) >= int(max_parallel_tasks):
+            time.sleep(5)
+            processes, pkilled = monitor_processes(processes, start_times, timeout_hours)
+            fkilled.extend([proc_to_file.get(pk.pid, "unknown") for pk in pkilled])
+    # Wait for all processor jobs to finish
+    while processes:
+        time.sleep(5)
+        processes, pkilled = monitor_processes(processes, start_times, timeout_hours)
+        fkilled.extend([proc_to_file.get(pk.pid, "unknown") for pk in pkilled])
         
+    # for p in processes:
+    #     try:
+    #         os.waitpid(p.pid, 0)  # ensures it’s truly reaped
+    #     except ChildProcessError:
+    #         pass
+        
+    return fkilled
+  
+def monitor_processes(processes, start_times, timeout_hours):
+    """
+    Check a list of subprocesses. Remove finished processes, kill those exceeding timeout.
+    Parameters
+    ----------
+    processes : list
+        List of subprocess.Popen objects.   
+    start_times : dict
+        Dictionary mapping process.pid -> start time (seconds).
+    timeout_hours : float
+        Maximum allowed runtime in hours.
+
+    Returns
+    -------
+    processes : list
+        Updated list of running processes after checking.
+    """
+    updated_processes = []
+    killed_processes = []
+    for p in processes:
+        runtime_hours = (time.time() - start_times[p.pid]) / 3600.0
+        # fname = proc_to_file.get(p.pid, "unknown")
+        if p.poll() is not None:
+            # Process finished
+            continue
+        elif runtime_hours > timeout_hours:
+            # Process exceeded timeout
+            # print(f"Killing process {p.pid} ({fname}) after {runtime_hours:.2f}h")
+            # p.kill()
+            os.killpg(os.getpgid(p.pid), signal.SIGTERM)
+            killed_processes.append(p)
+            
+        else:
+            # Still running
+            updated_processes.append(p)
+
+    return updated_processes, killed_processes     
 
 if __name__ == "__main__":
     # parse args passed from main.py
