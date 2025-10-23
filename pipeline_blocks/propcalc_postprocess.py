@@ -6,6 +6,17 @@ from pathlib import Path
 # from os import environ
 from parserFHItoJSON import get_data as create_json
 import shutil
+from collections import deque
+
+def valid_fhi_out(fhi_file):
+    if not fhi_file.exists():
+        return False
+    marker=" Have a nice day."
+    # Search only the last `scope` lines
+    with fhi_file.open('r') as f:
+        last_lines = deque(f, maxlen=20)
+    return any(marker in line for line in last_lines)
+    
 
 def postprocess_fhi(ifolder, ofolder):
     """
@@ -15,8 +26,7 @@ def postprocess_fhi(ifolder, ofolder):
     ifile = ifolder / "aims.out"
     jfile = ofolder / f"{fname}.json"
     # print(f"Input file: {ifile}, Output folder: {ofolder}")
-    if (ifile.exists()) and (not jfile.exists()) :
-        # os.chdir(ifolder)
+    if (valid_fhi_out(ifile)) and (not jfile.exists()) :
         try:
             create_json(str(ifile), str(jfile)) 
         except Exception as e:
