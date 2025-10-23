@@ -183,3 +183,18 @@ class DataManager:
                 file.unlink()
             except Exception as e:
                 print(f"Error deleting {file}: {e}")
+
+    def unlink_mol(self, fnames, dir_path: Path):
+        if not dir_path.exists():
+            return
+        
+        if not dir_path.is_dir():
+            print(f"Not a directory: {dir_path}")
+            return
+        for fname in fnames:
+            file_path = dir_path / f"{fname}.xyz"
+            if file_path.exists():
+                try:
+                    file_path.unlink()
+                except Exception as e:
+                    print(f"Error deleting {file_path}: {e}")

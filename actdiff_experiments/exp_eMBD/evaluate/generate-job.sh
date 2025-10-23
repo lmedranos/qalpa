@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-forward
 #SBATCH -A p_nanoparticle
-#SBATCH --time=40:00:00   
+#SBATCH --time=10:00:00   
 #SBATCH --begin=now                 
 #SBATCH --partition=capella
 #SBATCH --gres=gpu:4
@@ -21,7 +21,7 @@ base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/mole
 # Please specify the paths to the project folders
 root="/data/horse/ws/miha493e-research_project/activediffusion" # Parent folder for the project
 data="$root/data"                                               # A folder for storing data 
-model_code="$root/diffusion_code2"                               # A folder containing e3mol_aqm folder with the diffusion model code
+model_code="$root/diffusion_code"                               # A folder containing e3mol_aqm folder with the diffusion model code
 scripts="$root/scripts"                                         # A folder containing Python scripts for running the active loop
 blocks="$root/pipeline_blocks"                                  # A folder containing Python files for different steps in the loop
 utils="$root/utils"                                            # A folder containing utility functions for data management and parallelization
@@ -32,7 +32,7 @@ source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
 # define experiment
-exp="embd_jmp"
+exp="embd_non_opt"
 data_exp="$data/data_${exp}"
 config_exp="$config/config_${exp}"
 config_eval="$config_exp/eval" 

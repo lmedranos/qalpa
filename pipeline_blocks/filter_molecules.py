@@ -160,7 +160,9 @@ class MolecularFilter:
         # Appened data on the output file
         try:
             with (output_path / f"{prop}.csv").open('a') as f:
-                f.write(f"{fname}\t{value}\t{ref_value}\t{error}\n")
+                # check that pmol_acc is not already in the file
+                if f"{fname}\t" not in f.read():
+                    f.write(f"{fname}\t{value}\t{ref_value}\t{error}\n")
         except:
             print(f"Failed to write {fname} in {output_path / f'{prop}.csv'}")
             
