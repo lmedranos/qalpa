@@ -157,15 +157,22 @@ class MolecularFilter:
         # Get value
         value = get_value(data, keys)
         error = value - ref_value
-        # Appened data on the output file
+        relative_err = error *100 / ref_value
+        csv_path = output_path / f"{prop}.csv"
         try:
-            with (output_path / f"{prop}.csv").open('a') as f:
-                # check that pmol_acc is not already in the file
-                if f"{fname}\t" not in f.read():
-                    f.write(f"{fname}\t{value}\t{ref_value}\t{error}\n")
-        except:
-            print(f"Failed to write {fname} in {output_path / f'{prop}.csv'}")
-            
+            # Check if the file exists and read its contents
+            if csv_path.exists():
+                with csv_path.open('r') as f:
+                    content = f.read()
+            else:
+                content = ""
 
+            # Append only if the entry isn't already there
+            if f"{fname}\t" not in content:
+                with csv_path.open('a') as f:
+                    f.write(f"{fname}\t{value}\t{ref_value}\t{error}\t{relative_err}\n")
+
+        except Exception as e:
+            print(f"Failed to write {fname} in {csv_path}: {e}")
         
         

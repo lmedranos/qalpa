@@ -4,7 +4,7 @@ import torch
 from ase.io import read, write
 from ase.optimize import BFGS
 from mace.calculators import MACECalculator
-from so3lr import So3lrCalculator
+# from so3lr import So3lrCalculator
 
 
 def relax_molecule(input, output, model):
@@ -27,7 +27,8 @@ def relax_molecule(input, output, model):
     model = model
     
     if model =='SO3LR':
-        calc = So3lrCalculator(calculate_stress=False, dtype='float32', device= mydevice)
+        # calc = So3lrCalculator(calculate_stress=False, dtype='float32', device= mydevice)
+        pass
     else:
         calc = MACECalculator(model_paths=model, device='cpu', default_dtype="float32")   # should we change device
     
