@@ -4,10 +4,10 @@
 #SBATCH --time=40:00:00  
 #SBATCH --begin=now
 #SBATCH --partition=barnard
-#SBATCH --cpus-per-task=32
+#SBATCH --cpus-per-task=1
 #SBATCH --mem-per-cpu=12000                    
-#SBATCH --nodes=1
-#SBATCH --ntasks-per-node=1
+#SBATCH --nodes=25
+#SBATCH --ntasks-per-node=32
 #SBATCH -o check-log3.out
 #SBATCH -e check-log3.err
 #SBATCH --mail-type=all
@@ -39,7 +39,7 @@ conda activate $root/conda_envs/env-activeloop
 
 
 # define experiment
-exp="embd_non_opt"
+exp="embd_non_opt2"
 data_exp="$data/data_${exp}" 
 config_exp="$config/config_${exp}"
 config_eval="$config_exp/eval" 
