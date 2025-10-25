@@ -8,8 +8,8 @@
 #SBATCH --mem-per-cpu=12000                    
 #SBATCH --nodes=25
 #SBATCH --ntasks-per-node=32
-#SBATCH -o check-log3.out
-#SBATCH -e check-log3.err
+#SBATCH -o check-log2.out
+#SBATCH -e check-log2.err
 #SBATCH --mail-type=all
 #SBATCH --mail-user=michael_gamal_nassif.hanna@mailbox.tu-dresden.de
 
@@ -39,7 +39,7 @@ conda activate $root/conda_envs/env-activeloop
 
 
 # define experiment
-exp="embd_non_opt2"
+exp="embd_non_opt"
 data_exp="$data/data_${exp}" 
 config_exp="$config/config_${exp}"
 config_eval="$config_exp/eval" 
