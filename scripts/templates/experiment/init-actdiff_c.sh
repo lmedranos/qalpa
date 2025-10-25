@@ -1,10 +1,10 @@
 #!/bin/bash -l
-#SBATCH -J active-loop-hlgap-embd
+#SBATCH -J active-loop-embd-init
 #SBATCH -A p_nanoparticle
-#SBATCH --time=10:00:00                    
+#SBATCH --time=06:00:00                    
 #SBATCH --partition=capella
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=6                                            
+#SBATCH --cpus-per-task=12                                           
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -34,15 +34,17 @@ config="$root/configs"                                          # A folder conta
 source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
-# define experiment
+# define experiment name, this will create folders data_{exp name} 
+# and you have to add configuration file under config/config_{exp name}
+# here example for experiment name is embd_hlgap
 exp="embd_hlgap"
 data_exp="$data/data_${exp}" 
 config_exp="$config/config_${exp}"
 
-mlff_model= "SO3LR"
+
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 main_init.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --geom_optimizer $mlff_model --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy"
-python3 forward.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --geom_optimizer $mlff_model --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --iter 0
+# you have to specify properties, scores, filter scheme and geometry optimization method (--geom_optimizer) according to your experiment
+python3 main_init.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy"
 
 echo "Job completed."
