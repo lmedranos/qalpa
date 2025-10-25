@@ -71,7 +71,6 @@ def main(args):
     num_targets = len(my_trajectory)      
           
     # Step 0: Run data split
-    (dm.diffusion_data_dir / "eval").mkdir(parents=True, exist_ok=True)
     if 'split' not in skip_step_atstart:
         script_path = model_code_path / "e3mol_aqm" / "experiments" / "data" / "aqm" / "split_data.py"
         print(" Running Data split ")
@@ -79,13 +78,13 @@ def main(args):
             "--exclusive", "--export=ALL",
             "python", str(script_path),
             "--file-path", str(hdf5_file_path),
-            "--out-path", str(dm.diffusion_data_dir / "eval")
+            "--out-path", str(dm.diffusion_data_dir)
             ]
         subprocess.run(cmd, check=True) 
     else:
         skip_step_atstart.discard('split')
            
-    for m in range(num_models):     
+    for m in range(num_targets):     
         for t in range(num_targets):
             # Find Target for the current iteration
             if my_trajectory.has_properties:
