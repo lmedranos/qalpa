@@ -32,11 +32,11 @@ source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
 # define experiment
-exp="embd_non_opt"
+exp="embd_non_opt2"
 data_exp="$data/data_${exp}"
 config_exp="$config/config_${exp}"
 config_eval="$config_exp/eval" 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 generate.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --geom_optimizer "MACE" --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --num_models 9
+python3 evaluate.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --geom_optimizer "MACE" --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --num_models 9
 
