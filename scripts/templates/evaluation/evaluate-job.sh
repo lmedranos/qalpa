@@ -41,5 +41,5 @@ config_eval="$config_exp/eval"
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
 # you have to specify properties, scores and geometry optimization method (--geom_optimizer) according to your experiment
 # Very important: to add number of models which already generated during the experiment
-python3 generate.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --geom_optimizer "MACE" --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --num_models 9
+python3 evaluate.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --geom_optimizer "MACE" --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --num_models 9
 
