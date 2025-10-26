@@ -90,6 +90,38 @@ def calculate_sascore(smiles):
         tier = "tier_4"
     return sascore, tier
 
+def sascore(ifile, opath):
+    """
+    Calculate SAScore for a molecule in XYZ format and write the result to a file.
+    Parameters
+    ----------
+    ifile : Path
+        Path to the input XYZ file.
+    opath : Path
+        Path to the output directory where the SAScore results will be saved.
+    """
+    if ifile.suffix != '.xyz':
+        return
+    
+    fname = ifile.name
+    outfile = opath / 'sascore.txt'
+    opath.mkdir(parents=True, exist_ok=True)
+    
+    # --- Check if this molecule has already been processed ---
+    if outfile.exists():
+        with outfile.open('r') as f:
+            processed = {line.split('\t')[0].strip() for line in f if line.strip()}
+        if fname in processed:
+            print(f"Skipping {fname}: already in sascore.txt.")
+            return
+    # --- Compute SAScore ---
+    smiles = xyz_to_smiles(ifile)
+    if smiles:
+        sascore, tier  = calculate_sascore(smiles)
+        with (opath / 'sascore.txt').open('a') as f:
+                f.write(f"{fname}\t{sascore}\t{tier}\n")
+    else:
+        print(f"Failed to convert {ifile} to SMILES.")
 
 
 if __name__ == "__main__":
@@ -105,19 +137,21 @@ if __name__ == "__main__":
     except:
         print("Usage:", sys.argv[0], "infile")
         sys.exit(1)
-    if ifile.suffix == '.xyz':
-        fname = ifile.name
-        # mol = xyz_to_mol(ifile)
-        # if mol:
-        #     sascore, tier = calculate_sascore(mol)
-        smiles = xyz_to_smiles(ifile)
-        if smiles:
-            sascore, tier  = calculate_sascore(smiles)
-            with (opath / 'sascore.txt').open('a') as f:
-                    f.write(f"{fname}\t{sascore}\t{tier}\n")
-        else:
-            print(f"Failed to convert {ifile} to SMILES.")
-    else:
-        print("Input file must be in XYZ format.")
-        sys.exit(1)
+    
+    sascore(ifile, opath)    
+    # if ifile.suffix == '.xyz':
+    #     fname = ifile.name
+    #     # mol = xyz_to_mol(ifile)
+    #     # if mol:
+    #     #     sascore, tier = calculate_sascore(mol)
+    #     smiles = xyz_to_smiles(ifile)
+    #     if smiles:
+    #         sascore, tier  = calculate_sascore(smiles)
+    #         with (opath / 'sascore.txt').open('a') as f:
+    #                 f.write(f"{fname}\t{sascore}\t{tier}\n")
+    #     else:
+    #         print(f"Failed to convert {ifile} to SMILES.")
+    # else:
+    #     print("Input file must be in XYZ format.")
+    #     sys.exit(1)
                 

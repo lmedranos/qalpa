@@ -12,7 +12,7 @@ import argparse
 from pathlib import Path
 
 
-def relax_molecule(args):
+def relax_molecule(input, output, model):
     """Relax a molecule using the MACE calculator.
      This function reads a molecule from the specified file, applies the MACE calculator,
     and optimizes its geometry using the BFGS algorithm. The relaxed molecule is then saved
@@ -25,9 +25,9 @@ def relax_molecule(args):
         - model: Path to the MACE model.
         - output: Directory where the relaxed molecule will be saved.
    """
-    file = Path(args.input)
-    output_folder = Path(args.output)
-    model_path = args.model
+    file = Path(input)
+    output_folder = Path(output)
+    model_path = model
     
     SPcalc = MACECalculator(model_paths=model_path, device='cpu', default_dtype="float32")   # should we change device
     fname = file.name
@@ -61,4 +61,4 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default=default_model_path, help="Path to the MACE model")
     args = parser.parse_args()
 
-    relax_molecule(args)
+    relax_molecule(args.input, args.output, args.model)

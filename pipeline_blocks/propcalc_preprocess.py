@@ -9,6 +9,22 @@ from pathlib import Path
 #from os import environ
 # from mpi4py import MPI
 
+def preprocess_fhi(ifile, ofolder, cdata):
+ 
+    if ifile.suffix == '.xyz':
+        fname = ifile.name
+        mol_dir = ifile.stem
+        opath = ofolder / mol_dir
+        opath.mkdir(parents=True, exist_ok=True)
+        geometry_path = opath / 'geometry.in'
+        control_path = opath / 'control.in'
+        if not geometry_path.exists():
+            atoms = read(ifile, format='xyz')
+            write(geometry_path, atoms, scaled=False)
+        if not control_path.exists():
+            shutil.copy2(cdata, control_path)
+        
+        
 if __name__ == "__main__":
     
     """
@@ -26,20 +42,22 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     ifile = Path(args.input) 
-    parent_path = Path(args.output)
+    ofolder = Path(args.output)
     cdata = Path(os.environ["CONFIG"],"nctr1.in")
 
-    os.chdir(parent_path)   
-    if ifile.suffix == '.xyz':
-        fname = ifile.name
-        mol_dir = ifile.stem
-        opath = parent_path / mol_dir
-        atoms = read(ifile, format='xyz')
-        Z = atoms.get_atomic_numbers()
-        opath.mkdir(parents=True, exist_ok=True)
-        os.chdir(opath)
-        write('geometry.in', atoms, scaled=False)
-        shutil.copy2(cdata, opath / 'control.in')
+    preprocess_fhi(ifile, ofolder, cdata)
+
+    # os.chdir(parent_path)   
+    # if ifile.suffix == '.xyz':
+    #     fname = ifile.name
+    #     mol_dir = ifile.stem
+    #     opath = parent_path / mol_dir
+    #     atoms = read(ifile, format='xyz')
+    #     Z = atoms.get_atomic_numbers()
+    #     opath.mkdir(parents=True, exist_ok=True)
+    #     os.chdir(opath)
+    #     write('geometry.in', atoms, scaled=False)
+    #     shutil.copy2(cdata, opath / 'control.in')
         
 
         
