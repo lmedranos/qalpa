@@ -10,7 +10,7 @@ This script reads the output file from FHI-aims and extracts various properties 
 It then prints these properties and saves them in a JSON file.
 """
 
-def get_data(log):
+def get_data(log, jfile='file.json'):
     lines = open(log, 'r').readlines()
     C = coordinates(lines)
     clength = len(C)
@@ -101,35 +101,35 @@ def get_data(log):
 #       print('Missing C6/Polarizability')
     if np.shape(qu) == (3,3):
        lock += 1
-    else:
-       print('Quardupole Missing')
+   #  else:
+   #     print('Quardupole Missing')
 
     if np.shape(Fhf) == (clength, 3):
        lock += 1
-    else:
-       print('Missing Force Component')
+   #  else:
+   #     print('Missing Force Component')
     if np.shape(Fion) == (clength, 3):
        lock += 1
-    else:
-       print('Missing Force Component')
+   #  else:
+   #     print('Missing Force Component')
     if np.shape(Fhfe) == (clength, 3):
        lock += 1
-    else:
-       print('Missing Force Component')
+   #  else:
+   #     print('Missing Force Component')
     if np.shape(Fpg) == (clength, 3):
        lock += 1
-    else:
-       print('Missing Force Component')
+   #  else:
+   #     print('Missing Force Component')
     if np.shape(Fvdw) == (clength, 3):
        lock += 1
-    else:
-       print('Missing Force Component')
+   #  else:
+   #     print('Missing Force Component')
     if np.shape(F) == (clength, 3):
        lock += 1
-    else:
-       print('leo6')
-       print('Missing Force Component')
-    print ("lock", lock)
+   #  else:
+   #     print('leo6')
+   #     print('Missing Force Component')
+   #  print ("lock", lock)
     if lock == 6:   #19
 #vama        print ("Coordinates:")
 #vama        print (C)
@@ -228,9 +228,9 @@ def get_data(log):
         output["Pulay + GGA Forces (eV/Ang):"]=Fpg
         output["van der Waals Forces (eV/Ang):"]=Fvdw
         output["Total Forces (eV/Ang):"]=F   
-        print (output)
-        with open('file.json','w') as fd:
-              print("dumping json file ..")
+      #   print (output)
+        with open(jfile,'w') as fd:
+            #   print("dumping json file ..")
               json.dump(output, fd, indent=4)
 
  
