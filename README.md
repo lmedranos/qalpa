@@ -14,13 +14,9 @@ This model uses the Diffusion model and Density Functional Theory (DFT) through 
   - [Phase III – Output Analysis](#phase-iii--output-analysis)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Usage](#usage)
 - [Project Structure](#project-structure)
-- [Configuration](#configuration)
 - [Requirements](#requirements)
 - [Contributing](#contributing)
-- [Citation](#citation)
-- [License](#license)
 
 ## Overview
 
@@ -82,9 +78,6 @@ The final phase focuses on analyzing and visualizing the output. Jupyter noteboo
 3. **Analyze results:**
 
 
-## Usage
-
-
 ## Project Structure
 
 ```
@@ -114,23 +107,6 @@ Core dependencies include:
 - Jupyter (analysis notebooks)
 
 See `requirements.txt` for complete list.
-
-## Citation
-
-If you use this code in your research, please cite:
-
-```bibtex
-@software{qmactivediffusion,
-  author = {Your Name},
-  title = {QM Active Learning Diffusion for Molecular Design},
-  year = {2026},
-  url = {https://github.com/mikeHayah/QMActiveDiffusion}
-}
-```
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
