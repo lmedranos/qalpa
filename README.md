@@ -70,73 +70,20 @@ The final phase focuses on analyzing and visualizing the output. Jupyter noteboo
 
 - Python 3.8 or higher
 - CUDA-capable GPU (recommended for training)
-- DFT software (e.g., ORCA, Gaussian, or similar)
 - HPC environment (optional, for large-scale experiments)
 
-### Setup
-
-1. Clone the repository:
-```bash
-git clone https://github.com/mikeHayah/QMActiveDiffusion.git
-cd QMActiveDiffusion
-```
-
-2. Create a virtual environment:
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Configure your environment: 
-```bash
-cp configs/example_config.yaml configs/my_config.yaml
-# Edit my_config.yaml with your settings
-```
 
 ## Quick Start
 
 1. **Plan a trajectory:**
-```bash
-python trajectory/trajectory_planner.py --property HLgap --range 1.0 5.0
-```
 
 2. **Run active diffusion:**
-```bash
-python scripts/run_active_diffusion.py --config configs/my_config.yaml --trajectory trajectory/trajectory_001.csv
-```
 
 3. **Analyze results:**
-```bash
-jupyter notebook analysis/accuracy_analysis.ipynb
-```
+
 
 ## Usage
 
-### Running Experiments
-
-Execute a complete active learning cycle:
-
-```bash
-python actdiff_experiments/run_experiment.py \
-  --config configs/experiment_config.yaml \
-  --trajectory trajectory/trajectory_001.csv \
-  --output results/experiment_001
-```
-
-### Configuration
-
-Key configuration parameters in `configs/`:
-- **Diffusion model settings:** Architecture, timesteps, noise schedule
-- **Active learning parameters:** Selection strategy, batch size, iteration count
-- **DFT settings:** Software, basis set, functional, convergence criteria
-- **HPC settings:** Resource allocation, parallelization strategy
-
-See `configs/README.md` for detailed configuration options.
 
 ## Project Structure
 
@@ -168,16 +115,6 @@ Core dependencies include:
 
 See `requirements.txt` for complete list.
 
-## Contributing
-
-Contributions are welcome! Please follow these steps: 
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
 ## Citation
 
 If you use this code in your research, please cite:
@@ -197,9 +134,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ## Acknowledgments
 
-- This work was supported by [funding sources]
-- Built using [key frameworks/papers]
-
-## Contact
-
-For questions or issues, please open an issue on GitHub or contact [your email].
+- This work was part of Research project under the supervison of Dr. Leonardo Medrano.
