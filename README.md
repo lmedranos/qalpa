@@ -106,8 +106,8 @@ Core dependencies include:
 - Matplotlib/Seaborn (visualization)
 - Jupyter (analysis notebooks)
 
-See `requirements.txt` for complete list.
+See `requirements.txt` for a complete list.
 
 ## Acknowledgments
 
-- This work was part of Research project under the supervison of Dr. Leonardo Medrano.
+- This work was part of a research project under the supervision of Dr. Leonardo Medrano.
