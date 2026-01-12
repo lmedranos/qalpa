@@ -23,11 +23,11 @@ This model uses the Diffusion model and Density Functional Theory (DFT) through 
 The QMActiveDiffusion framework combines diffusion models with quantum mechanical calculations to generate novel molecules with desired properties. The system leverages active learning to iteratively improve molecular generation by incorporating DFT feedback, enabling efficient exploration of chemical space.
 
 **Key Features:**
-- 🧬 Molecular trajectory planning in property space
-- 🔄 Iterative active learning with DFT feedback
-- 🚀 HPC-optimized workflow orchestration
-- 📊 Comprehensive analysis and visualization tools
-- 🎯 Property-guided molecular generation
+- Molecular trajectory planning in property space
+- Iterative active learning with DFT feedback
+- HPC-optimized workflow orchestration
+- Comprehensive analysis and visualization tools
+- Property-guided molecular generation
 
 ## Architecture
 
