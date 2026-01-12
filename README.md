@@ -5,18 +5,6 @@
 
 This model uses the Diffusion model and Density Functional Theory (DFT) through active learning to navigate chemical space and improve our generative model for molecular design.
 
-## Table of Contents
-
-- [Overview](#overview)
-- [Architecture](#architecture)
-  - [Phase I – Trajectory Planning](#phase-i--trajectory-planning)
-  - [Phase II – Active Diffusion Execution](#phase-ii--active-diffusion-execution)
-  - [Phase III – Output Analysis](#phase-iii--output-analysis)
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Project Structure](#project-structure)
-- [Requirements](#requirements)
-- [Contributing](#contributing)
 
 ## Overview
 
