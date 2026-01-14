@@ -124,6 +124,10 @@ graph TB
     Evalsc --> evalsc
     orc --> Expsc
     orc --> Evalsc
+    forsc --> bacsc
+    bacsc --> forsc
+    initsc --> bacsc
+    gensc --> calsc --> evalsc
 
 
     subgraph utilities["🟢 Utilities Subsystem"]
