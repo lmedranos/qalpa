@@ -127,7 +127,8 @@ graph TB
     forsc --> bacsc
     bacsc --> forsc
     initsc --> bacsc
-    gensc --> calsc --> evalsc
+    gensc --> calsc
+    calsc --> evalsc
 
 
     subgraph utilities["🟢 Utilities Subsystem"]
