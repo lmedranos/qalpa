@@ -157,16 +157,16 @@ graph TB
 
 - Python 3.8 or higher
 - CUDA-capable GPU (recommended for training)
-- HPC environment (optional, for large-scale experiments)
+- HPC environment 
 
 
 ## Quick Start
 
-1. **Plan a trajectory:**
+1. **Plan a trajectory**
 
-2. **Run active diffusion:**
+2. **Run active diffusion**
 
-3. **Analyze results:**
+3. **Analyze results**
 
 
 ## Project Structure
