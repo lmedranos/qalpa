@@ -31,11 +31,11 @@ flowchart LR
     end
     
     subgraph phase2["Phase II: Active Diffusion"]
-        T["Train Model"]
+        T["Train Model<br/>(PytorchLightning)"]
         D["Generate Molecules<br/>(Diffusion Model)"]
-        G["Geometry Optimization"<br/>(MLFF-MACE)"]
-        S["Scoring"<br/>(SAScore/QED)"]
-        E["DFT Calculation"<br/>(FHI-aims)"]
+        G["Geometry Optimization<br/>(MLFF-MACE)"]
+        S["Scoring<br/>(SAScore/QED)"]
+        E["DFT Calculation<br/>(FHI-aims)"]
         F["Active Learning<br/>Selection"]
         R["Retrain Model"]
         T --> D --> G --> S--> E --> F --> R --> D
