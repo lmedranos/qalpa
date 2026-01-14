@@ -17,84 +17,9 @@ The QMActiveDiffusion framework combines diffusion models with quantum mechanica
 - Comprehensive analysis and visualization tools
 - Property-guided molecular generation
 
-## Architecture
-
-```mermaid
-graph TB
-    subgraph orchestration["🔷 Experiment Orchestration Layer"]
-        config["Configuration Manager"]
-        workflow["Workflow Coordinator"]
-        hpc["HPC Resource Allocator"]
-    end
-    
-    subgraph utilities["🟢 Utilities Subsystem"]
-        data["Data Manager"]
-        parallel["Task Parallelizer"]
-        sync["Trajectory Synchronizer"]
-    end
-    
-    subgraph functional["🔴 Functional Core Layer"]
-        gen["Molecular Generator<br/>(Diffusion Model)"]
-        eval["Property Evaluator<br/>(DFT/QM)"]
-        select["Active Selector"]
-        train["Model Trainer"]
-    end
-    
-    orchestration --> utilities
-    utilities --> functional
-    functional --> utilities
-    
-    gen --> eval
-    eval --> select
-    select --> train
-    train --> gen
-    
-    style orchestration fill:#4A90E2,stroke:#2E5C8A,stroke-width:3px,color:#fff
-    style utilities fill:#7CB342,stroke:#558B2F,stroke-width: 3px,color:#fff
-    style functional fill:#E53935,stroke:#B71C1C,stroke-width:3px,color:#fff
-```
-
+## WorkFlow
 
 The software system is organized into a modular architecture that follows a three-phase workflow, guiding the process from molecular trajectory design to data analysis. 
-
-### Phase I – Trajectory Planning
-
-This phase provides an interactive environment for defining molecular trajectories within a property space (e.g., HOMO-LUMO gap, many-body dispersion energy, atomic number). The resulting trajectory files (`trajectory_*.csv`) serve as input for the active learning process. 
-
-<img width="200" height="200" alt="trajectory_planer" src="https://github.com/user-attachments/assets/a827726d-cfd1-411e-80ce-79d87f5f7dbe" />
-
-**Tools:** Interactive trajectory planner in the `trajectory/` directory
-
-### Phase II – Active Diffusion Execution
-
-This represents the core operational layer of the system, responsible for orchestrating the iterative molecular generation, evaluation, and feedback process. 
-
-The architectural elements are organized as follows:
-- **Top Layer – Experiment Orchestration Layer** (blue box): Responsible for workflow coordination, configuration management, and resource allocation across HPC environments. It defines the experiment lifecycle. 
-- **Bottom Layer – Functional Core Layer** (red box): Contains the domain-specific components that implement the scientific and computational functionality of the diffusion process, including molecular generation and property evaluation.
-- **Utilities Subsystem** (green box): Provides cross-cutting services that support both layers by handling data management, task parallelization, and trajectory synchronization.
-
-<img width="280" height="240" alt="active_diffusion_execution" src="https://github.com/user-attachments/assets/bb0c4d90-376a-4cf1-ad2c-f767dece0c78" />
-
-### Phase III – Output Analysis
-
-The final phase focuses on analyzing and visualizing the output. Jupyter notebooks (`accuracy_analysis.ipynb`, `iteration_analysis.ipynb`, `hdf5_analysis.ipynb`) allow users to inspect the active diffusion results, model performance, and generated molecular properties.
-
-<img width="400" height="400" alt="embd_model_eval" src="https://github.com/user-attachments/assets/c23ebf26-e553-4d12-bcee-e8302bc121f0" />
-
-<img width="400" height="400" alt="eval_embd_exp" src="https://github.com/user-attachments/assets/16936e0f-e4e8-4dcc-82b7-91b445ec5684" />
-
-## Installation
-
-### Prerequisites
-
-- Python 3.8 or higher
-- CUDA-capable GPU (recommended for training)
-- HPC environment (optional, for large-scale experiments)
-
-
-## Quick Start
-
 
 ```mermaid
 flowchart LR
@@ -131,6 +56,88 @@ flowchart LR
     style phase2 fill:#81C784,stroke:#388E3C,stroke-width: 2px
     style phase3 fill:#90CAF9,stroke:#1976D2,stroke-width: 2px
 ```
+
+### Phase I – Trajectory Planning
+
+This phase provides an interactive environment for defining molecular trajectories within a property space (e.g., HOMO-LUMO gap, many-body dispersion energy, atomic number). The resulting trajectory files (`trajectory_*.csv`) serve as input for the active learning process. 
+
+<img width="200" height="200" alt="trajectory_planer" src="https://github.com/user-attachments/assets/a827726d-cfd1-411e-80ce-79d87f5f7dbe" />
+
+**Tools:** Interactive trajectory planner in the `trajectory/` directory
+
+### Phase II – Active Diffusion Execution
+
+This represents the core operational layer of the system, responsible for orchestrating the iterative molecular generation, evaluation, and feedback process. 
+
+
+### Phase III – Output Analysis
+
+The final phase focuses on analyzing and visualizing the output. Jupyter notebooks (`accuracy_analysis.ipynb`, `iteration_analysis.ipynb`, `hdf5_analysis.ipynb`) allow users to inspect the active diffusion results, model performance, and generated molecular properties.
+
+<img width="400" height="400" alt="embd_model_eval" src="https://github.com/user-attachments/assets/c23ebf26-e553-4d12-bcee-e8302bc121f0" />
+
+<img width="400" height="400" alt="eval_embd_exp" src="https://github.com/user-attachments/assets/16936e0f-e4e8-4dcc-82b7-91b445ec5684" />
+
+
+## Active Diffusion Architecture
+
+The architectural elements are organized as follows:
+
+### Surface Layer – Experiment Orchestration Layer (blue box)
+Responsible for workflow coordination, configuration management, and resource allocation across HPC environments. It defines the experiment lifecycle.
+
+### Deep Layer – Functional Core Layer (red box)
+Contains the domain-specific components that implement the scientific and computational functionality of the diffusion process, including molecular generation and property evaluation.
+
+### Utilities Subsystem (green box)
+Provides cross-cutting services that support both layers by handling data management, task parallelization, and trajectory synchronization.
+
+
+```mermaid
+graph TB
+    subgraph orchestration["🔷 Experiment Orchestration Layer"]
+        config["Configuration Manager"]
+        workflow["Workflow Coordinator"]
+        hpc["HPC Resource Allocator"]
+    end
+    
+    subgraph utilities["🟢 Utilities Subsystem"]
+        data["Data Manager"]
+        parallel["Task Parallelizer"]
+        sync["Trajectory Synchronizer"]
+    end
+    
+    subgraph functional["🔴 Functional Core Layer"]
+        gen["Molecular Generator<br/>(Diffusion Model)"]
+        eval["Property Evaluator<br/>(DFT/QM)"]
+        select["Active Selector"]
+        train["Model Trainer"]
+    end
+    
+    orchestration --> utilities
+    utilities --> functional
+    functional --> utilities
+    
+    gen --> eval
+    eval --> select
+    select --> train
+    train --> gen
+    
+    style orchestration fill:#4A90E2,stroke:#2E5C8A,stroke-width:3px,color:#fff
+    style utilities fill:#7CB342,stroke:#558B2F,stroke-width: 3px,color:#fff
+    style functional fill:#E53935,stroke:#B71C1C,stroke-width:3px,color:#fff
+```
+
+## Installation
+
+### Prerequisites
+
+- Python 3.8 or higher
+- CUDA-capable GPU (recommended for training)
+- HPC environment (optional, for large-scale experiments)
+
+
+## Quick Start
 
 1. **Plan a trajectory:**
 
