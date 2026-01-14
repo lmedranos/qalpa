@@ -31,13 +31,13 @@ flowchart LR
     end
     
     subgraph phase2["Phase II: Active Diffusion"]
-        T["Train Model<br/>(PytorchLightning)"]
+        T["Train Model"]
         D["Generate Molecules<br/>(Diffusion Model)"]
-        G["Geometry Optimization<br/>(MLFF-MACE)"]
+        G["Geometry Optimization"]
         R["Retrain Model"]
         S["Scoring<br/>(SAScore/QED)"]
         F["Active Learning<br/>Selection"]
-        E["DFT Calculation<br/>(FHI-aims)"]
+        E["DFT Calculation"]
         
         T --> D --> G --> S--> E --> F --> R --> D
     end
@@ -53,7 +53,8 @@ flowchart LR
         J --> K
     end
     
-    C ==> T
+    C ==> D
+    C ==> F
     phase2 --> H
     
     style phase1 fill:#FFE082,stroke:#F57C00,stroke-width: 2px
@@ -113,16 +114,18 @@ graph TB
     
     subgraph functional["🔴 Functional Core Layer"]
         gen["Molecular Generator<br/>(Diffusion Model)"]
-        eval["Property Evaluator<br/>(DFT/QM)"]
-        select["Active Selector"]
-        train["Model Trainer"]
+        eval["Property Evaluator<br/>(DFT/FHI-aims)"]
+        Opt["Geometry Optimizer<br/>(MLFF)"]
+        select["Molecular Filters"]
+        train["Model Trainer<br/>(PytorchLightning)"]
     end
     
     orchestration --> utilities
     utilities --> functional
     functional --> utilities
     
-    gen --> eval
+    gen --> opt
+    opt --> eval
     eval --> select
     select --> train
     train --> gen
