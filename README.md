@@ -103,6 +103,8 @@ Provides cross-cutting services that support both layers by handling data manage
 graph TB
     subgraph orchestration["🔷 Orchestration Layer"]
         hpc["HPC Resource Allocator"]
+        config["Configuration"]
+        orc["Orchestra"]
         workflow["Execute Scripts"]
         Expsc["Experimentation Scripts"]
         initsc["intiatation"]
@@ -112,8 +114,7 @@ graph TB
         gensc["Generate"]
         calsc["Calculate"]
         evalsc["Evaluate"]
-        config["Configuration"]
-        orc["Orchestra"]
+
     end
 
     Expsc --> initsc
@@ -121,7 +122,9 @@ graph TB
     Expsc --> bacsc
     Evalsc --> gensc
     Evalsc --> calsc
-    Evalsc --> eval
+    Evalsc --> evalsc
+    workflow --> Expsc
+    workflow --> Evalsc
     orc --> Expsc
     orc --> Evalsc
 
