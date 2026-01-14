@@ -3,7 +3,7 @@
 #SBATCH -A p_nanoparticle
 #SBATCH --time=20:00:00   
 #SBATCH --begin=now                
-#SBATCH --partition=alpha
+#SBATCH --partition=capella
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=6                                        
 #SBATCH --mem-per-cpu=8000                       

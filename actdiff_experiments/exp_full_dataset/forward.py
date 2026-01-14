@@ -73,6 +73,7 @@ def main(args):
     # Flag to resume in the midde of the loop
     steps={'split', 'train', 'generate', 'relax', 'score_filter', 'pre_fih_aims', 'fih_aims', 'post_fih_aims', 'acc_filter', 'hdf5', 'compress'}
     skip_step_atstart = {}
+
     
     # Run active learning loop
     num_iterations = args.num_iterations

@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-backward
 #SBATCH -A p_nanoparticle
-#SBATCH --time=25:00:00  
+#SBATCH --time=10:00:00  
 #SBATCH --begin=now
 #SBATCH --partition=barnard
 #SBATCH --cpus-per-task=1
