@@ -146,9 +146,9 @@ graph TB
     Pipeb --> sel
     Pipeb --> Aug
     
-    style orchestration fill:#E3F2FD,stroke:#1976D2,stroke-width: 2px,color:#000
-    style utilities fill:#E8F5E9,stroke:#388E3C,stroke-width: 2px,color:#000
-    style functional fill:#FFF3E0,stroke:#F57C00,stroke-width: 2px,color:#000
+    style orchestration fill:#BBDEFB,stroke:#1565C0,stroke-width:2px
+    style utilities fill:#A5D6A7,stroke:#2E7D32,stroke-width:2px
+    style functional fill:#FFAB91,stroke:#E64A19,stroke-width:2px
 ```
 
 ## Installation
