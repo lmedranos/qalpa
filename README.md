@@ -126,10 +126,7 @@ graph TB
     orc --> Evalsc
     forsc --> bacsc
     bacsc --> forsc
-    initsc --> bacsc
-    gensc --> calsc
-    calsc --> evalsc
-
+   
 
     subgraph utilities["🟢 Utilities Subsystem"]
         data["Data Manager"]
