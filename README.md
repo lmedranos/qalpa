@@ -120,10 +120,6 @@ graph TB
         train["Model Trainer<br/>(PytorchLightning)"]
     end
     
-    orchestration --> utilities
-    utilities --> functional
-    functional --> utilities
-    
     gen --> opt
     opt --> eval
     eval --> select
