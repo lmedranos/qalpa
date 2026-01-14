@@ -52,7 +52,7 @@ flowchart LR
         J --> K
     end
     
-    C ==> D
+    C ==> T
     phase2 --> H
     
     style phase1 fill:#FFE082,stroke:#F57C00,stroke-width: 2px
@@ -126,9 +126,9 @@ graph TB
     select --> train
     train --> gen
     
-    style orchestration fill:#4A90E2,stroke:#2E5C8A,stroke-width:3px,color:#fff
-    style utilities fill:#7CB342,stroke:#558B2F,stroke-width: 3px,color:#fff
-    style functional fill:#E53935,stroke:#B71C1C,stroke-width:3px,color:#fff
+    style orchestration stroke:#4A90E2,stroke-width:3px,color:#fff
+    style utilities stroke:#7CB342,stroke-width: 3px,color:#fff
+    style functional stroke:#E53935,stroke-width:3px,color:#fff
 ```
 
 ## Installation
