@@ -122,8 +122,6 @@ graph TB
     Evalsc --> gensc
     Evalsc --> calsc
     Evalsc --> evalsc
-    workflow --> Expsc
-    workflow --> Evalsc
     orc --> Expsc
     orc --> Evalsc
 
