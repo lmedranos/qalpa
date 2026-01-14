@@ -84,13 +84,13 @@ The final phase focuses on analyzing and visualizing the output. Jupyter noteboo
 
 The architectural elements are organized as follows:
 
-### Surface Layer – Experiment Orchestration Layer (blue box)
+### Surface Layer – Experiment Orchestration Layer
 Responsible for workflow coordination, configuration management, and resource allocation across HPC environments. It defines the experiment lifecycle.
 
-### Deep Layer – Functional Core Layer (red box)
+### Deep Layer – Functional Core Layer 
 Contains the domain-specific components that implement the scientific and computational functionality of the diffusion process, including molecular generation and property evaluation.
 
-### Utilities Subsystem (green box)
+### Utilities Subsystem 
 Provides cross-cutting services that support both layers by handling data management, task parallelization, and trajectory synchronization.
 
 
