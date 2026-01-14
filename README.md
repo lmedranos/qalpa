@@ -81,6 +81,7 @@ The final phase focuses on analyzing and visualizing the output. Jupyter noteboo
 
 <img width="400" height="400" alt="embd_model_eval" src="https://github.com/user-attachments/assets/c23ebf26-e553-4d12-bcee-e8302bc121f0" />
 
+
 <img width="400" height="400" alt="eval_embd_exp" src="https://github.com/user-attachments/assets/16936e0f-e4e8-4dcc-82b7-91b445ec5684" />
 
 
@@ -115,7 +116,7 @@ graph TB
     subgraph functional["🔴 Functional Core Layer"]
         gen["Molecular Generator<br/>(Diffusion Model)"]
         eval["Property Evaluator<br/>(DFT/FHI-aims)"]
-        Opt["Geometry Optimizer<br/>(MLFF)"]
+        opt["Geometry Optimizer<br/>(MLFF)"]
         select["Molecular Filters"]
         train["Model Trainer<br/>(PytorchLightning)"]
     end
