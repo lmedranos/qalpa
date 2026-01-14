@@ -19,6 +19,42 @@ The QMActiveDiffusion framework combines diffusion models with quantum mechanica
 
 ## Architecture
 
+```mermaid
+graph TB
+    subgraph orchestration["🔷 Experiment Orchestration Layer"]
+        config["Configuration Manager"]
+        workflow["Workflow Coordinator"]
+        hpc["HPC Resource Allocator"]
+    end
+    
+    subgraph utilities["🟢 Utilities Subsystem"]
+        data["Data Manager"]
+        parallel["Task Parallelizer"]
+        sync["Trajectory Synchronizer"]
+    end
+    
+    subgraph functional["🔴 Functional Core Layer"]
+        gen["Molecular Generator<br/>(Diffusion Model)"]
+        eval["Property Evaluator<br/>(DFT/QM)"]
+        select["Active Selector"]
+        train["Model Trainer"]
+    end
+    
+    orchestration --> utilities
+    utilities --> functional
+    functional --> utilities
+    
+    gen --> eval
+    eval --> select
+    select --> train
+    train --> gen
+    
+    style orchestration fill:#4A90E2,stroke:#2E5C8A,stroke-width:3px,color:#fff
+    style utilities fill:#7CB342,stroke:#558B2F,stroke-width: 3px,color:#fff
+    style functional fill:#E53935,stroke:#B71C1C,stroke-width:3px,color:#fff
+```
+
+
 The software system is organized into a modular architecture that follows a three-phase workflow, guiding the process from molecular trajectory design to data analysis. 
 
 ### Phase I – Trajectory Planning
@@ -58,6 +94,43 @@ The final phase focuses on analyzing and visualizing the output. Jupyter noteboo
 
 
 ## Quick Start
+
+
+```mermaid
+flowchart LR
+    subgraph phase1["Phase I: Trajectory Planning"]
+        A["Define Property Space<br/>(HOMO-LUMO, MBD, etc.)"]
+        B["Interactive Planner"]
+        C["Trajectory CSV"]
+        A --> B --> C
+    end
+    
+    subgraph phase2["Phase II: Active Diffusion"]
+        D["Generate Molecules<br/>(Diffusion Model)"]
+        E["DFT Calculation"]
+        F["Active Learning<br/>Selection"]
+        G["Retrain Model"]
+        D --> E --> F --> G --> D
+    end
+    
+    subgraph phase3["Phase III:  Analysis"]
+        H["HDF5 Output"]
+        I["Accuracy Analysis"]
+        J["Iteration Analysis"]
+        K["Visualization"]
+        H --> I
+        H --> J
+        I --> K
+        J --> K
+    end
+    
+    C ==> D
+    phase2 --> H
+    
+    style phase1 fill:#FFE082,stroke:#F57C00,stroke-width: 2px
+    style phase2 fill:#81C784,stroke:#388E3C,stroke-width: 2px
+    style phase3 fill:#90CAF9,stroke:#1976D2,stroke-width: 2px
+```
 
 1. **Plan a trajectory:**
 
