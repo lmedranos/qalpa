@@ -79,11 +79,6 @@ This represents the core operational layer of the system, responsible for orches
 
 The final phase focuses on analyzing and visualizing the output. Jupyter notebooks (`accuracy_analysis.ipynb`, `iteration_analysis.ipynb`, `hdf5_analysis.ipynb`) allow users to inspect the active diffusion results, model performance, and generated molecular properties.
 
-<img width="400" height="400" alt="embd_model_eval" src="https://github.com/user-attachments/assets/c23ebf26-e553-4d12-bcee-e8302bc121f0" />
-
-
-<img width="400" height="400" alt="eval_embd_exp" src="https://github.com/user-attachments/assets/16936e0f-e4e8-4dcc-82b7-91b445ec5684" />
-
 
 ## Active Diffusion Architecture
 
@@ -202,8 +197,8 @@ Core dependencies include:
 - Matplotlib/Seaborn (visualization)
 - Jupyter (analysis notebooks)
 
-See `requirements.txt` for a complete list.
+See `scripts/environment.yml` for a complete list.
 
 ## Acknowledgments
 
-- This work was part of a research project under the supervision of Dr. Leonardo Medrano.
+- This work was part of a research project at TU Dresden under the supervision of Dr. Leonardo Medrano and Prof. Dr. Gianaurelio Cuniberti from the Chair of Materials Science and Nanotechnology, in collaboration with Julian Cremer – Pfizer.
