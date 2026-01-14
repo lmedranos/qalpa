@@ -35,7 +35,7 @@ flowchart LR
         D["Generate Molecules<br/>(Diffusion Model)"]
         G["Geometry Optimization"]
         R["Retrain Model"]
-        S["Scoring<br/>(SAScore/QED)"]
+        S["Scoring"]
         F["Active Learning<br/>Selection"]
         E["DFT Calculation"]
         
@@ -101,12 +101,31 @@ Provides cross-cutting services that support both layers by handling data manage
 
 ```mermaid
 graph TB
-    subgraph orchestration["🔷 Experiment Orchestration Layer"]
-        config["Configuration Manager"]
-        workflow["Workflow Coordinator"]
+    subgraph orchestration["🔷 Orchestration Layer"]
         hpc["HPC Resource Allocator"]
+        workflow["Execute Scripts"]
+        Expsc["Experimentation Scripts"]
+        initsc["intiatation"]
+        forsc["Forward"]
+        bacsc["Backward"]
+        Evalsc["Evaluation Scripts"]
+        gensc["Generate"]
+        calsc["Calculate"]
+        evalsc["Evaluate"]
+        config["Configuration"]
+        orc["Orchestra"]
     end
-    
+
+    Expsc --> initsc
+    Expsc --> forsc
+    Expsc --> bacsc
+    Evalsc --> gensc
+    Evalsc --> calsc
+    Evalsc --> eval
+    orc --> Expsc
+    orc --> Evalsc
+
+
     subgraph utilities["🟢 Utilities Subsystem"]
         data["Data Manager"]
         parallel["Task Parallelizer"]
@@ -114,18 +133,23 @@ graph TB
     end
     
     subgraph functional["🔴 Functional Core Layer"]
-        gen["Molecular Generator<br/>(Diffusion Model)"]
+        Diff["Diffusion Model<br/>(Pytorch Geometry/PytorchLightning)"]
+        train["Model Trainer"]
+        gen["Molecular Generator"]
+        Pipeb["Pipeline Blocks"]
         eval["Property Evaluator<br/>(DFT/FHI-aims)"]
         opt["Geometry Optimizer<br/>(MLFF)"]
-        select["Molecular Filters"]
-        train["Model Trainer<br/>(PytorchLightning)"]
+        sco["Scoring Schemes Calculators<br/>(SAScore/QED)"]
+        sel["Molecular Filters"]
+        Aug["Dataset Augmentation"]
     end
-    
-    gen --> opt
-    opt --> eval
-    eval --> select
-    select --> train
-    train --> gen
+    Diff --> train
+    Diff --> gen
+    Pipeb --> eval
+    Pipeb --> opt
+    Pipeb --> sco
+    Pipeb --> sel
+    Pipeb --> Aug
     
     style orchestration stroke:#4A90E2,stroke-width:3px,color:#fff
     style utilities stroke:#7CB342,stroke-width: 3px,color:#fff
