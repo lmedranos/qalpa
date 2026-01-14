@@ -34,10 +34,11 @@ flowchart LR
         T["Train Model<br/>(PytorchLightning)"]
         D["Generate Molecules<br/>(Diffusion Model)"]
         G["Geometry Optimization<br/>(MLFF-MACE)"]
-        S["Scoring<br/>(SAScore/QED)"]
-        E["DFT Calculation<br/>(FHI-aims)"]
-        F["Active Learning<br/>Selection"]
         R["Retrain Model"]
+        S["Scoring<br/>(SAScore/QED)"]
+        F["Active Learning<br/>Selection"]
+        E["DFT Calculation<br/>(FHI-aims)"]
+        
         T --> D --> G --> S--> E --> F --> R --> D
     end
     
