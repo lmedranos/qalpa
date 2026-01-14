@@ -149,6 +149,7 @@ graph TB
     style orchestration fill:#B3E5FC,stroke:#0277BD,stroke-width:2px,color:#000
     style utilities fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px,color:#000
     style functional fill:#FFCCBC,stroke:#D84315,stroke-width:2px,color:#000
+    linkStyle default stroke:#424242,stroke-width:2px
 ```
 
 ## Installation
