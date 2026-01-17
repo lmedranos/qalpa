@@ -1,0 +1,200 @@
+Results summary
+=========================
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model0/prop_calc
+  Completed:   63
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model1/prop_calc
+  Completed:   45
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model2/prop_calc
+  Completed:   55
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model3/prop_calc
+  Completed:   70
+  Incomplete:  1
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model3/prop_calc/mol_34
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model3/query/mol_34.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model4/prop_calc
+  Completed:   69
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model5/prop_calc
+  Completed:   71
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model6/prop_calc
+  Completed:   60
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model7/prop_calc
+  Completed:   64
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target0/model8/prop_calc
+  Completed:   76
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model0/prop_calc
+  Completed:   54
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model1/prop_calc
+  Completed:   45
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model2/prop_calc
+  Completed:   50
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model3/prop_calc
+  Completed:   61
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model4/prop_calc
+  Completed:   59
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model5/prop_calc
+  Completed:   62
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model6/prop_calc
+  Completed:   51
+  Incomplete:  1
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model6/prop_calc/mol_21
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model6/query/mol_21.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model7/prop_calc
+  Completed:   60
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target1/model8/prop_calc
+  Completed:   53
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model0/prop_calc
+  Completed:   44
+  Incomplete:  1
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model0/prop_calc/mol_11
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model0/query/mol_11.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model1/prop_calc
+  Completed:   55
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model2/prop_calc
+  Completed:   65
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model3/prop_calc
+  Completed:   63
+  Incomplete:  2
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model3/prop_calc/mol_56
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model3/query/mol_56.xyz
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model3/prop_calc/mol_8
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model3/query/mol_8.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model4/prop_calc
+  Completed:   66
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model5/prop_calc
+  Completed:   47
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model6/prop_calc
+  Completed:   60
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model7/prop_calc
+  Completed:   63
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model8/prop_calc
+  Completed:   65
+  Incomplete:  1
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model8/prop_calc/mol_13
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target2/model8/query/mol_13.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model0/prop_calc
+  Completed:   29
+  Incomplete:  3
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model0/prop_calc/mol_11
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model0/query/mol_11.xyz
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model0/prop_calc/mol_30
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model0/query/mol_30.xyz
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model0/prop_calc/mol_6
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model0/query/mol_6.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model1/prop_calc
+  Completed:   32
+  Incomplete:  3
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model1/prop_calc/mol_10
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model1/query/mol_10.xyz
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model1/prop_calc/mol_11
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model1/query/mol_11.xyz
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model1/prop_calc/mol_9
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model1/query/mol_9.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model2/prop_calc
+  Completed:   41
+  Incomplete:  2
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model2/prop_calc/mol_12
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model2/query/mol_12.xyz
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model2/prop_calc/mol_29
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model2/query/mol_29.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model3/prop_calc
+  Completed:   44
+  Incomplete:  3
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model3/prop_calc/mol_30
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model3/query/mol_30.xyz
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model3/prop_calc/mol_36
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model3/query/mol_36.xyz
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model3/prop_calc/mol_44
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model3/query/mol_44.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model4/prop_calc
+  Completed:   36
+  Incomplete:  0
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model5/prop_calc
+  Completed:   41
+  Incomplete:  1
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model5/prop_calc/mol_30
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model5/query/mol_30.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model6/prop_calc
+  Completed:   45
+  Incomplete:  1
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model6/prop_calc/mol_45
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model6/query/mol_45.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model7/prop_calc
+  Completed:   41
+  Incomplete:  2
+  Incomplete files:
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model7/prop_calc/mol_29
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model7/query/mol_29.xyz
+    - /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model7/prop_calc/mol_37
+        → Missing: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model7/query/mol_37.xyz
+
+Directory: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_non_opt2/evaluation/target3/model8/prop_calc
+  Completed:   46
+  Incomplete:  0
+

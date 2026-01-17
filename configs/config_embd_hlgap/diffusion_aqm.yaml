@@ -36,7 +36,7 @@ vector_aggr: mean
 
 #DATA
 dataset: aqm
-dataset_root: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd/diffusion_wdir/data
+dataset_root: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_hlgap/diffusion_wdir/data
 # DIFFUSION
 additional_feats: false
 continuous: false
@@ -51,10 +51,10 @@ loss_weighting: snr_t
 #CONTEXT
 context_mapping: True
 num_context_features: 2
-properties_list: [eMBD, HLgap]
+properties_list: ['HLgap', 'eMBD']
 
 #LOGGING
-save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd/diffusion_wdir/logs
+save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_hlgap/diffusion_wdir/logs
 id: 0
 
 #LEARNING
@@ -69,7 +69,8 @@ max_num_neighbors: 128
 weight_decay: 1.e-12
 
 #TESTING
-test_save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd/diffusion_wdir/test
+test_save_dir: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_hlgap/diffusion_wdir/test
 
 num_workers: 4
 precision: 32
+load_ckpt_from_pretrained: /data/horse/ws/miha493e-research_project/activediffusion/data/data_embd_hlgap/diffusion_wdir/model_registry/model_iter_8/best_mol_stab.ckpt

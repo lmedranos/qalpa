@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-forward
 #SBATCH -A p_nanoparticle
-#SBATCH --time=12:00:00   
+#SBATCH --time=5:00:00   
 #SBATCH --begin=now                 
 #SBATCH --partition=capella
 #SBATCH --gres=gpu:2
@@ -32,7 +32,7 @@ source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
 # define experiment
-exp="embd_non_opt"
+exp="embd_non_opt2"
 data_exp="$data/data_${exp}"
 config_exp="$config/config_${exp}"
 config_eval="$config_exp/eval" 

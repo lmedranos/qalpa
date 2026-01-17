@@ -1,11 +1,11 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-forward
 #SBATCH -A p_nanoparticle
-#SBATCH --time=10:00:00   
+#SBATCH --time=20:00:00   
 #SBATCH --begin=now                
 #SBATCH --partition=capella
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=12                                        
+#SBATCH --cpus-per-task=6                                        
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -16,7 +16,7 @@
 
 ulimit -s unlimited
 
-MY_ITER=1
+MY_ITER=8
 
 # Please spicify the location of base dataset that is used for intial training of the model
 base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/molecules-fps-40000.hdf5"

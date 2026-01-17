@@ -15,7 +15,7 @@
 
 ulimit -s unlimited
 
-MY_ITER=0
+MY_ITER=8
 n_parallel=${SLURM_NNODES} 
 echo "Running backward path active loop script ..."
 echo "Iteration: $MY_ITER"
