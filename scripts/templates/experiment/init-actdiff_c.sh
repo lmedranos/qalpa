@@ -1,10 +1,10 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-embd-init
 #SBATCH -A p_nanoparticle
-#SBATCH --time=06:00:00                    
-#SBATCH --partition=capella
+#SBATCH --time=10:00:00                    
+#SBATCH --partition=alpha
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=12                                           
+#SBATCH --cpus-per-task=6                                           
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -13,12 +13,15 @@
 #SBATCH --mail-type=all
 #SBATCH --mail-user=michael_gamal_nassif.hanna@mailbox.tu-dresden.de
 
-ulimit -s unlimited
+# ulimit -s unlimited
+
+# define experiment
+exp="full_dataset"
 
 echo "Running active loop script..."
 
 # Please spicify the location of base dataset that is used for intial training of the model
-base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/molecules-fps-40000.hdf5"
+base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/qm7x-aqm-gas-noP.hdf5"
 
 # Please specify the paths to the project folders
 root="/data/horse/ws/miha493e-research_project/activediffusion" # Parent folder for the project
@@ -34,17 +37,17 @@ config="$root/configs"                                          # A folder conta
 source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
-# define experiment name, this will create folders data_{exp name} 
-# and you have to add configuration file under config/config_{exp name}
-# here example for experiment name is embd_hlgap
-exp="embd_hlgap"
+
 data_exp="$data/data_${exp}" 
 config_exp="$config/config_${exp}"
 
 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-# you have to specify properties, scores, filter scheme and geometry optimization method (--geom_optimizer) according to your experiment
 python3 main_init.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy"
 
-echo "Job completed."
+# Increment for next run
+STATE_FILE="MY_ITER.state"
+echo 0 > "$STATE_FILE"
+
+echo "Init Job completed please run backward-actdiff_b.sh on barnard."

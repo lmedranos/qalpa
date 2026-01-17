@@ -1,11 +1,11 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-forward
 #SBATCH -A p_nanoparticle
-#SBATCH --time=10:00:00   
+#SBATCH --time=20:00:00   
 #SBATCH --begin=now                
-#SBATCH --partition=capella
+#SBATCH --partition=alpha
 #SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=12                                        
+#SBATCH --cpus-per-task=6                                        
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -16,11 +16,16 @@
 
 ulimit -s unlimited
 
-# Very important to set the iteration number start by 1 and increment for each iteration
-MY_ITER=1
+# define experiment
+exp="full_dataset"
+
+# Read current iteration value
+STATE_FILE="MY_ITER.state"
+MY_ITER=$(cat "$STATE_FILE")
+
 
 # Please spicify the location of base dataset that is used for intial training of the model
-base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/molecules-fps-40000.hdf5"
+base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/qm7x-aqm-gas-noP.hdf5"
 
 # Please specify the paths to the project folders
 root="/data/horse/ws/miha493e-research_project/activediffusion" # Parent folder for the project
@@ -37,15 +42,12 @@ source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
 
-# define experiment name, this will create folders data_{exp name} 
-# and you have to add configuration file under config/config_{exp name}
-# here example for experiment name is embd_hlgap
-exp="embd_hlgap"
 data_exp="$data/data_${exp}" 
 config_exp="$config/config_${exp}"
 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-# you have to specify properties, scores, filter scheme and geometry optimization method (--geom_optimizer) according to your experiment
 python3 forward.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --iter $MY_ITER
 
+
+echo "Forward Job completed please run backward-actdiff_b.sh on barnard."

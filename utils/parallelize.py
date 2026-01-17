@@ -152,7 +152,7 @@ def rank_parallelize(script_path, input_path, output_path):
     if rank == 0:
         print("All files processed on all ranks.")
             
-def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=None, nranks=None, timeout_hours=5):
+def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=None, nranks=None, timeout_hours=4):
     """
     Parallelize a function over an iterable using multiprocessing.
     It parallelizes files processing over nodes.

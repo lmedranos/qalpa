@@ -43,7 +43,7 @@ def main(args):
     for m in range(num_models):    
         for t in range(num_targets): 
             dm.create_evaluation_directories(t, m)
-
+            print(f"Evaluating target {t} model {m}")
             # # Step 4: Calculate properties 
             prop_calc_path = dm.current_data / "prop_calc"
             # Run FIH-aims

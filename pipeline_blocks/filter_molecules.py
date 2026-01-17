@@ -119,12 +119,13 @@ class MolecularFilter:
                 data = json.load(json_file)
             mol_name = jf.stem
             keys = prop_dict[prop]
-            value = get_value(data, keys)
+            value = float(get_value(data, keys))
             if value is not None and lower_bound <= value <= upper_bound:
                 # copy this molecule to the output path
                 src_file = ipath / f"{mol_name}.xyz"
                 dst_file = opath / f"{mol_name}.xyz"
-                shutil.copy(src_file, dst_file)
+                if src_file.exists():
+                    shutil.copy(src_file, dst_file)
 
     def accuracy_calculation(self, input_file, output_path, prop, pjsons, target_indx):
         """ Calculate accuracy of molecules based on a property from a file.
@@ -155,7 +156,7 @@ class MolecularFilter:
         with jf.open("r") as json_file:
             data = json.load(json_file)
         # Get value
-        value = get_value(data, keys)
+        value = float(get_value(data, keys))
         error = value - ref_value
         relative_err = error *100 / ref_value
         csv_path = output_path / f"{prop}.csv"
