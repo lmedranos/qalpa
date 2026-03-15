@@ -40,8 +40,8 @@ def main(args):
     num_models = args.num_models
     num_targets = len(my_trajectory)   # len(my_trajectory.target_values)
     
-    for m in range(4, 5):    
-        for t in range(3, 4): 
+    for m in range(num_models):    
+        for t in range(num_targets): 
             dm.create_evaluation_directories(t, m)
             print(f"Evaluating target {t} model {m}")
             # # Step 4: Calculate properties 

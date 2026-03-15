@@ -1,10 +1,9 @@
 #!/bin/bash -l
-#SBATCH -J active-loop-forward
-#SBATCH -A p_nanoparticle
-#SBATCH --time=00:10:00   
+#SBATCH -J aloop-for
+#SBATCH -A  p_phononics
+#SBATCH --time=00:30:00   
 #SBATCH --begin=now                 
 #SBATCH --partition=barnard
-
 #SBATCH --cpus-per-task=6                                            
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1

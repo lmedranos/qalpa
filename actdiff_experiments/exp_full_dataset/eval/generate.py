@@ -84,7 +84,7 @@ def main(args):
     else:
         skip_step_atstart.discard('split')
            
-    for m in range(num_models):     
+    for m in range(5, 6):     
         for t in range(num_targets):
             # Find Target for the current iteration
             if my_trajectory.has_properties:

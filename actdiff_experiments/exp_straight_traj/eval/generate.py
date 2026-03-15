@@ -83,9 +83,12 @@ def main(args):
         subprocess.run(cmd, check=True) 
     else:
         skip_step_atstart.discard('split')
-           
-    for m in range(1, 2):     
-        for t in range(3, 4):
+    t = num_targets -1 # Set target to the last one for training, since we want to train on the most extrapolated target and evaluate on all targets. This is important for the evaluation of the extrapolation capabilities of the model.
+    m = num_models -1 # Set model to the last one for training, since we want to train all models and evaluate them on all targets. This is important for the evaluation of the extrapolation capabilities of the model.
+    #for m in range(num_models):
+    if True:     
+        #for t in range(num_targets):
+        if True:
             # Find Target for the current iteration
             if my_trajectory.has_properties:
                 target = my_trajectory.get_target(t)

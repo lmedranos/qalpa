@@ -152,7 +152,7 @@ def rank_parallelize(script_path, input_path, output_path):
     if rank == 0:
         print("All files processed on all ranks.")
             
-def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=None, nranks=None, timeout_hours=4):
+def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=None, nranks=None, timeout_hours=4, batch_size=None, batch_id=None):
     """
     Parallelize a function over an iterable using multiprocessing.
     It parallelizes files processing over nodes.
@@ -191,7 +191,14 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
         f"--export=ALL,CONFIG={os.environ['CONFIG']}",
     ]
 
-    paths = [f for f in input_path.iterdir()]    
+    paths = [f for f in input_path.iterdir()]
+
+    # Process only a patch of data if specified
+    if batch_id is not None and batch_size is not None:
+        start_idx = batch_id * batch_size
+        end_idx = min((batch_id + 1) * batch_size, len(paths))
+        paths = paths[start_idx:end_idx]
+        print(f"Processing patches {batch_id}, total {len(paths)} files.")
     processes = []
     start_times = {}
     proc_to_file = {}
@@ -232,7 +239,7 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
     #     except ChildProcessError:
     #         pass
         
-    return fkilled
+    return fkilled 
   
 def monitor_processes(processes, start_times, timeout_hours):
     """
@@ -259,7 +266,7 @@ def monitor_processes(processes, start_times, timeout_hours):
         if p.poll() is not None:
             # Process finished
             continue
-        elif runtime_hours > timeout_hours:
+        elif float(runtime_hours) > float(timeout_hours):
             # Process exceeded timeout
             # print(f"Killing process {p.pid} ({fname}) after {runtime_hours:.2f}h")
             # p.kill()

@@ -42,7 +42,7 @@ def main(args):
     steps={'score_filter', 'fih_aims', 'acc_filter', 'hdf5', 'compress'}
     skip_step_atstart = {}
         
-    for m in range(num_models): 
+    for m in range(5, 6): 
         for t in range(num_targets):    
             dm.create_evaluation_directories(t, m)
             query_data_path = dm.current_data / "query"

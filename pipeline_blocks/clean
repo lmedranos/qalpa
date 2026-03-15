@@ -1,0 +1,8 @@
+set -e
+cd /data/horse/ws/miha493e-research_project/activediffusion/data/data_straight_traj/iter_3
+find query -type f -name '*.xyz' -print0 | while IFS= read -r -d '' f; do
+  base=$(basename "$f" .xyz)
+  if [[ ! -f "prop_calc/${base}.json" ]]; then
+    echo "$f"
+  fi
+done

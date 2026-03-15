@@ -1,22 +1,26 @@
 #!/bin/bash -l
-#SBATCH -J active-loop-backward
+#SBATCH -J calculating-forces
 #SBATCH -A p_nanoparticle
-#SBATCH --time=30:00:00  
-#SBATCH --begin=now
+#SBATCH --time=01:00:00   
+#SBATCH --begin=now                
 #SBATCH --partition=barnard
-#SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=12000                    
-#SBATCH --nodes=25
-#SBATCH --ntasks-per-node=32
-#SBATCH -o check-log2.out
-#SBATCH -e check-log2.err
+#SBATCH --cpus-per-task=8                                      
+#SBATCH --mem-per-cpu=8000                       
+#SBATCH --nodes=1
+#SBATCH --ntasks-per-node=1
+#SBATCH -o check-log.out
+#SBATCH -e check-log.err
 #SBATCH --mail-type=all
 #SBATCH --mail-user=michael_gamal_nassif.hanna@mailbox.tu-dresden.de
 
 ulimit -s unlimited
 
-n_parallel=${SLURM_NNODES} 
+# define experiment
+exp="full_dataset"
+N_models=5
 
+
+# Please spicify the location of base dataset that is used for intial training of the model
 base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/qm7x-aqm-gas-noP.hdf5"
 
 # Please specify the paths to the project folders
@@ -29,20 +33,16 @@ utils="$root/utils"                                            # A folder contai
 config="$root/configs"                                          # A folder containing yaml of diffusion model configs, Mace model for relaxation, and nctr1.in foe FHI-aims
 
 
-# Load FHI-aims and other necessary modules
-module load release/24.04  intel-compilers/2023.2.1  impi/2021.10.0   #imkl/2023.2.0  
-module load FHI-aims/240507
-
 # Load Anaconda environment and activate the conda environment
 source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
 
-# define experiment
-exp="vanilla_full_dataset"
 data_exp="$data/data_${exp}" 
 config_exp="$config/config_${exp}"
 config_eval="$config_exp/eval" 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 calculate.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --max_parallel_tasks $n_parallel --num_models 9
+python3 forces_target.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --num_models $N_models
+
+echo "Forces Job completed please run backward-actdiff_b.sh on barnard."
