@@ -202,4 +202,4 @@ See `scripts/environment.yml` for a complete list.
 
 ## Acknowledgments
 
-- This work was part of a research project at TU Dresden under the supervision of Dr. Leonardo Medrano and Prof. Dr. Gianaurelio Cuniberti from the Chair of Materials Science and Nanotechnology, in collaboration with Julian Cremer – Pfizer.
+- This work was part of a research project at TU Dresden under the supervision of Dr. Leonardo Medrano and Prof. Dr. Gianaurelio Cuniberti from the Chair of Materials Science and Nanotechnology, and in collaboration with Dr. Julian Cremer – Pfizer.
