@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-forward
 #SBATCH -A p_nanoparticle
-#SBATCH --time=20:00:00   
+#SBATCH --time=05:00:00   
 #SBATCH --begin=now                 
 #SBATCH --partition=capella
 #SBATCH --license=horse 

@@ -1,12 +1,12 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-backward
-#SBATCH -A p_nanoparticle
-#SBATCH --time=30:00:00  
+#SBATCH -A p_phononics 
+#SBATCH --time=10:00:00  
 #SBATCH --begin=now
 #SBATCH --partition=barnard
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=12000                    
-#SBATCH --nodes=25
+#SBATCH --mem-per-cpu=10000                    
+#SBATCH --nodes=15
 #SBATCH --ntasks-per-node=32
 #SBATCH -o check-log2.out
 #SBATCH -e check-log2.err

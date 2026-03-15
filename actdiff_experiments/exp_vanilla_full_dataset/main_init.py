@@ -74,7 +74,7 @@ def main(args):
        
     # Flag to resume in the midde of the loop
     steps={'split', 'train', 'generate', 'relax', 'score_filter', 'pre_fih_aims'}
-    skip_step_atstart = {}
+    skip_step_atstart = {'split'}
     
     # Run active learning loop
     num_iterations = args.num_iterations
@@ -92,8 +92,9 @@ def main(args):
         subprocess.run(cmd, check=True)  
     else:
         skip_step_atstart.discard('split')
-        
-    for n in range(num_iterations):
+    
+
+    for n in range(1, num_iterations):
         print(f"\n Iteration {n}")
   
         # step 2: Diffusion model training
