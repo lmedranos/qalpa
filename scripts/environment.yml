@@ -20,7 +20,8 @@ dependencies:
   - conda-forge::pytorch-lightning=2.0.6  # PyTorch Lightning for training Diffusion models
   - conda-forge::jupyter                  # Jupyter for interactive notebooks
   - conda-forge::openbabel                # Open Babel for chemical file format conversions to SMILES or mol
-  - xtb           
+  - xtb          
+  - dftbplus=25.1=nompi*
   - pip:
       - xtb
       - ase           # Atomic Simulation Environment for molecular relaxation and properties calculations
