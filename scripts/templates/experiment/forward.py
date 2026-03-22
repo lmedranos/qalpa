@@ -59,12 +59,17 @@ def main(args):
     context_flag = True if my_trajectory.has_properties else False
     
     # Select geometry optimizer
-    if args.geom_optimizer=="SO3LR":
-        opt_model = args.geom_optimizer
-    elif args.geom_optimizer=="MACE":
+    optimize_calc = args.geom_optimizer
+    if optimize_calc=="SO3LR":
+        opt_model = Path(os.environ["CONFIG"], "SO3LR_model.pt")
+    elif optimize_calc=="MACE":
         opt_model = Path(os.environ["CONFIG"], "MACE_model_swa.model")
-    elif args.geom_optimizer is None:
+    elif optimize_calc=="DFTB+":
+        opt_calc = optimize_calc
+        opt_model = Path(os.environ["CONFIG"], "SKfiles/3ob-3-1")  # Path to Slater-Koster files for DFTB+
+    else:
         opt_model = None
+    
     
     # Create Molecular Filter
     molecular_filter = MolecularFilter(my_trajectory)
@@ -73,6 +78,7 @@ def main(args):
     # Flag to resume in the midde of the loop
     steps={'split', 'train', 'generate', 'relax', 'score_filter', 'pre_fih_aims', 'fih_aims', 'post_fih_aims', 'acc_filter', 'hdf5', 'compress'}
     skip_step_atstart = {}
+
     
     # Run active learning loop
     num_iterations = args.num_iterations
@@ -214,12 +220,12 @@ def main(args):
 
     # Step 4: Relax molecules
     if 'relax' not in skip_step_atstart:
-        if opt_model is not None:
+        if opt_model is not None and optimize_calc is not None:
             print("  Running Relax molecules  ")
             relaxed_data_path = dm.current_data  / "relaxed"
             for f in dm.query_data.iterdir():
                 if f.is_file() and f.suffix == '.xyz':
-                    relax_molecule(f, relaxed_data_path, opt_model)           
+                    relax_molecule(f, relaxed_data_path, optimize_calc, opt_model)           
             # clean query directory
             dm.clean_dir(dm.query_data)
             # Copy all relaxed molecules to the query data path

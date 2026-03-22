@@ -47,7 +47,7 @@ config_exp="$config/config_${exp}"
 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 forward.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --iter $MY_ITER
+python3 forward.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --iter $MY_ITER --geom_optimizer "DFTB+"
 
 
 echo "Forward Job completed please run backward-actdiff_b.sh on barnard."
