@@ -2,7 +2,8 @@
 #SBATCH -J active-loop-embd-init
 #SBATCH -A p_nanoparticle
 #SBATCH --time=20:00:00                    
-#SBATCH --partition=barnard
+#SBATCH --partition=capella
+#SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=6                                           
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
@@ -13,6 +14,7 @@
 #SBATCH --mail-user=michael_gamal_nassif.hanna@mailbox.tu-dresden.de
 
 # ulimit -s unlimited
+export OMP_NUM_THREADS=1
 
 # define experiment
 exp="full_dataset"
