@@ -1,16 +1,19 @@
+import os
 import argparse
 import warnings  
 from pathlib import Path
+import numpy as np
 import torch
 from ase.io import read, write
 from ase.optimize import BFGS
 from mace.calculators import MACECalculator
+import ase.calculators.mixing
 from ase.calculators.dftb import Dftb
 
 # from so3lr import So3lrCalculator
 
 
-def get_calculator(calc_name, fpath, device):
+def get_calculator(calc_name, model_path, device, atoms):
     """Instantiate and return the appropriate calculator."""
     if calc_name == 'SO3LR':
         warnings.warn("SO3LR is not yet enabled, skipping.", UserWarning)
@@ -18,6 +21,7 @@ def get_calculator(calc_name, fpath, device):
     elif calc_name == 'DFTB+':
         return Dftb(
             label='current_dftb',
+            atoms=atoms,
             Hamiltonian_SCC='Yes',
             Hamiltonian_MaxSCCIterations='2000',
             Hamiltonian_SCCTolerance='1E-6',
@@ -30,13 +34,33 @@ def get_calculator(calc_name, fpath, device):
             Hamiltonian_Dispersion_NOmegaGrid=25,
             Hamiltonian_Dispersion_ReferenceSet='ts',
             ParserOptions_ParserVersion='13',
-            slako_dir =str(fpath) + "/",
+            slako_dir ="/data/horse/ws/miha493e-research_project/activediffusion/configs/SKfiles/3ob-3-1/",
         )
     elif calc_name == 'MACE':
-        return MACECalculator(model_paths=fpath, device=device, default_dtype="float32")
+        return MACECalculator(model_paths=model_path, device=device, default_dtype="float32")
+    if calc_name == 'EquiDTB':
+        MLcalc = MACECalculator(model_path=model_path, device=device, default_dtype="float32")
+        # Load DFTB calculator with MBD
+        DFTBcalc = Dftb(label='current_dftb',
+                        atoms=atoms,
+                        Hamiltonian_SCC = 'Yes',
+                        Hamiltonian_ThirdOrderFull = 'Yes',
+                        Hamiltonian_PolynomialRepulsive_ = '',
+                        Hamiltonian_PolynomialRepulsive_setForAll = '{Yes}',
+                        Hamiltonian_Dispersion_ = 'MBD',
+                        Hamiltonian_Dispersion_KGrid = '1 1 1',
+                        Hamiltonian_Dispersion_Beta = 0.83, 
+                        Hamiltonian_Dispersion_NOmegaGrid = 25,
+                        Hamiltonian_Dispersion_ReferenceSet = 'ts',
+                        ParserOptions_ParserVersion = '13')
+        # Mixing calculators
+        return  ase.calculators.mixing.SumCalculator([DFTBcalc,MLcalc])
+
+    else:
+        return None
 
 
-def relax_molecule(input, output, calc_name, fpath, device='cpu'):
+def relax_molecule(input, output, calc_name, model_path=None, device='cpu', relaxed_forces=False, unrelaxed_forces=False, keep_temp=False):
     """Relax a molecule using the specified calculator.
 
     Parameters
@@ -47,46 +71,90 @@ def relax_molecule(input, output, calc_name, fpath, device='cpu'):
         Directory where the relaxed molecule will be saved.
     calc_name : str
         'SO3LR', 'DFTB+', or 'MACE'.
-    fpath : str
-        Path to the calculator-specific file (e.g., Slater-Koster files for DFTB+ or model file for MACE).
+    model_path : str
+        Path to the model file (e.g., model file for MACE).
     device : str
         Device to run the calculator on ('cpu' or 'cuda').
+    relaxed_forces : bool
+        Whether to calculate and save forces after relaxation (default: False).
+    unrelaxed_forces : bool
+        Whether to calculate and save forces before relaxation (default: False).
+    keep_temp : bool
+        Whether to keep temporary files (default: False).
     """
-    file = Path(input)
-    output_folder = Path(output)
+    file = Path(input).expanduser().resolve()
+    output_folder = Path(output).expanduser().resolve()
     output_folder.mkdir(parents=True, exist_ok=True)
 
     if file.suffix != '.xyz':
-        raise ValueError(f"Unsupported file format '{file.suffix}'. Only .xyz is supported.")
-
+        raise ValueError(f"Unsupported file format: {file.suffix}. Only .xyz files are supported.") 
+    
     output_file = output_folder / f"opt-{file.name}"
     if output_file.exists():
         print(f"Output already exists, skipping: {output_file}")
         return
 
-    calc = get_calculator(calc_name, fpath, device)
-    if calc is None:
-        print("No valid calculator available, skipping relaxation.")
-        return
+    temp_dir = output_folder / f"temp-{file.stem}"
+    temp_dir.mkdir(parents=True, exist_ok=True)
 
     atoms = read(str(file))
-    atoms.calc = calc
+    model_path_resolved = str(Path(model_path).expanduser().resolve()) if model_path else model_path
 
-    qn = BFGS(atoms, logfile=None)  # suppress stdout logging
-    qn.run(fmax=0.001, steps=4000)
+    # Run in a temp working directory so calculator side-files/logs are isolated there.
+    original_cwd = Path.cwd()
+    os.chdir(temp_dir)
+
+    try:
+        calc = get_calculator(calc_name, model_path_resolved, device, atoms)
+        if calc is None:
+            print("No valid calculator available, skipping relaxation.")
+            return
+
+        atoms.calc = calc
+
+        if unrelaxed_forces:
+            forces_before = atoms.get_forces()
+            (output_folder.parent / "force_calc" / "unrelaxed").mkdir(parents=True, exist_ok=True)
+            np.savetxt(output_folder.parent / "force_calc" / "unrelaxed" / f"{file.stem}.txt", forces_before, fmt="%.10f")
+
+        qn = BFGS(atoms, logfile=None)  # suppress optimizer stdout logging
+        qn.run(fmax=0.001, steps=4000)
+
+        if relaxed_forces:
+            forces_after = atoms.get_forces()
+            (output_folder.parent / "force_calc" / "relaxed").mkdir(parents=True, exist_ok=True)
+            np.savetxt(output_folder.parent / "force_calc" / "relaxed" / f"{file.stem}.txt", forces_after, fmt="%.10f")
+    finally:
+        os.chdir(original_cwd)
 
     write(str(output_file), atoms, format='xyz')
     print(f"Relaxed molecule saved as {output_file}")
 
+    if not keep_temp:
+        for item in temp_dir.iterdir():
+            if item.is_file():
+                item.unlink()
+        temp_dir.rmdir()
+    
+
 
 if __name__ == "__main__":
+
+    skfiles_path = Path(os.environ["CONFIG"]).parent / "SKfiles/3ob-3-1"  # Path to Slater-Koster files for DFTB+
 
     parser = argparse.ArgumentParser(description="Relax a molecule using MACE, DFTB+, or SO3LR.")
     parser.add_argument("--input",  type=str, required=True, help="Path to the input molecule file (.xyz)")
     parser.add_argument("--output", type=str, required=True, help="Output folder for the relaxed molecule")
-    parser.add_argument("--calc_name",  type=str, default="DFTB+", help="'SO3LR', 'DFTB+', or 'MACE'")
-    parser.add_argument("--fpath", type=str, help="Path to the calculator-specific file")
-    parser.add_argument("--device", type=str, default='cpu', help="Device to run the calculator on (default: auto-detect)")
+    parser.add_argument("--aux_arg", nargs="+", help="Auxiliary arguments to pass to the script (e.g., calculator name, model path, device)")
     args = parser.parse_args()
-
-    relax_molecule(args.input, args.output, args.calc_name, args.fpath, args.device)
+    
+    if args.aux_arg and len(args.aux_arg) >= 2:
+        calc_name = args.aux_arg[0]
+        model_path = args.aux_arg[1] if args.aux_arg[1].strip().lower() not in {"none", "null", ""} else None
+        relaxed_forces = True if "relaxed_forces" in args.aux_arg else False
+        unrelaxed_forces = True if "unrelaxed_forces" in args.aux_arg else False
+        keep_temp = True if "keep_temp" in args.aux_arg else False
+        device = 'cpu' if "cpu" in args.aux_arg else 'cuda' if "cuda" in args.aux_arg else 'cpu'
+        relax_molecule(args.input, args.output, calc_name, model_path, device, relaxed_forces, unrelaxed_forces, keep_temp)
+    else:
+        print("Insufficient auxiliary arguments provided. Expected: calculator name, model path, device.")
