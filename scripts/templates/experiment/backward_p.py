@@ -140,15 +140,7 @@ def main(args):
                 aux_arg = ["relaxed_forces", "unrelaxed_forces"]
             kfiles = node_parallelize(geo_opt_script, dm.query_data, relaxed_data_path, aux_arg=[str(opt_calc), str(opt_model), *aux_arg, "keep_temp", "cpu"])         # remove flags for forces and keep_temp if not needed
             print(f"killed files during geometry optimization: {kfiles} ")  
-            kdir = relaxed_data_path / "killed"
-            kdir.mkdir(parents=True, exist_ok=True)
-            for kf in kfiles:
-                if kf == "unknown":
-                    continue
-                src = dm.query_data / kf
-                dest = kdir / kf
-                if src.exists():
-                    shutil.move(str(src), str(dest))
+            dm.move_kfiles(kfiles, relaxed_data_path)
             # clean query directory
             dm.clean_dir(dm.query_data)
             # Copy all relaxed molecules to the query data path
@@ -161,66 +153,29 @@ def main(args):
 
 
     # Step 6: Calculate properties 
-    if (prop_calc == "FHI-aims") and ('fih_aims' not in skip_step_atstart) and context_flag:
-        # Set up paths for FHI-aims calculations
-        prop_calc_path = dm.current_data / "prop_calc"
-        print("  Running Calculate properties preprocessing ")
-        # Prepare input files for FIH-aims
-        for f in dm.query_data.iterdir():
-            preprocess_fhi(f, prop_calc_path, Path(os.environ["CONFIG"],"nctr1.in"))
-       
-        # Run FIH-aims
-        print("  Running FHI-aims calculations ")
-        # Define FIH-aims executable
-        fih_aims_exc = " /software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x"
-        kfiles = node_parallelize(fih_aims_exc, prop_calc_path, 'aims.out', max_parallel_tasks) 
-        print(f"killed files during FHI-aims calculations: {kfiles} ")
-        kdir = prop_calc_path / "killed"
-        kdir.mkdir(parents=True, exist_ok=True)
-        for kf in kfiles:
-            if kf == "unknown":
-                continue
-            src = dm.query_data / kf
-            dest = kdir / kf
-            if src.exists():
-                shutil.move(str(src), str(dest))
-        #dm.unlink_mol(kfiles, dm.query_data)
-        print(f"Files whose fhi-aims calculations timed up have been removed from query data: {', '.join(str(kf) for kf in kfiles)}")
- 
-        # Postprocess FIH-aims output to create json files
-        for f in dm.query_data.iterdir():
-            # skip if f in kfiles
-            if f.name in kfiles:
-                continue
-            prop_postprocess(f, prop_calc_path, prop_calc)
-       
-    elif (prop_calc == "EquiDTB") and ('fih_aims' not in skip_step_atstart) and context_flag:        
-        prop_calc_path = dm.current_data / "prop_calc"
-        prop_calc_script =  blocks_path / "prop_calc.py"
-        kfiles = node_parallelize(prop_calc_script, dm.query_data, prop_calc_path, aux_arg=[str(prop_calc), str(prop_model), "cpu"])         
-        print(f"killed files during property calculation: {kfiles} ")  
-        kdir = prop_calc_path / "killed"
-        kdir.mkdir(parents=True, exist_ok=True)
-        for kf in kfiles:
-            if kf == "unknown":
-                continue
-            src = dm.query_data / kf
-            dest = kdir / kf
-            if src.exists():
-                shutil.move(str(src), str(dest))
-                
-        # Postprocess EquiDTB output to create json files
-        for f in dm.query_data.iterdir():
-            # skip if f in kfiles
-            if f.name in kfiles:
-                continue
-            prop_postprocess(f, prop_calc_path, prop_calc)
-       
-    elif prop_calc is None and context_flag:
-        print(f"Property calculator is not supported. Skipping property calculation step.")
-    
-    elif context_flag:
-        skip_step_atstart.discard('property_calculation')
+    if context_flag:
+        if ('fih_aims' not in skip_step_atstart):
+            print("  Running Calculate properties  ")
+            if (prop_calc in ["FHI-aims", "EquiDTB"]):
+                prop_calc_path = dm.current_data / "prop_calc"
+                print(f"  Running Calculate properties preprocessing using {prop_calc} ")
+                if prop_calc == "FHI-aims":
+                    [preprocess_fhi(f, prop_calc_path, Path(os.environ["CONFIG"],"nctr1.in")) for f in dm.query_data.iterdir()]
+                    fih_aims_exc = "/software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x"
+                    kfiles = node_parallelize(fih_aims_exc, prop_calc_path, 'aims.out', max_parallel_tasks) 
+                elif prop_calc == "EquiDTB":
+                    prop_calc_script =  blocks_path / "prop_calc.py"
+                    kfiles = node_parallelize(prop_calc_script, dm.query_data, prop_calc_path, aux_arg=[str(prop_calc), str(prop_model)])         
+                    
+                dm.move_kfiles(kfiles, prop_calc_path)
+                # Postprocess  to create json files
+                [prop_postprocess(f, prop_calc_path, prop_calc) for f in dm.query_data.iterdir() if f.is_file() and f.name not in kfiles]
+
+            else:
+                print(f"Property calculator is not supported. Skipping property calculation step.")   
+        else:
+            print("Calculating properties is skipped for this iteration.")
+            skip_step_atstart.discard('property_calculation')        
     else:
         print("Calculating properties is skipped.")
 
