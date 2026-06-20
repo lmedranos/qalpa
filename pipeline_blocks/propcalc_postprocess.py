@@ -4,7 +4,8 @@ from os import path
 import argparse
 from pathlib import Path
 # from os import environ
-from parserFHItoJSON import get_data as create_json
+from parserFHItoJSON import get_data as create_FHI_json
+from parserEquiDTBtoJSON import get_data as create_EquiDTB_json
 import shutil
 from collections import deque
 
@@ -34,9 +35,32 @@ def postprocess_fhi(input, ofolder):
     jfile = ofolder / f"{fname}.json"
     if (valid_fhi_out(ifile)) and (not jfile.exists()) :
         try:
-            create_json(str(ifile), str(jfile)) 
+            create_FHI_json(str(ifile), str(jfile)) 
         except Exception as e:
             print(f"Error creating JSON from {ifile}: {e}")
+
+def postprocess_equidtb(input, ofolder):
+    """
+    Postprocess EquiDTB output file to create a JSON file.
+    """
+    fname = input.stem
+    ifolder = ofolder/ fname
+    jfile = ofolder / f"{fname}.json"
+    if not jfile.exists():
+        try:
+            create_EquiDTB_json(str(ifolder), str(jfile))
+        except Exception as e:
+            print(f"Error creating JSON from {input}: {e}")
+
+    
+    
+def prop_postprocess(input, ofolder, prop_calc):
+    if prop_calc == "FHI-aims":
+        postprocess_fhi(input, ofolder)
+    elif prop_calc == "EquiDTB":
+        postprocess_equidtb(input, ofolder)
+    else:
+        print(f"Unsupported property calculator for postprocessing: {prop_calc}. Skipping postprocessing.")
 
 if __name__ == "__main__":
     
@@ -46,12 +70,14 @@ if __name__ == "__main__":
     
     # read input file path and output directory from command line arguments
     parser = argparse.ArgumentParser(description="Create JSON output from FHI-aims output.")
-    parser.add_argument("--input", type=str, help="Path to the FHI-aims output file")
+    parser.add_argument("--input", type=str, help="Path to the FHI-aims/EquiDTB output file")
     parser.add_argument("--output", type=str, help="Output folder for the JSON file")
+    parser.add_argument("--aux_arg", nargs="+", help="Auxiliary arguments to pass to the script (e.g., calculator name)")
     args = parser.parse_args()
 
     ifolder = Path(args.input)
     ofolder = Path(args.output)
+    prop_calc = args.aux_arg[0] if args.aux_arg else "FHI-aims"  # default to FHI-aims if not specified
      
-    postprocess_fhi(ifolder, ofolder)
+    prop_postprocess(ifolder, ofolder, prop_calc)
       
