@@ -232,3 +232,25 @@ class DataManager:
 
     def ignore_dirs(self, src, names):
         return [name for name in names if os.path.isdir(os.path.join(src, name))]
+
+
+    def move_kfiles(self, kfiles, dest_dir: Path):
+        if kfiles in ["unknown", None, []]:
+            print(f"No killed files to move to {dest_dir}.")
+            return
+        kdir = dest_dir / "killed"
+        kdir.mkdir(parents=True, exist_ok=True)
+        print(f"Moving killed files to {kdir}...")
+        for kf in kfiles:
+            if kf == "unknown":
+                continue
+            src = self.query_data / kf
+            dest = kdir / kf
+            if src.exists():
+                try:
+                    shutil.move(str(src), str(dest))
+                except Exception as e:
+                    print(f"Error moving {src} to {dest}: {e}")
+                    
+
+    

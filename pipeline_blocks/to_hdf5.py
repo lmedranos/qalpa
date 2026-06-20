@@ -76,20 +76,29 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
                             data = json.load(json_file)
 
                         if 'extra_prop' in name:           # collect collateral properties for the third hdf5
-                            totfor = np.array(data["Total Forces (eV/Ang):"], dtype=np.float64)
-                            vdwfor = np.array(data["van der Waals Forces (eV/Ang):"], dtype=np.float64)
-                            pbe0for = totfor - vdwfor
-                            HChar = np.array(data["Hirshfeld Charges:"], dtype=np.float64)
-                            dipcomp = np.array(data["Total Dipole (eAng)"], dtype=np.float64) 
-                            FVol = np.array(data["Free Atom Volumes:"], dtype=np.float64)
-                            HVol = np.array(data["Hirshfeld Volumes:"], dtype=np.float64)
-                            hvr = np.divide(HVol, FVol, out=np.zeros_like(HVol), where=FVol!=0)    # define hirshfeld ratios
-                            
-                            molecule['totFOR'] = totfor
-                            molecule['pbe0FOR'] = pbe0for
-                            molecule['hCHG'] = HChar
-                            molecule['vDIP'] = dipcomp
-                            molecule['hRAT'] = hvr
+                            totfor_raw = data.get("Total Forces (eV/Ang):")
+                            vdwfor_raw = data.get("van der Waals Forces (eV/Ang):")
+                            if totfor_raw is not None:
+                                totfor = np.array(totfor_raw, dtype=np.float64)
+                                molecule['totFOR'] = totfor
+                                if vdwfor_raw is not None:
+                                    vdwfor = np.array(vdwfor_raw, dtype=np.float64)
+                                    molecule['pbe0FOR'] = totfor - vdwfor
+
+                            HChar_raw = data.get("Hirshfeld Charges:")
+                            if HChar_raw is not None:
+                                molecule['hCHG'] = np.array(HChar_raw, dtype=np.float64)
+
+                            dip_raw = data.get("Total Dipole (eAng)")
+                            if dip_raw is not None:
+                                molecule['vDIP'] = np.array(dip_raw, dtype=np.float64)
+
+                            FVol_raw = data.get("Free Atom Volumes:")
+                            HVol_raw = data.get("Hirshfeld Volumes:")
+                            if FVol_raw is not None and HVol_raw is not None:
+                                FVol = np.array(FVol_raw, dtype=np.float64)
+                                HVol = np.array(HVol_raw, dtype=np.float64)
+                                molecule['hRAT'] = np.divide(HVol, FVol, out=np.zeros_like(HVol), where=FVol!=0)    # define hirshfeld ratios
 
                         else:                               # collect main properties for the first two hdf5 files
                             ener= np.array([data["Total energy (eV):"]], dtype=np.float64)
@@ -102,14 +111,22 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
                             molecule['HLgap'] = np.array([data["HOMO-LUMO gap"]], dtype=np.float64)
                             molecule['eAT'] = Eat
                             molecule['eH'] = np.array([data["HOMO energy"]], dtype=np.float64)
-                            molecule['eKIN'] = np.array([data["SUM"]["Kinetic Energy"]], dtype=np.float64)
                             molecule['eL'] = np.array([data["LUMO energy"]], dtype=np.float64)
                             molecule['eMBD'] = np.array([data["SUM"]["MBD"]], dtype=np.float64)
                             # molecule['ePBE0'] = pbe0
                             molecule['eTS'] = pbe0
-                            # molecule['ePBE0+MBD'] = ener     
-                            molecule['eXC'] = np.array([data["SUM"]["Total XC energy"]], dtype=np.float64)
-                            molecule['eXX'] = np.array([data["SUM"]["Hartree-Fock Energy"]], dtype=np.float64)
+                            # molecule['ePBE0+MBD'] = ener
+
+                            # Optional energy components (absent for DFTB+); skip when not provided
+                            ekin_raw = data["SUM"].get("Kinetic Energy")
+                            if ekin_raw is not None:
+                                molecule['eKIN'] = np.array([ekin_raw], dtype=np.float64)
+                            exc_raw = data["SUM"].get("Total XC energy")
+                            if exc_raw is not None:
+                                molecule['eXC'] = np.array([exc_raw], dtype=np.float64)
+                            exx_raw = data["SUM"].get("Hartree-Fock Energy")
+                            if exx_raw is not None:
+                                molecule['eXX'] = np.array([exx_raw], dtype=np.float64)
 
                     # Writing properties
                     for key, value in molecule.items():
