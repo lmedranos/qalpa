@@ -1,8 +1,8 @@
 #!/bin/bash -l
 #SBATCH -J active-loop-embd-init
 #SBATCH -A p_nanoparticle
-#SBATCH --time=10:00:00                    
-#SBATCH --partition=alpha
+#SBATCH --time=20:00:00                    
+#SBATCH --partition=capella
 #SBATCH --gres=gpu:1
 #SBATCH --cpus-per-task=6                                           
 #SBATCH --mem-per-cpu=8000                       
@@ -14,6 +14,7 @@
 #SBATCH --mail-user=michael_gamal_nassif.hanna@mailbox.tu-dresden.de
 
 # ulimit -s unlimited
+export OMP_NUM_THREADS=1
 
 # define experiment
 exp="full_dataset"
@@ -38,13 +39,14 @@ source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
 
+
 data_exp="$data/data_${exp}" 
 config_exp="$config/config_${exp}"
 
 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-python3 main_init.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy"
+python3 main_init.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_exp --num_iterations 10 --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --geom_optimizer "DFTB+"
 
 # Increment for next run
 STATE_FILE="MY_ITER.state"

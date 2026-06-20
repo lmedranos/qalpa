@@ -1,11 +1,10 @@
 #!/bin/bash -l
-#SBATCH -J active-loop-forward
-#SBATCH -A p_nanoparticle
-#SBATCH --time=02:00:00   
+#SBATCH -J aloop-for
+#SBATCH -A  p_phononics
+#SBATCH --time=00:30:00   
 #SBATCH --begin=now                 
-#SBATCH --partition=capella
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=12                                            
+#SBATCH --partition=barnard
+#SBATCH --cpus-per-task=6                                            
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
@@ -16,7 +15,7 @@
 
 ulimit -s unlimited
 
-base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/molecules-fps-40000.hdf5"
+base_dataset="/data/horse/ws/miha493e-research_project/activediffusion/data/qm7x-aqm-gas-noP.hdf5"
 
 # Please specify the paths to the project folders
 root="/data/horse/ws/miha493e-research_project/activediffusion" # Parent folder for the project
@@ -31,15 +30,11 @@ config="$root/configs"                                          # A folder conta
 source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
 conda activate $root/conda_envs/env-activeloop
 
-# define experiment name, this will create folder for data: data_{exp name}/evaluation
-# and you have to add configuration files including tarjectory csv under config/config_{exp name}/eval
-exp="embd_non_opt"
+# define experiment
+exp="full_dataset"
 data_exp="$data/data_${exp}"
 config_exp="$config/config_${exp}"
 config_eval="$config_exp/eval" 
 
 # Run the active loop script with the specified parameters, remember to edit dataset name and number of iterations
-# you have to specify properties, scores and geometry optimization method (--geom_optimizer) according to your experiment
-# Very important: to add number of models which already generated during the experiment
-python3 evaluate.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --geom_optimizer "MACE" --props "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --num_models 9
-
+python3 evaluate.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --data $data_exp --model_code $model_code --pipeline_blocks $blocks --actdiff_utils $utils --config $config_eval --geom_optimizer "MACE" --props "HLgap" "eMBD" "atNUM" --scores "SAScore" --filter_scheme "score" "accuracy" --num_models 10

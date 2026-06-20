@@ -1,0 +1,32 @@
+name: env-activeloop_b
+channels:
+  - conda-forge
+  - nvidia 
+  - defaults
+dependencies:
+  - python=3.10
+  - pip
+  - conda-forge::rdkit=2023.03.2    # RDKit for cheminformatics tasks like calculating SAscore
+  - conda-forge::openbabel                # Open Babel for chemical file format conversions to SMILES or mol
+  #- conda-forge::dftbplus=25.1=nompi*    # Serial DFTB+ (no MPI - compatible with srun)
+  - dftbplus=24.1=nompi*
+  - conda-forge::dftbplus-tools
+  - conda-forge::dftbplus-python
+  - numpy<2                                 # Numerical computing
+  - conda-forge::xtb
+  - conda-forge::ase
+  - conda-forge::py3dmol
+  - conda-forge::lmdb
+  - conda-forge::nglview
+  - conda-forge::rmsd
+  - conda-forge::biopython
+  - tensorboard
+  - defaults::matplotlib        #  compatible with what your HPC system GCCcore/13.2.0 provides
+  # - conda-forge::jaxlib=*=*cuda12*
+  # - conda-forge::jax
+  - pip:
+    - "numpy<2"  # to be checked
+    - "git+https://github.com/ACEsuit/mace.git"  # Mace for molecular generation and optimization
+  #     #- "jax[cuda12]"      # JAX for SO3LR
+  #     - "git+https://github.com/general-molecular-simulations/so3lr.git" # SO3LR for molecular generation and optimization
+  #     - sh                # to be checked

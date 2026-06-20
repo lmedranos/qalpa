@@ -229,3 +229,6 @@ class DataManager:
                     file_path.unlink()
                 except Exception as e:
                     print(f"Error deleting {file_path}: {e}")
+
+    def ignore_dirs(self, src, names):
+        return [name for name in names if os.path.isdir(os.path.join(src, name))]
