@@ -3,13 +3,13 @@ import argparse
 import warnings  
 from pathlib import Path
 import numpy as np
-import torch
+#import torch
 from ase.io import read, write
 from ase.optimize import BFGS
-from mace.calculators import MACECalculator
+#from mace.calculators import MACECalculator
 import ase.calculators.mixing
 from ase.calculators.dftb import Dftb
-
+ 
 # from so3lr import So3lrCalculator
 
 
@@ -36,6 +36,7 @@ def get_calculator(calc_name, model_path, device, atoms):
             ParserOptions_ParserVersion='13',
             slako_dir ="/data/horse/ws/miha493e-research_project/activediffusion/configs/SKfiles/3ob-3-1/",
         )
+
     elif calc_name == 'MACE':
         return MACECalculator(model_paths=model_path, device=device, default_dtype="float32")
     if calc_name == 'EquiDTB':
@@ -105,6 +106,7 @@ def relax_molecule(input, output, calc_name, model_path=None, device='cpu', rela
     os.chdir(temp_dir)
 
     try:
+        # os.environ['DFTB_COMMAND'] = 'srun -N 1 /data/horse/ws/miha493e-research_project/activediffusion/conda_envs/env-activeloop_b/bin/dftb+'
         calc = get_calculator(calc_name, model_path_resolved, device, atoms)
         if calc is None:
             print("No valid calculator available, skipping relaxation.")
@@ -113,17 +115,27 @@ def relax_molecule(input, output, calc_name, model_path=None, device='cpu', rela
         atoms.calc = calc
 
         if unrelaxed_forces:
-            forces_before = atoms.get_forces()
             (output_folder.parent / "force_calc" / "unrelaxed").mkdir(parents=True, exist_ok=True)
-            np.savetxt(output_folder.parent / "force_calc" / "unrelaxed" / f"{file.stem}.txt", forces_before, fmt="%.10f")
+            unrelaxed_path = output_folder.parent / "force_calc" / "unrelaxed" 
+            forces_before = atoms.get_forces()
+            np.savetxt(unrelaxed_path / f"forces_{file.stem}.txt", forces_before, fmt="%.10f")
+            # write(unrelaxed_path / f"pos_{file.stem}.xyz", atoms, format='xyz')
+            # atoms.arrays['forces'] = forces_before
+            # write(unrelaxed_path / f"{file.stem}.extxyz", atoms, format='extxyz')  # includes forces, energy, positions
+            # del atoms.arrays['forces']
 
         qn = BFGS(atoms, logfile=None)  # suppress optimizer stdout logging
         qn.run(fmax=0.001, steps=4000)
 
         if relaxed_forces:
-            forces_after = atoms.get_forces()
             (output_folder.parent / "force_calc" / "relaxed").mkdir(parents=True, exist_ok=True)
-            np.savetxt(output_folder.parent / "force_calc" / "relaxed" / f"{file.stem}.txt", forces_after, fmt="%.10f")
+            relaxed_path = output_folder.parent / "force_calc" / "relaxed" 
+            forces_after = atoms.get_forces()
+            np.savetxt(relaxed_path / f"forces_opt-{file.stem}.txt", forces_after, fmt="%.10f")
+            #write(relaxed_path / f"pos_opt-{file.stem}.xyz", atoms, format='xyz')
+            # atoms.arrays['forces'] = forces_after
+            # write(relaxed_path / f"opt-{file.stem}.extxyz", atoms, format='extxyz')  # includes forces, energy, positions
+
     finally:
         os.chdir(original_cwd)
 

@@ -31,11 +31,9 @@ dependencies:
   - conda-forge::tensorboard
   - conda-forge::biopython
   - conda-forge::xtb
-  - conda-forge::dftbplus=25.1=mpi_mpich_*
+  - conda-forge::dftbplus=24.1=nompi*
   - conda-forge::dftbplus-tools
   - conda-forge::dftbplus-python
-  - conda-forge::mpich
-  - conda-forge::mpi4py
   - sh                   # Linux/Mac only
   - pip:
     - "jax[cuda12]==0.5.3"

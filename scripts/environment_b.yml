@@ -8,11 +8,10 @@ dependencies:
   - pip
   - conda-forge::rdkit=2023.03.2    # RDKit for cheminformatics tasks like calculating SAscore
   - conda-forge::openbabel                # Open Babel for chemical file format conversions to SMILES or mol
-  - dftbplus=24.1=mpi_mpich_*             # DFTB+ with MPICH (compatible with Intel MPI/srun)
-  - dftbplus-tools
-  - dftbplus-python
-  - mpich                                 # MPICH runtime (version determined by dftbplus requirement)
-  - mpi4py                                # Python MPI bindings (imported in parallelize.py)
+  #- conda-forge::dftbplus=25.1=nompi*    # Serial DFTB+ (no MPI - compatible with srun)
+  - dftbplus=24.1=nompi*
+  - conda-forge::dftbplus-tools
+  - conda-forge::dftbplus-python
   - numpy<2                                 # Numerical computing
   - conda-forge::xtb
   - conda-forge::ase
@@ -22,7 +21,7 @@ dependencies:
   - conda-forge::rmsd
   - conda-forge::biopython
   - tensorboard
-    - defaults::matplotlib        #  compatible with what your HPC system GCCcore/13.2.0 provides
+  - defaults::matplotlib        #  compatible with what your HPC system GCCcore/13.2.0 provides
   # - conda-forge::jaxlib=*=*cuda12*
   # - conda-forge::jax
   - pip:

@@ -63,12 +63,12 @@ def main(args):
     # Select geometry optimizer
     optimize_calc = args.geom_optimizer
     if optimize_calc=="SO3LR":
-        opt_model = Path(os.environ["CONFIG"], "SO3LR_model.pt")
+        opt_model = Path(os.environ["CONFIG"]).parent / "SO3LR_model.pt"
     elif optimize_calc=="MACE":
-        opt_model = Path(os.environ["CONFIG"], "MACE_model_swa.model")
+        opt_model = Path(os.environ["CONFIG"]).parent / "MACE_model_swa.model"
     elif optimize_calc=="DFTB+":
         opt_calc = optimize_calc
-        opt_model = Path(os.environ["CONFIG"], "SKfiles/3ob-3-1")  # Path to Slater-Koster files for DFTB+
+        opt_model = Path(os.environ["CONFIG"]).parent / "SKfiles/3ob-3-1"  # Path to Slater-Koster files for DFTB+
     else:
         opt_model = None
     
@@ -78,7 +78,7 @@ def main(args):
        
     # Flag to resume in the midde of the loop
     steps={'split', 'train', 'generate', 'relax', 'score_filter', 'pre_fih_aims'}
-    skip_step_atstart = {'split', 'train', 'generate', 'score_filter', 'pre_fih_aims'}
+    skip_step_atstart = {}
     
     # Run active learning loop
     num_iterations = args.num_iterations
@@ -172,11 +172,11 @@ def main(args):
             relaxed_data_path = dm.current_data  / "relaxed"
             for f in dm.query_data.iterdir():
                 if f.is_file() and f.suffix == '.xyz':
-                    relax_molecule(f, relaxed_data_path, opt_calc, opt_model)           
+                    relax_molecule(f, relaxed_data_path, opt_calc, opt_model, relaxed_forces=True, unrelaxed_forces=True, keep_temp=True)           
             # clean query directory
             dm.clean_dir(dm.query_data)
             # Copy all relaxed molecules to the query data path
-            shutil.copytree(relaxed_data_path, dm.query_data, dirs_exist_ok=True)
+            shutil.copytree(relaxed_data_path, dm.query_data, dirs_exist_ok=True, ignore=dm.ignore_dirs)
             # clean relaxed directory
             dm.clean_dir(relaxed_data_path, '.xyz')
     else:

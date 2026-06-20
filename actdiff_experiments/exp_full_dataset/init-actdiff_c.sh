@@ -14,6 +14,8 @@
 
 # ulimit -s unlimited
 
+export OMP_NUM_THREADS=1
+
 # define experiment
 exp="full_dataset"
 
@@ -49,5 +51,5 @@ python3 main_init.py --base_dataset $base_dataset  --dataset_name "aqm_qm7x" --d
 # Increment for next run
 STATE_FILE="MY_ITER.state"
 echo 0 > "$STATE_FILE"
-
+ 
 echo "Init Job completed please run backward-actdiff_b.sh on barnard."

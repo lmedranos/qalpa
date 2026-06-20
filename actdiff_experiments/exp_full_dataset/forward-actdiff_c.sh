@@ -15,7 +15,7 @@
 #SBATCH --mail-user=michael_gamal_nassif.hanna@mailbox.tu-dresden.de
 
 ulimit -s unlimited
-
+export OMP_NUM_THREADS=1
 # define experiment
 exp="full_dataset"
 
