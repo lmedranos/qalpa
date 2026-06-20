@@ -31,7 +31,7 @@ def main(args):
     from optimize_geometry import relax_molecule
     from filter_molecules import MolecularFilter
     from calculate_sascore import sascore
-    from propcalc_postprocess import postprocess_fhi
+    from propcalc_postprocess import prop_postprocess
     from propcalc_preprocess import preprocess_fhi
     from to_hdf5 import run_to_hdf5
     
@@ -63,6 +63,15 @@ def main(args):
     else:
         opt_model = None
     
+    # select property calculator
+    if args.prop_calculator == "FHI-aims":
+        prop_calc = "FHI-aims"
+    elif args.prop_calculator == "EquiDTB":
+        prop_calc = "EquiDTB"
+        prop_model = Path(os.environ["CONFIG"]).parent / "EquiDTB3.model"  # Path to the MACE model trained to reproduce DFTB+ results
+    else:
+        prop_calc = None
+    
     
     # Create Molecular Filter
     molecular_filter = MolecularFilter(my_trajectory)
@@ -79,42 +88,14 @@ def main(args):
     # Number of iterations and max parallel tasks
     max_parallel_tasks = args.max_parallel_tasks
     
+    forces_calculation = args.forces_calculation
+    filteration_threshold = args.filteration_threshold
    
     # Create directories for the current iteration
     dm.create_iteration_directories(n)
 
 
-    # Step 4: Relax molecules
-    if 'relax' not in skip_step_atstart:
-        if opt_calc is not None:
-            print("  Running Relax molecules  ")
-            relaxed_data_path = dm.current_data  / "relaxed"
-            # for f in dm.query_data.iterdir():
-            #     if f.is_file() and f.suffix == '.xyz':
-            #         relax_molecule(f, relaxed_data_path, opt_calc, opt_model, relaxed_forces=True, unrelaxed_forces=True, keep_temp=True)           
-            geo_opt_script = blocks_path / "optimize_geometry.py"
-            kfiles = node_parallelize(geo_opt_script, dm.query_data, relaxed_data_path, aux_arg=[str(opt_calc), str(opt_model), "relaxed_forces", "unrelaxed_forces", "keep_temp", "cpu"])         # remove flags for forces and keep_temp if not needed
-            print(f"killed files during geometry optimization: {kfiles} ")  
-            kdir = relaxed_data_path / "killed"
-            kdir.mkdir(parents=True, exist_ok=True)
-            for kf in kfiles:
-                if kf == "unknown":
-                    continue
-                src = dm.query_data / kf
-                dest = kdir / kf
-                if src.exists():
-                    shutil.move(str(src), str(dest))
-            # clean query directory
-            dm.clean_dir(dm.query_data)
-            # Copy all relaxed molecules to the query data path
-            shutil.copytree(relaxed_data_path, dm.query_data, dirs_exist_ok=True, ignore=dm.ignore_dirs)
-            # clean relaxed directory
-            dm.clean_dir(relaxed_data_path, '.xyz')
-    else:
-        skip_step_atstart.discard('relax')
-    
-   
-    # Step 5: Calculate Score and Filter molecules 
+    # Step 4: Calculate Score and Filter molecules 
     if 'score_filter' not in skip_step_atstart:
         if 'score' in filteration_scheme and my_trajectory.has_scores:
             print("  Running Filter molecules based on Score  ")
@@ -146,25 +127,52 @@ def main(args):
         skip_step_atstart.discard('score_filter')
 
 
+    # Step 5: Relax molecules
+    if 'relax' not in skip_step_atstart:
+        if opt_calc is not None:
+            print("  Running Relax molecules  ")
+            relaxed_data_path = dm.current_data  / "relaxed"
+            # for f in dm.query_data.iterdir():
+            #     if f.is_file() and f.suffix == '.xyz':
+            #         relax_molecule(f, relaxed_data_path, opt_calc, opt_model, relaxed_forces=True, unrelaxed_forces=True, keep_temp=True)           
+            geo_opt_script = blocks_path / "optimize_geometry.py"
+            if forces_calculation:
+                aux_arg = ["relaxed_forces", "unrelaxed_forces"]
+            kfiles = node_parallelize(geo_opt_script, dm.query_data, relaxed_data_path, aux_arg=[str(opt_calc), str(opt_model), *aux_arg, "keep_temp", "cpu"])         # remove flags for forces and keep_temp if not needed
+            print(f"killed files during geometry optimization: {kfiles} ")  
+            kdir = relaxed_data_path / "killed"
+            kdir.mkdir(parents=True, exist_ok=True)
+            for kf in kfiles:
+                if kf == "unknown":
+                    continue
+                src = dm.query_data / kf
+                dest = kdir / kf
+                if src.exists():
+                    shutil.move(str(src), str(dest))
+            # clean query directory
+            dm.clean_dir(dm.query_data)
+            # Copy all relaxed molecules to the query data path
+            shutil.copytree(relaxed_data_path, dm.query_data, dirs_exist_ok=True, ignore=dm.ignore_dirs)
+            # clean relaxed directory
+            # dm.clean_dir(relaxed_data_path, '.xyz')
+    else:
+        skip_step_atstart.discard('relax')
+    
+
+
     # Step 6: Calculate properties 
-    prop_calc_path = dm.current_data / "prop_calc"
-    if context_flag and 'pre_fih_aims' not in skip_step_atstart:
+    if (prop_calc == "FHI-aims") and ('fih_aims' not in skip_step_atstart) and context_flag:
+        # Set up paths for FHI-aims calculations
+        prop_calc_path = dm.current_data / "prop_calc"
         print("  Running Calculate properties preprocessing ")
         # Prepare input files for FIH-aims
         for f in dm.query_data.iterdir():
             preprocess_fhi(f, prop_calc_path, Path(os.environ["CONFIG"],"nctr1.in"))
-    elif context_flag:
-        skip_step_atstart.discard('pre_fih_aims')
-    else:
-        print("Calculating properties preprocessing is skipped.")
-
-
-    # Run FIH-aims
-    if 'fih_aims' not in skip_step_atstart:
+       
+        # Run FIH-aims
         print("  Running FHI-aims calculations ")
         # Define FIH-aims executable
         fih_aims_exc = " /software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x"
-        prop_calc_path = dm.current_data / "prop_calc"
         kfiles = node_parallelize(fih_aims_exc, prop_calc_path, 'aims.out', max_parallel_tasks) 
         print(f"killed files during FHI-aims calculations: {kfiles} ")
         kdir = prop_calc_path / "killed"
@@ -178,18 +186,46 @@ def main(args):
                 shutil.move(str(src), str(dest))
         #dm.unlink_mol(kfiles, dm.query_data)
         print(f"Files whose fhi-aims calculations timed up have been removed from query data: {', '.join(str(kf) for kf in kfiles)}")
-
-    # Step 6: Calculate properties 
-    prop_calc_path = dm.current_data / "prop_calc"
-    if context_flag and 'post_fih_aims' not in skip_step_atstart:
+ 
         # Postprocess FIH-aims output to create json files
         for f in dm.query_data.iterdir():
-            postprocess_fhi(f, prop_calc_path)
+            # skip if f in kfiles
+            if f.name in kfiles:
+                continue
+            prop_postprocess(f, prop_calc_path, prop_calc)
+       
+    elif (prop_calc == "EquiDTB") and ('fih_aims' not in skip_step_atstart) and context_flag:        
+        prop_calc_path = dm.current_data / "prop_calc"
+        prop_calc_script =  blocks_path / "prop_calc.py"
+        kfiles = node_parallelize(prop_calc_script, dm.query_data, prop_calc_path, aux_arg=[str(prop_calc), str(prop_model), "cpu"])         
+        print(f"killed files during property calculation: {kfiles} ")  
+        kdir = prop_calc_path / "killed"
+        kdir.mkdir(parents=True, exist_ok=True)
+        for kf in kfiles:
+            if kf == "unknown":
+                continue
+            src = dm.query_data / kf
+            dest = kdir / kf
+            if src.exists():
+                shutil.move(str(src), str(dest))
+                
+        # Postprocess EquiDTB output to create json files
+        for f in dm.query_data.iterdir():
+            # skip if f in kfiles
+            if f.name in kfiles:
+                continue
+            prop_postprocess(f, prop_calc_path, prop_calc)
+       
+    elif prop_calc is None and context_flag:
+        print(f"Property calculator is not supported. Skipping property calculation step.")
+    
     elif context_flag:
-        skip_step_atstart.discard('post_fih_aims')
+        skip_step_atstart.discard('property_calculation')
     else:
         print("Calculating properties is skipped.")
+
         
+            
     # Step 7: Filter molecules based on properties
     if 'acc_filter' not in skip_step_atstart:
         if 'accuracy' in filteration_scheme and my_trajectory.has_properties:
@@ -204,7 +240,7 @@ def main(args):
                 for f in dm.query_data.iterdir():
                             if f.is_file() and f.suffix == '.xyz': 
                                 molecular_filter.accuracy_calculation(f, accuracy_filtered_path, trajprop, prop_calc_path, n)           
-                molecular_filter.accuracy_filter(input_path=dm.query_data, output_path=fprop_path, prop=trajprop, pjsons=prop_calc_path, target_indx=n, threshold=0.1)
+                molecular_filter.accuracy_filter(input_path=dm.query_data, output_path=fprop_path, prop=trajprop, pjsons=prop_calc_path, target_indx=n, threshold=filteration_threshold)
                 # clean query directory 
                 dm.clean_dir(dm.query_data)
                 # copy filtered molecules to the query data path
@@ -244,6 +280,9 @@ if __name__ == "__main__":
     parser.add_argument("--max_parallel_tasks", type=int, default=1)
     parser.add_argument("--iter", type=int, default=0)
     parser.add_argument("--geom_optimizer", type=str)
+    parser.add_argument("--forces_calculation", default=True)
+    parser.add_argument("--prop_calculator", type=str, default="FHI-aims")
+    parser.add_argument("--filteration_threshold", type=float, default=0.1)
     args = parser.parse_args()
     
     # Set environment variables

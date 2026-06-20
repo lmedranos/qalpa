@@ -59,6 +59,8 @@ def main(args):
     # Run active learning loop
     num_iterations = args.num_iterations
     n = args.iter
+    batch_size = args.batch_size
+    n_graphs = args.n_graphs
    
     print(f"\n Iteration {n}")
 
@@ -95,7 +97,7 @@ def main(args):
             "--dataset", dataset_name, 
             "--dataset-root", str(dm.diffusion_data_dir),
             "--gpus", str(gpus_per_task),
-            "--batch-size", "32"]
+            "--batch-size", str(batch_size)]
         subprocess.run(cmd, check=True, env=os.environ.copy()) 
         # Update or just delete the model path in the config file for the next iteration
         update_flag = n < (num_iterations - 1)
@@ -120,8 +122,8 @@ def main(args):
                 "--model-path", str(model_path),
                 "--save-dir", str(generated_data_path),
                 "--save-xyz", 
-                "--batch-size", "20",
-                "--ngraphs", "200",
+                "--batch-size", str(batch_size),
+                "--ngraphs", str(n_graphs),
                 "--generate-ngraphs-valid",
                 *target,
                 ]
@@ -138,7 +140,7 @@ def main(args):
         #     if item.is_file() and item.suffix != '.xyz':
         #         item.unlink() 
         # clean temp generated files .xyz
-        dm.clean_dir(generated_data_path, '.xyz')
+        # dm.clean_dir(generated_data_path, '.xyz')
     else:
         skip_step_atstart.discard('generate')
      
@@ -153,6 +155,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset_name", type=str)
     parser.add_argument("--data", type=str)
     parser.add_argument("--model_code", type=str)
+    parser.add_argument("--batch_size", type=int, default=32)
+    parser.add_argument("--n_graphs", type=int, default=200)
     parser.add_argument("--pipeline_blocks", type=str)
     parser.add_argument("--actdiff_utils", type=str)
     parser.add_argument("--config", type=str)
