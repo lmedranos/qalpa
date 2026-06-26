@@ -1,2 +1,0 @@
-,mol_stable,atm_stable,validity,sanitize_validity,novelty,uniqueness,sampling/NumNodesW1,sampling/AtomTypesTV,sampling/EdgeTypesTV,sampling/ChargeW1,sampling/ValencyW1,sampling/BondLengthsW1,sampling/AnglesW1,connected_components,bulk_similarity,bulk_diversity,kl_score,QED,SA,LogP,Lipinski,Diversity,step,epoch,run_time,ngraphs
-0,0.0,0.0,0.0,0.25,0,0,1.125,1.0966386795043945,0.775773286819458,0.5610644221305847,6.578711986541748,0.07388747483491898,0.0,75.0,,,-1.0,-1.0,-1.0,-1.0,-1.0,-1.0,0,0,0:01:44.007861,4

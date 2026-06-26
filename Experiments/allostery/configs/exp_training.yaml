@@ -1,0 +1,8 @@
+# Experiment-specific training overrides
+# Location: Experiments/{experiment_name}/configs/exp_training.yaml
+
+training:
+  num_iterations: 10
+  current_iter: 0
+  batch_size: 32
+  max_parallel_tasks: 1

@@ -6,12 +6,16 @@
 conda_envs/
 experiments/
 SKfiles/
+archive/
 
 *.pys
 *.cpython-310.pyc
 __pycache__/
 *.out
 *.err
+
+
+archive/
 
 data/
 diffusion_code/

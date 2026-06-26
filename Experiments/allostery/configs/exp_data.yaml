@@ -1,0 +1,14 @@
+# Experiment data configuration
+# Location: Experiments/{experiment_name}/configs/exp_data.yaml
+
+# Experiment metadata
+experiment_name: allostery
+description: "Allostery-focused molecular generation experiment"
+
+# Dataset information (experiment-specific)
+base_dataset_path: /data/horse/ws/miha493e-research_project/activediffusion/data/qm7x-aqm-gas-noP.hdf5
+
+data:
+  exp_data_path: ${paths.experiments}/${experiment_name}/data
+  props: ["HLgap", "eMBD"]      # Properties to track
+  scores: ["SAScore"]            # Scores to track

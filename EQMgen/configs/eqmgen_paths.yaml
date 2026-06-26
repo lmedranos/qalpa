@@ -1,0 +1,19 @@
+# EQMgen framework-specific paths and code configuration
+# Location: EQMgen/configs/eqmgen_paths.yaml
+
+Code_path: ${root}/EQMgen
+
+# Code module paths
+code_paths:
+  EQdiff: ${Code_path}/eqdiff/e3mol_aqm
+  pipeline_blocks: ${Code_path}/pipeline_blocks
+  actdiff_utils: ${Code_path}/utils
+  scripts: ${Code_path}/scripts
+
+# Paths for scripts to access config and code
+eqmgen:
+  config_dir: ${root}/configs
+  code_dir: ${Code_path}
+  utils_dir: ${Code_path}/utils
+  pipeline_dir: ${Code_path}/pipeline_blocks
+  scripts_dir: ${Code_path}/scripts

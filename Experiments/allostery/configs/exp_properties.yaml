@@ -1,0 +1,6 @@
+# Experiment-specific properties overrides
+# Location: Experiments/{experiment_name}/configs/exp_properties.yaml
+
+properties:
+  calculator: DFTB+
+  filteration_threshold: 0.1

@@ -1,0 +1,6 @@
+# EQMgen properties configuration
+# Location: EQMgen/configs/eqmgen_properties.yaml
+
+properties:
+  calculator: DFTB+  # Options: FHI-aims, EquiDTB, DFTB+
+  filteration_threshold: 0.1

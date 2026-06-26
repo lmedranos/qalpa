@@ -1,0 +1,63 @@
+# Experiment Configuration - All-in-One File
+# Location: Experiments/allostery/configs/experiment_config.yaml
+#
+# This single file consolidates:
+# 1. Imports from root and framework configs (via defaults)
+# 2. All experiment-specific settings and overrides
+
+defaults:
+  # Root-level defaults (global settings)
+  - /configs/system
+  - /configs/training
+  - /configs/paths
+  
+  # EQMgen-level defaults (framework-specific)
+  - /EQMgen/configs/eqmgen_config
+
+# ============================================================================
+# EXPERIMENT METADATA
+# ============================================================================
+
+experiment_name: allostery
+experiment:
+  name: allostery
+  description: "Allostery-focused molecular generation experiment"
+  version: 1.0
+
+# ============================================================================
+# DATA CONFIGURATION (EXPERIMENT-SPECIFIC)
+# ============================================================================
+
+base_dataset_path: /data/horse/ws/miha493e-research_project/activediffusion/data/qm7x-aqm-gas-noP.hdf5
+
+data:
+  exp_data_path: ${paths.experiments}/${experiment_name}/data
+  props: ["HLgap", "eMBD"]              # Properties to track
+  scores: ["SAScore"]                   # Scores to track
+
+# ============================================================================
+# TRAINING CONFIGURATION (EXPERIMENT OVERRIDES)
+# ============================================================================
+
+training:
+  num_iterations: 10
+  current_iter: 0
+  batch_size: 32
+  max_parallel_tasks: 1
+
+# ============================================================================
+# GEOMETRY OPTIMIZATION (EXPERIMENT OVERRIDES)
+# ============================================================================
+
+geometry:
+  optimizer: DFTB+                      # Options: FHI-aims, DFTB+, EquiDTB, SO3LR, MACE
+  calculate_forces: true
+  filter_scheme: [score, accuracy]
+
+# ============================================================================
+# PROPERTIES CALCULATION (EXPERIMENT OVERRIDES)
+# ============================================================================
+
+properties:
+  calculator: DFTB+                     # Options: FHI-aims, EquiDTB, DFTB+
+  filteration_threshold: 0.1
