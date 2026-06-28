@@ -7,8 +7,8 @@ Provides:
 - init_experiment: Initialize new experiment with scaffolding
 """
 
-from .forward import forward_main
-from .backward import backward_main
+from ...archive.scripts.forward import forward_main
+from ...archive.scripts.backward import backward_main
 from .init_experiment import init_experiment
 
 __all__ = [

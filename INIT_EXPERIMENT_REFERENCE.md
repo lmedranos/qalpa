@@ -53,6 +53,9 @@ print(f"Experiment created at: {exp_dir}")
 # ├── configs/
 # │   └── experiment_config.yaml          (auto-populated template)
 # ├── data/                               (empty)
+# ├── jobs/                               
+# │   └── forward_activediff.sh           (auto-populated template)
+# │   └── backwark_activediff.sh          (auto-populated template)
 # ├── results/                            (empty)
 # └── logs/                               (empty)
 
@@ -67,14 +70,4 @@ print(f"Experiment created at: {exp_dir}")
 #    - Customize data.props and data.scores
 #    - Adjust training/geometry parameters
 
-# 2. Run the experiment
-#    python EQMgen/scripts/run_experiment.py \
-#        --config-path Experiments/my_experiment/configs \
-#        --config-name experiment_config
-
-# 3. With overrides (optional)
-#    python EQMgen/scripts/run_experiment.py \
-#        --config-path Experiments/my_experiment/configs \
-#        --config-name experiment_config \
-#        training.num_iterations=5 \
-#        geometry.optimizer=EquiDTB
+# 2. Run Forward and Backword jobs
