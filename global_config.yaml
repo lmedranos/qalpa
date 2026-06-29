@@ -1,0 +1,20 @@
+# global_config.yaml - Global configuration settings
+# location: EQMgen/global_config.yaml
+
+# The code root directory (1 levels up from configs)
+root: ../
+
+# Main directory paths
+Data_path: ${root}/Data
+Experiments_path: ${root}/Experiments
+Code_path: ${root}/EQMgen
+
+# Absolute paths used by scripts
+paths:
+  config: ${root}/configs
+  data: ${Data_path}
+  experiments: ${Experiments_path}
+  code: ${Code_path}
+ 
+system:
+  seed: 42

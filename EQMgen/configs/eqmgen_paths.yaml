@@ -9,11 +9,43 @@ code_paths:
   pipeline_blocks: ${Code_path}/pipeline_blocks
   actdiff_utils: ${Code_path}/utils
   scripts: ${Code_path}/scripts
+  configs: ${Code_path}/configs
 
-# Paths for scripts to access config and code
-eqmgen:
-  config_dir: ${root}/configs
-  code_dir: ${Code_path}
-  utils_dir: ${Code_path}/utils
-  pipeline_dir: ${Code_path}/pipeline_blocks
-  scripts_dir: ${Code_path}/scripts
+pipeline:
+  start_at: None
+  blocks: [split, train, generate, score_filter, relax_geo, prop_calc, prop_filter, hdf5, compress]
+
+# ============================================================================
+# SCRIPTS PATHS
+# ============================================================================
+
+# EQdiff scripts
+EQdiff:
+  split: ${code_paths.EQdiff}/experiments/data/aqm/split_data.py
+  train: ${code_paths.EQdiff}/experiments/run_train.py
+  generate: ${code_paths.EQdiff}/experiments/run_evaluation_qm.py
+
+# Pipeline processing blocks
+pipeline_blocks:
+  SAScore: ${code_paths.pipeline_blocks}/calculate_sascore.py
+  GeoRelax: ${code_paths.pipeline_blocks}/optimize_geometry.py
+  PropCalc: ${code_paths.pipeline_blocks}/prop_calc.py
+  PrePropCalc: ${code_paths.pipeline_blocks}/propcalc_preprocess.py
+  PostPropCalc: ${code_paths.pipeline_blocks}/propcalc_postprocess.py
+  MolFilter: ${code_paths.pipeline_blocks}/filter_molecules.py
+  MolHDF5: ${code_paths.pipeline_blocks}/to_hdf5.py
+
+# Utility functions
+utils:
+  DataManager: ${code_paths.actdiff_utils}/data_manager.py
+  Trajectory: ${code_paths.actdiff_utils}/trajectory.py
+  Parallelize: ${code_paths.actdiff_utils}/parallelize.py
+  MolCalculator: ${code_paths.actdiff_utils}/mol_calculate.py
+
+# Run scripts
+scripts:
+  forward: ${code_paths.scripts}/forward.py
+  backward: ${code_paths.scripts}/backward.py
+
+FHI-aims:
+  ctrl: ${code_paths.configs}/nctr1.in

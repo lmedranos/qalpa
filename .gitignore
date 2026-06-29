@@ -1,26 +1,9 @@
 *.xyz
 *.pkl
-*h5
 *.hdf5
-.conda/
-conda_envs/
-experiments/
-SKfiles/
-archive/
-
 *.pys
 *.cpython-310.pyc
 __pycache__/
 *.out
 *.err
-
-
-archive/
-
-data/
-diffusion_code/
 *.code-workspace
-None
-job_embd/
-# Ignore large experiment outputs
-actdiff_experiments/exp_vanilla_full_dataset/evaluate/core.n*.barnard.hpc.tu-dresden.de.*

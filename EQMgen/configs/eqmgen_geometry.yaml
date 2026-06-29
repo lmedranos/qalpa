@@ -1,7 +1,0 @@
-# EQMgen geometry optimization configuration
-# Location: EQMgen/configs/eqmgen_geometry.yaml
-
-geometry:
-  optimizer: DFTB+  # Options: FHI-aims, DFTB+, EquiDTB, SO3LR, MACE
-  calculate_forces: true
-  filter_scheme: [score, accuracy]

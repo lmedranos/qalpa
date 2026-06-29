@@ -1,5 +1,5 @@
 """
-EQMgen.scripts.init_experiment - Initialize a new experiment with configuration scaffolding
+EQMgen.scripts.init_experiment - Initialize a new experiment with configuration 
 
 This module provides tools to quickly create new experiments with proper directory structure
 and configuration templates.
@@ -19,32 +19,33 @@ import shutil
 from pathlib import Path
 
 
-def init_experiment(exp_name: str, base_path: Path = None, verbose: bool = True) -> Path:
+def init_experiment(exp_name: str, dataset_path: str , base_path: str = None, verbose: bool = True):
     """
     Initialize a new experiment with directory structure and configuration template.
     
     Creates:
     - Experiments/{exp_name}/configs/experiment_config.yaml
     - Experiments/{exp_name}/data/
+    - Experiments/{exp_name}/jobs/
     - Experiments/{exp_name}/results/
     - Experiments/{exp_name}/logs/
     
     Args:
         exp_name: Name of the experiment
+        dataset_path: Path to the dataset to be used for the experiment
         base_path: Base path to project root (default: auto-detected from script location)
         verbose: Print status messages (default: True)
-    
-    Returns:
-        Path to the created experiment directory
     
     Raises:
         FileExistsError: If experiment already exists
         FileNotFoundError: If template config not found
+        FileNotFoundError: If template job scripts not found
+        FileNotFoundError: If dataset path does not exist
     """
     
     # Auto-detect project root if not provided
     if base_path is None:
-        # Get project root (3 levels up from this script)
+        # Get project root (2 levels up from this script)
         script_dir = Path(__file__).parent
         base_path = script_dir.parent.parent
     
@@ -56,10 +57,10 @@ def init_experiment(exp_name: str, base_path: Path = None, verbose: bool = True)
     
     exp_dir = experiments_dir / exp_name
     exp_configs_dir = exp_dir / "configs"
-    template_config = experiments_dir / "template" / "configs" / "experiment_config.yaml"
+    template_config = experiments_dir / "templates" / "configs" / "experiment_config.yaml"
     exp_jobs_dir = exp_dir / "jobs"
-    template_forward_job = experiments_dir / "template" / "jobs" / "forward_job.sh"
-    template_backward_job = experiments_dir / "template" / "jobs" / "backward_job.sh"
+    template_forward_job = experiments_dir / "templates" / "jobs" / "eqmgen_forward.sh"
+    template_backward_job = experiments_dir / "templates" / "jobs" / "eqmgen_backward.sh"
     
     exp_data_dir = data_dir / exp_name
     
@@ -74,6 +75,8 @@ def init_experiment(exp_name: str, base_path: Path = None, verbose: bool = True)
         raise FileNotFoundError(f"Template forward job script not found at {template_forward_job}")
     if not template_backward_job.exists():
         raise FileNotFoundError(f"Template backward job script not found at {template_backward_job}")
+    if not Path(dataset_path).exists():
+        raise FileNotFoundError(f"Dataset path does not exist: {dataset_path}")
     
     # Create directories
     if verbose:
@@ -93,8 +96,8 @@ def init_experiment(exp_name: str, base_path: Path = None, verbose: bool = True)
     config_dest = exp_configs_dir / "experiment_config.yaml"
     shutil.copy2(template_config, config_dest)
     # Copy template job scripts
-    shutil.copy2(template_forward_job, exp_jobs_dir / "forward_job.sh")
-    shutil.copy2(template_backward_job, exp_jobs_dir / "backward_job.sh")
+    shutil.copy2(template_forward_job, exp_jobs_dir / "eqmgen_forward.sh")
+    shutil.copy2(template_backward_job, exp_jobs_dir / "eqmgen_backward.sh")
     
     if verbose:
         print(f"  ✓ Copied config template to {config_dest}")
@@ -104,12 +107,13 @@ def init_experiment(exp_name: str, base_path: Path = None, verbose: bool = True)
     config_content = config_dest.read_text()
     
     # Replace experiment name in the config
-    config_content = config_content.replace("allostery", exp_name)
-    config_content = config_content.replace(
-        f'exp_data_path: ${{paths.experiments}}/allostery/data',
-        f'exp_data_path: ${{paths.experiments}}/{exp_name}/data'
-    )
-    
+    config_content = config_content.replace("template_experiment", exp_name)
+    # config_content = config_content.replace(
+    #     f'exp_data_path: ${{paths.experiments}}/allostery/data',
+    #     f'exp_data_path: ${{paths.experiments}}/{exp_name}/data'
+    # )
+    # Replace dataset path in the config
+    config_content = config_content.replace("template_dataset", str(dataset_path))
     config_dest.write_text(config_content)
     
     if verbose:
@@ -122,12 +126,11 @@ def init_experiment(exp_name: str, base_path: Path = None, verbose: bool = True)
         print(f"     - Set base_dataset_path to your dataset")
         print(f"     - Customize data.props and data.scores if needed")
         print(f"     - Adjust training/geometry/properties as needed")
-        print(f"\n  2. Run experiment:")
-        print(f"     python EQMgen/scripts/run_experiment.py \\")
-        print(f"         --config-path Experiments/{exp_name}/configs \\")
-        print(f"         --config-name experiment_config")
+        print(f"\n  2. Run experiment: Alternatively, you can submit the jobs directly:")
+        print(f"     - submit  {exp_jobs_dir / 'eqmgen_forward.sh'}")
+        print(f"     - submit  {exp_jobs_dir / 'eqmgen_backward.sh'}")
     
-    return exp_dir
+    
 
 
 if __name__ == "__main__":
@@ -137,7 +140,8 @@ if __name__ == "__main__":
         epilog="""
 Examples:
   python init_experiment.py my_experiment
-  python init_experiment.py --name my_experiment --base-path /path/to/project
+  python init_experiment.py --name my_experiment --dataset-path /path/to/dataset
+  python init_experiment.py --name my_experiment --dataset-path /path/to/dataset --base-path /path/to/root
         """
     )
     
@@ -150,6 +154,11 @@ Examples:
         "--name",
         dest="exp_name",
         help="Name of the experiment to create (alternative to positional argument)"
+    )
+    parser.add_argument(
+        "--dataset-path",
+        type=Path,
+        help="Path to the dataset to be used for the experiment"
     )
     parser.add_argument(
         "--base-path",
@@ -175,6 +184,7 @@ Examples:
     try:
         init_experiment(
             exp_name=exp_name,
+            dataset_path=args.dataset_path,
             base_path=args.base_path,
             verbose=not args.quiet
         )

@@ -7,12 +7,11 @@
 
 defaults:
   # Root-level defaults (global settings)
-  - /configs/system
-  - /configs/training
-  - /configs/paths
+  - /global_config
   
   # EQMgen-level defaults (framework-specific)
-  - /EQMgen/configs/eqmgen_config
+  - /EQMgen/configs/eqmgen_paths
+  - /EQMgen/configs/eqdiff_model
 
 # ============================================================================
 # EXPERIMENT METADATA
@@ -21,38 +20,61 @@ defaults:
 experiment_name: template_experiment
 experiment:
   name: template_experiment
-  description: "Template molecular generation experiment"
+  description: "molecular generation experiment"
   version: 1.0
 
 # ============================================================================
 # DATA CONFIGURATION (EXPERIMENT-SPECIFIC)
 # ============================================================================
 
-base_dataset_path: /path/to/dataset.hdf5  # Required
+base_dataset_path: template_dataset  
 
 data:
   exp_data_path: ${paths.data}/${experiment_name}
-  props: ["HLgap", "eMBD"]              # Properties to track
-  scores: ["SAScore"]                   # Scores to track
 
 # ============================================================================
-# TRAINING CONFIGURATION (EXPERIMENT OVERRIDES)
+# LOOP CONFIGURATION (EXPERIMENT OVERRIDES)
 # ============================================================================
 
-training:
+loop:
   num_iterations: 10
   current_iter: 0
   batch_size: 32
-  max_parallel_tasks: 1
+  max_parallel_tasks: 1 
+
+# ============================================================================
+# Generative Model CONFIGURATION (EXPERIMENT OVERRIDES)
+# ============================================================================
+
+EQdiffParam:
+  num_samples: 200
+  n_nodes: 20
+  batch_size: 32
+  num_steps: 50
+  dataset_root: ${paths.data}/${experiment_name}/diffusion_wdir/data/
+  test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test
+  load_ckpt_from_pretrained: None
+  save_dir: ${paths.experiments}/${experiment_name}/logs/ 
+
+
 
 # ============================================================================
 # GEOMETRY OPTIMIZATION (EXPERIMENT OVERRIDES)
 # ============================================================================
 
 geometry:
-  optimizer: DFTB+                      # Options: FHI-aims, DFTB+, EquiDTB, SO3LR, MACE
+  optimizer: DFTB+                      # Options: FHI-aims, DFTB+, EquiDTB
   calculate_forces: true
-  filter_scheme: [score, accuracy]
+
+# ============================================================================
+# QUERY CONFIGURATION (EXPERIMENT-SPECIFIC)
+# ============================================================================
+
+query:
+  props: ["HLgap", "eMBD"]              # Properties to track
+  scores: ["SAScore"]                   # Scores to track
+  filter_scheme: [score, accuracy]      # Filtering scheme to apply
+  filter_threshold: 0.1                 # Filteration threshold for accuracy
 
 # ============================================================================
 # PROPERTIES CALCULATION (EXPERIMENT OVERRIDES)
