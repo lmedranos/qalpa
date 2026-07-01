@@ -2,7 +2,7 @@
 # location: EQMgen/global_config.yaml
 
 # The code root directory (1 levels up from configs)
-root: ../
+root: .
 
 # Main directory paths
 Data_path: ${root}/Data
@@ -18,3 +18,4 @@ paths:
  
 system:
   seed: 42
+  fih_aims_exc: /software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x 

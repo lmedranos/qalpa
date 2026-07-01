@@ -22,6 +22,7 @@ class DataManager:
         self.itr_hdf5_path = None
         self.itr_extra_prop_path = None
         # Remember to set these flags based on your requirements
+        # replaced by the config file settings in the future
         self.hdf5_appending_flag = True
         self.hdf5_iter_flag = False
         self.extra_properties_flag = True

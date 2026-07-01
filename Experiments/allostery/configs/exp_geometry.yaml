@@ -1,7 +1,0 @@
-# Experiment-specific geometry overrides
-# Location: Experiments/{experiment_name}/configs/exp_geometry.yaml
-
-geometry:
-  optimizer: DFTB+
-  calculate_forces: true
-  filter_scheme: [score, accuracy]

@@ -83,7 +83,6 @@ def init_experiment(exp_name: str, dataset_path: str , base_path: str = None, ve
     
     exp_dir.mkdir(parents=True, exist_ok=False)
     exp_configs_dir.mkdir(parents=True, exist_ok=True)
-    (exp_dir / "data").mkdir(parents=True, exist_ok=True)
     (exp_dir / "results").mkdir(parents=True, exist_ok=True)
     (exp_dir / "logs").mkdir(parents=True, exist_ok=True)
     (exp_dir / "jobs").mkdir(parents=True, exist_ok=True)
@@ -124,7 +123,6 @@ def init_experiment(exp_name: str, dataset_path: str , base_path: str = None, ve
         job_script.write_text(job_content)
     
     if verbose:
-        print(f"  ✓ Updated config with experiment name: {exp_name}")
         print(f"  ✓ Wired job scripts to config dir: {exp_config_dir_abs}")
     
     if verbose:
@@ -166,6 +164,7 @@ Examples:
     parser.add_argument(
         "--dataset-path",
         type=Path,
+        required=True,
         help="Path to the dataset to be used for the experiment"
     )
     parser.add_argument(
@@ -192,7 +191,7 @@ Examples:
     try:
         init_experiment(
             exp_name=exp_name,
-            dataset_path=args.dataset_path,
+            dataset_path=str(args.dataset_path),
             base_path=args.base_path,
             verbose=not args.quiet
         )

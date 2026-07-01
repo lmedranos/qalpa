@@ -1,4 +1,4 @@
-# QM Active Learning Diffusion for Molecular Design
+# EQMgen: QM Active Learning Diffusion for Molecular Design
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -8,7 +8,7 @@ This model uses the Diffusion model and Density Functional Theory (DFT) through 
 
 ## Overview
 
-The QMActiveDiffusion framework combines diffusion models with quantum mechanical calculations to generate novel molecules with desired properties. The system leverages active learning to iteratively improve molecular generation by incorporating DFT feedback, enabling efficient exploration of chemical space.
+The EQMgen framework combines diffusion models with quantum mechanical calculations to generate novel molecules with desired properties. The system leverages active learning to iteratively improve molecular generation by incorporating DFT feedback, enabling efficient exploration of chemical space.
 
 **Key Features:**
 - Molecular trajectory planning in property space
@@ -163,28 +163,48 @@ graph TB
 
 ## Quick Start
 
-1. **Plan a trajectory**
+1. **Initialize an experiment**
 
-2. **Run active diffusion**
+```bash
+python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /path/to/base_dataset.hdf5
+```
 
-3. **Analyze results**
+2. **Edit experiment config**
+
+Update the generated file:
+
+`Experiments/my_exp_0/configs/experiment_config.yaml`
+
+3. **Submit forward/backward jobs**
+
+```bash
+cd Experiments/my_exp_0/jobs
+sbatch eqmgen_forward.sh
+sbatch eqmgen_backward.sh
+```
+
+4. **Analyze results**
+
+Generated iteration data and HDF5 outputs are written under:
+
+`Data/my_exp_0/`
 
 
 ## Project Structure
 
 ```
-QMActiveDiffusion/
-├── actdiff_experiments/    # Experiment orchestration scripts
-├── analysis/               # Jupyter notebooks for result analysis
-├── archive/                # Archived experiments and data
-├── configs/                # Configuration files
-├── diffusion_code/         # Diffusion model implementation
-├── pipeline_blocks/        # Modular pipeline components
-├── results/                # Experiment outputs
-├── scripts/                # Utility scripts
-├── trajectory/             # Trajectory planning tools
-├── utils/                  # Helper functions and utilities
-└── README. md
+EQMgen/
+├── Data/                            # Experiment data root (created/updated at runtime)
+├── EQMgen/
+│   ├── configs/                     # Framework configs (eqdiff_model.yaml, eqmgen_paths.yaml, SKfiles)
+│   ├── eqdiff/                      # Diffusion model code
+│   ├── pipeline_blocks/             # Geometry/props/filter/hdf5 blocks
+│   ├── scripts/                     # init_experiment.py, forward_p.py, backward_p.py
+│   └── utils/                       # Data manager, trajectory, parallelization helpers
+├── Experiments/
+│   └── templates/                   # Template config and job scripts for initialization
+├── global_config.yaml               # Root/shared config imported by experiments
+└── README.md
 ```
 
 ## Requirements
@@ -199,6 +219,7 @@ Core dependencies include:
 - Jupyter (analysis notebooks)
 
 See `scripts/environment.yml` for a complete list.
+See `environment_p.yml` for the environment definition used in this repository.
 
 ## Acknowledgments
 

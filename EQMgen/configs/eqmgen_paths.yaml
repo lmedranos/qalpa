@@ -12,7 +12,7 @@ code_paths:
   configs: ${Code_path}/configs
 
 pipeline:
-  start_at: None
+  start_at: split
   blocks: [split, train, generate, score_filter, relax_geo, prop_calc, prop_filter, hdf5, compress]
 
 # ============================================================================

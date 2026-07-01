@@ -4,17 +4,14 @@ from pathlib import Path
 
 
 class Trajectory:
-    def __init__(self, directory, prop_names, score_names):
+    def __init__(self, csv_path, prop_names, score_names):
         self.prop_names = prop_names
         self.score_names = score_names
         self.names = prop_names + score_names
-        directory = Path(directory)
+        csv_path = Path(csv_path)
 
-        # find the trajectory file
-        csv_files = list(directory.glob("trajectory_*.csv"))
-        if not csv_files:
-            raise FileNotFoundError(f"No trajectory CSV files found in {directory}")
-        csv_path = csv_files[0]
+        if not csv_path.exists():
+            raise FileNotFoundError(f"No trajectory CSV file found at {csv_path}")
 
         # read only requested columns
         df = pd.read_csv(csv_path, usecols=self.names)

@@ -14,6 +14,16 @@ defaults:
   - /EQMgen/configs/eqdiff_model
 
 # ============================================================================
+# HYDRA SEARCH PATH
+# ============================================================================
+# The absolute defaults above (/global_config, /EQMgen/configs/*) are resolved
+# from the repository root. init_experiment.py injects the real path here.
+
+hydra:
+  searchpath:
+    - file://@@REPO_ROOT@@
+
+# ============================================================================
 # EXPERIMENT METADATA
 # ============================================================================
 
@@ -21,7 +31,7 @@ experiment_name: template_experiment
 experiment:
   name: template_experiment
   description: "molecular generation experiment"
-  version: 1.0
+ 
 
 # ============================================================================
 # DATA CONFIGURATION (EXPERIMENT-SPECIFIC)
@@ -39,8 +49,7 @@ data:
 loop:
   num_iterations: 10
   current_iter: 0
-  batch_size: 32
-  max_parallel_tasks: 1 
+  max_parallel_tasks: 20 
 
 # ============================================================================
 # Generative Model CONFIGURATION (EXPERIMENT OVERRIDES)
@@ -49,13 +58,16 @@ loop:
 EQdiffParam:
   num_samples: 200
   n_nodes: 20
-  batch_size: 32
-  num_steps: 50
+  batch_size: 40
+  num_epochs: 50
+  test_interval: 40
+  context_mapping: True
+  properties_list: ['HLgap', 'eMBD']            # Properties to track should be edited
+  num_context_features: ${len:${EQdiffParam.properties_list}}
   dataset_root: ${paths.data}/${experiment_name}/diffusion_wdir/data/
   test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test
   load_ckpt_from_pretrained: None
   save_dir: ${paths.experiments}/${experiment_name}/logs/ 
-
 
 
 # ============================================================================
@@ -64,14 +76,16 @@ EQdiffParam:
 
 geometry:
   optimizer: DFTB+                      # Options: FHI-aims, DFTB+, EquiDTB
-  calculate_forces: true
+  calculate_forces: True
+  model: None                           # Model to use for geometry optimization (if applicable)
 
 # ============================================================================
 # QUERY CONFIGURATION (EXPERIMENT-SPECIFIC)
 # ============================================================================
 
 query:
-  props: ["HLgap", "eMBD"]              # Properties to track
+  trajectory_csv: ${paths.experiments}/${experiment_name}/configs/trajectory.csv
+  props: ${EQdiffParam.properties_list}              # Properties to track
   scores: ["SAScore"]                   # Scores to track
   filter_scheme: [score, accuracy]      # Filtering scheme to apply
   filter_threshold: 0.1                 # Filteration threshold for accuracy
@@ -83,3 +97,18 @@ query:
 properties:
   calculator: DFTB+                     # Options: FHI-aims, EquiDTB, DFTB+
   filteration_threshold: 0.1
+  model: None
+
+# ============================================================================
+# HDF5 CONFIGURATION
+# ============================================================================
+
+hdf5:
+  appending_flag: True
+  hdf5_iter_flag: False
+  extra_properties_flag: False
+
+
+
+
+  
