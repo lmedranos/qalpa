@@ -25,10 +25,10 @@ def init_experiment(exp_name: str, dataset_path: str , base_path: str = None, ve
     
     Creates:
     - Experiments/{exp_name}/configs/experiment_config.yaml
-    - Experiments/{exp_name}/data/
     - Experiments/{exp_name}/jobs/
     - Experiments/{exp_name}/results/
     - Experiments/{exp_name}/logs/
+    - Data/{exp_name}/ (for experiment-specific data)
     
     Args:
         exp_name: Name of the experiment
@@ -53,21 +53,20 @@ def init_experiment(exp_name: str, dataset_path: str , base_path: str = None, ve
     
     # Define paths
     experiments_dir = base_path / "Experiments"
-    data_dir = base_path / "Data"
-    
-    exp_dir = experiments_dir / exp_name
-    exp_configs_dir = exp_dir / "configs"
-    template_config = experiments_dir / "templates" / "configs" / "experiment_config.yaml"
-    exp_jobs_dir = exp_dir / "jobs"
-    template_forward_job = experiments_dir / "templates" / "jobs" / "eqmgen_forward.sh"
-    template_backward_job = experiments_dir / "templates" / "jobs" / "eqmgen_backward.sh"
-    
-    exp_data_dir = data_dir / exp_name
+    exp_data_dir = base_path / "Data" / exp_name
     
     # Check if experiment already exists
-    if exp_dir.exists():
-        raise FileExistsError(f"Experiment '{exp_name}' already exists at {exp_dir}")
-    
+    v = 0
+    while (experiments_dir / f"{exp_name}_{v}").exists():
+        v += 1
+    exp_name = f"{exp_name}_{v}"                # Append version number to experiment name
+    exp_dir = experiments_dir / exp_name
+    exp_jobs_dir = exp_dir / "jobs"
+    exp_configs_dir = exp_dir / "configs"
+
+    template_config = experiments_dir / "templates" / "configs" / "experiment_config.yaml"
+    template_forward_job = experiments_dir / "templates" / "jobs" / "eqmgen_forward.sh"
+    template_backward_job = experiments_dir / "templates" / "jobs" / "eqmgen_backward.sh"
     # Check if template exists
     if not template_config.exists():
         raise FileNotFoundError(f"Template config not found at {template_config}")
@@ -106,18 +105,27 @@ def init_experiment(exp_name: str, dataset_path: str , base_path: str = None, ve
     # Read and customize the config
     config_content = config_dest.read_text()
     
+    # Absolute paths injected into the config and job scripts
+    repo_root_abs = str(base_path.resolve())
+    exp_config_dir_abs = str(exp_configs_dir.resolve())
+
     # Replace experiment name in the config
     config_content = config_content.replace("template_experiment", exp_name)
-    # config_content = config_content.replace(
-    #     f'exp_data_path: ${{paths.experiments}}/allostery/data',
-    #     f'exp_data_path: ${{paths.experiments}}/{exp_name}/data'
-    # )
-    # Replace dataset path in the config
     config_content = config_content.replace("template_dataset", str(dataset_path))
+    # Inject the repo root so Hydra can resolve the absolute defaults (searchpath)
+    config_content = config_content.replace("@@REPO_ROOT@@", repo_root_abs)
     config_dest.write_text(config_content)
+
+    # Customize the copied job scripts with absolute repo root and experiment config dir
+    for job_script in (exp_jobs_dir / "eqmgen_forward.sh", exp_jobs_dir / "eqmgen_backward.sh"):
+        job_content = job_script.read_text()
+        job_content = job_content.replace("@@REPO_ROOT@@", repo_root_abs)
+        job_content = job_content.replace("@@EXP_CONFIG_DIR@@", exp_config_dir_abs)
+        job_script.write_text(job_content)
     
     if verbose:
         print(f"  ✓ Updated config with experiment name: {exp_name}")
+        print(f"  ✓ Wired job scripts to config dir: {exp_config_dir_abs}")
     
     if verbose:
         print(f"\n✓ Experiment '{exp_name}' initialized successfully!")
@@ -126,7 +134,7 @@ def init_experiment(exp_name: str, dataset_path: str , base_path: str = None, ve
         print(f"     - Set base_dataset_path to your dataset")
         print(f"     - Customize data.props and data.scores if needed")
         print(f"     - Adjust training/geometry/properties as needed")
-        print(f"\n  2. Run experiment: Alternatively, you can submit the jobs directly:")
+        print(f"\n  2. Run experiment: Alternatively")
         print(f"     - submit  {exp_jobs_dir / 'eqmgen_forward.sh'}")
         print(f"     - submit  {exp_jobs_dir / 'eqmgen_backward.sh'}")
     
