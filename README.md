@@ -160,6 +160,55 @@ graph TB
 - CUDA-capable GPU (recommended for training)
 - HPC environment 
 
+### Environment Setup
+
+1. Create and activate the conda environment:
+
+```bash
+conda env create -f environment.yml
+conda activate env-activeloop
+```
+
+2. Replace the installed ASE DFTB calculator file with the repository patch (`dftb.py`):
+
+```bash
+python - <<'PY'
+from pathlib import Path
+import shutil
+import ase.calculators.dftb as ase_dftb
+
+repo_root = Path.cwd()
+src = repo_root / "dftb.py"
+dst = Path(ase_dftb.__file__)
+
+if not src.exists():
+    raise FileNotFoundError(f"Missing source patch file: {src}")
+
+backup = dst.with_suffix(dst.suffix + ".bak")
+if not backup.exists():
+    shutil.copy2(dst, backup)
+
+shutil.copy2(src, dst)
+print(f"Patched ASE DFTB calculator: {dst}")
+print(f"Backup created at: {backup}")
+PY
+```
+
+3. Configure the code config path and SKfiles location:
+
+```bash
+export CONFIG="$PWD/EQMgen/configs"
+export DFTB_PREFIX="$CONFIG/SKfiles/3ob-3-1/"
+```
+
+4. Ensure SKfiles are available under the code config directory used by the workflow:
+
+```bash
+test -d "$CONFIG/SKfiles/3ob-3-1" && echo "SKfiles found under $CONFIG"
+```
+
+If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before running forward/backward jobs.
+
 
 ## Quick Start
 
@@ -221,6 +270,3 @@ Core dependencies include:
 See `scripts/environment.yml` for a complete list.
 See `environment_p.yml` for the environment definition used in this repository.
 
-## Acknowledgments
-
-- This work was part of a research project at TU Dresden under the supervision of Dr. Leonardo Medrano and Prof. Dr. Gianaurelio Cuniberti from the Chair of Materials Science and Nanotechnology, and in collaboration with Dr. Julian Cremer – Pfizer.
