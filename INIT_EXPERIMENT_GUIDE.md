@@ -92,8 +92,9 @@ python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /data/base
 ```bash
 vim Experiments/my_exp_0/configs/experiment_config.yaml
 ```
+2. Copy Navigator .csv output to xperiments/my_exp_0/configs/
 
-2. Submit jobs from the created jobs directory:
+3. Submit jobs from the created jobs directory:
 
 ```bash
 cd Experiments/my_exp_0/jobs
@@ -103,8 +104,8 @@ sbatch eqmgen_backward.sh
 
 The job scripts run:
 
-- python -m EQMgen.scripts.forward_p
-- python -m EQMgen.scripts.backward_p
+- python -m EQMgen.scripts.forward.py
+- python -m EQMgen.scripts.backward.py
 
 using the generated experiment config directory.
 
