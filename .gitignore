@@ -1,0 +1,12 @@
+*.xyz
+*.pkl
+*.hdf5
+*.pys
+*.cpython-310.pyc
+__pycache__/
+*.out
+*.err
+*.code-workspace
+
+EQMgen/eqdiff/e3mol_aqm
+EQMgen/configs/SKfiles/3ob-3-1

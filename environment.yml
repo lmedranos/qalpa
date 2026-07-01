@@ -1,0 +1,41 @@
+name: env-activeloop_p
+
+channels:
+  - conda-forge
+  - pyg
+  - nvidia
+  - defaults
+
+dependencies:
+  - python=3.11          
+  - pip
+  - notebook
+  - matplotlib
+  - seaborn
+  - numpy
+  - pytorch::pytorch=2.0.1
+  - pyg::pyg=2.3.0
+  - pyg::pytorch-scatter
+  - pyg::pytorch-sparse
+  - pyg::pytorch-cluster
+  - conda-forge::rdkit=2023.03.2
+  - conda-forge::pytorch-lightning=2.0.6
+  - conda-forge::jupyter
+  - conda-forge::openbabel
+  - conda-forge::ase
+  - conda-forge::py3Dmol
+  - conda-forge::lmdb
+  - conda-forge::nglview
+  - conda-forge::rmsd
+  - conda-forge::torch-ema
+  - conda-forge::tensorboard
+  - conda-forge::biopython
+  - conda-forge::xtb
+  - conda-forge::dftbplus=24.1=nompi*
+  - conda-forge::dftbplus-tools
+  - conda-forge::dftbplus-python
+  - sh                   # Linux/Mac only
+  - pip:
+    - "jax[cuda12]==0.5.3"
+    - "git+https://github.com/ACEsuit/mace.git"
+    - "git+https://github.com/general-molecular-simulations/so3lr.git"
