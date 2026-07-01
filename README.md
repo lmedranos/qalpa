@@ -224,7 +224,11 @@ Update the generated file:
 
 `Experiments/my_exp_0/configs/experiment_config.yaml`
 
-3. **Submit forward/backward jobs**
+3. **Copy Navigator trajectory CSV files**
+
+Copy Navigator trajectory CSV files into `Experiments/my_exp_0/configs/'
+
+4. **Submit forward/backward jobs**
 
 ```bash
 cd Experiments/my_exp_0/jobs
@@ -232,7 +236,7 @@ sbatch eqmgen_forward.sh
 sbatch eqmgen_backward.sh
 ```
 
-4. **Analyze results**
+5. **Analyze results**
 
 Generated iteration data and HDF5 outputs are written under:
 
