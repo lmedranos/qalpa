@@ -272,5 +272,4 @@ Core dependencies include:
 - Jupyter (analysis notebooks)
 
 See `scripts/environment.yml` for a complete list.
-See `environment_p.yml` for the environment definition used in this repository.
 
