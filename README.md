@@ -386,14 +386,33 @@ EQMgen/
 
 ## Requirements
 
-Core dependencies include:
-- PyTorch
-- NumPy
-- Pandas
-- RDKit
-- ASE (Atomic Simulation Environment)
-- Matplotlib/Seaborn (visualization)
-- Jupyter (analysis notebooks)
+All dependencies are installed via `environment-al.yml`. The core stack includes:
 
-See `environment-al.yml` for a complete list.
+**Deep learning / diffusion model**
+- Python 3.10
+- PyTorch 2.0.1
+- PyTorch Geometric 2.3.0 (with `pytorch-scatter`, `pytorch-sparse`, `pytorch-cluster`)
+- PyTorch Lightning 2.0.6
+- `torch_ema`, TensorBoard
+- MACE (machine-learning force field, from source)
+- JAX (CUDA 12)
+
+**Quantum chemistry / structure**
+- ASE (Atomic Simulation Environment)
+- FHI-aims (DFT, loaded as an HPC module — not via conda)
+- DFTB+ 24.1 (`dftbplus`, `dftbplus-tools`, `dftbplus-python`)
+- xTB (`xtb`, `xtb-python`)
+- RDKit 2023.03.2
+- Open Babel
+
+**Configuration / data handling**
+- Hydra / OmegaConf (experiment configuration)
+- NumPy (<2), Pandas, h5py, LMDB
+
+**Visualization / analysis**
+- Matplotlib, Seaborn
+- Jupyter / Notebook
+- py3Dmol, nglview, RMSD, Biopython
+
+See `environment-al.yml` for the complete, version-pinned list.
 
