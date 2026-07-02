@@ -1,4 +1,4 @@
-name: env-activeloop_p
+name: env-activeloop
 
 channels:
   - conda-forge
@@ -9,6 +9,10 @@ channels:
 dependencies:
   - python=3.11          
   - pip
+  - hydra-core
+  - omegaconf
+  - pandas
+  - h5py
   - notebook
   - matplotlib
   - seaborn
@@ -38,4 +42,3 @@ dependencies:
   - pip:
     - "jax[cuda12]==0.5.3"
     - "git+https://github.com/ACEsuit/mace.git"
-    - "git+https://github.com/general-molecular-simulations/so3lr.git"
