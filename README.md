@@ -66,7 +66,7 @@ flowchart LR
 
 This phase provides an interactive environment for defining molecular trajectories within a property space (e.g., HOMO-LUMO gap, many-body dispersion energy, atomic number). The resulting trajectory files (`trajectory_*.csv`) serve as input for the active learning process. 
 
-<img width="200" height="200" alt="trajectory_planer" src="https://github.com/user-attachments/assets/a827726d-cfd1-411e-80ce-79d87f5f7dbe" />
+<img width="400" height="400" alt="trajectory_planer" src="Navigator/example_trajectory.png" />
 
 **Tools:** Interactive trajectory planner in the `trajectory/` directory
 

@@ -8,11 +8,8 @@ import numpy as np
 from ase.io import read, write
 from ase.optimize import BFGS
 
-_UTILS_DIR = Path(__file__).resolve().parent.parent / "utils"
-if str(_UTILS_DIR) not in sys.path:
-    sys.path.insert(0, str(_UTILS_DIR))
     
-from calculate import get_calculator
+from utils.mol_calculate import get_calculator
 
 def relax_molecule(input, output, calc_name, model_path=None, device='cpu', relaxed_forces=False, unrelaxed_forces=False, keep_temp=False):
     """Relax a molecule using the specified calculator.

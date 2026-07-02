@@ -9,7 +9,7 @@ from ase.optimize import BFGS
 from mace.calculators import MACECalculator
 import ase.calculators.mixing
 from ase.calculators.dftb import Dftb
-# from so3lr import So3lrCalculator
+
 
 skfiles_path = Path(os.environ["CONFIG"]).parent / "SKfiles/3ob-3-1"  # Path to Slater-Koster files for DFTB+
 # skfiles_path = "/data/horse/ws/miha493e-research_project/activediffusion/configs/SKfiles/3ob-3-1/
@@ -37,8 +37,6 @@ def get_calculator(calc_name, model_path, device, atoms):
             ParserOptions_ParserVersion='13',
             slako_dir = str(skfiles_path),
         )
-    elif calc_name == 'MACE':
-        return MACECalculator(model_paths=model_path, device=device, default_dtype="float32")
     elif calc_name == 'EquiDTB':
         MLcalc = MACECalculator(model_path=model_path, device=device, default_dtype="float32")
         # Load DFTB calculator with MBD
