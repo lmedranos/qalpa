@@ -8,11 +8,11 @@ import numpy as np
 from ase.io import read, write
 from ase.optimize import BFGS
 
-_UTILS_DIR = Path(__file__).resolve().parent.parent / "utils"
-if str(_UTILS_DIR) not in sys.path:
-    sys.path.insert(0, str(_UTILS_DIR))
+# _UTILS_DIR = Path(__file__).resolve().parent.parent / "utils"
+# if str(_UTILS_DIR) not in sys.path:
+#     sys.path.insert(0, str(_UTILS_DIR))
     
-from mol_calculate import get_calculator
+from EQMgen.utils.mol_calculate import get_calculator
 
 def calc_properties(input_file, prop_folder, calc_name, model_path, device):
     """Calculate properties of a molecule using the specified calculator.

@@ -4,8 +4,8 @@ from os import path
 import argparse
 from pathlib import Path
 # from os import environ
-from parserFHItoJSON import get_data as create_FHI_json
-from parserEquiDTBtoJSON import get_data as create_EquiDTB_json
+from .parserFHItoJSON import get_data as create_FHI_json
+from .parserEquiDTBtoJSON import get_data as create_EquiDTB_json
 import shutil
 from collections import deque
 

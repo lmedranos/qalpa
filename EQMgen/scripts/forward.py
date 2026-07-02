@@ -20,9 +20,6 @@ def main(cfg: DictConfig):
     It sets up the environment, runs pipeline units in a loop.
     Configuration is provided by Hydra/OmegaConf (experiment_config.yaml and its imports).
     '''
-    # Set environment variables from config (configs dir holds eqdiff_model.yaml, nctr1.in, models)
-    os.environ["CONFIG"] = str(cfg.code_paths.configs)
-
     # Setup environment for GNN
     gpus_per_task = int(os.environ.get("SLURM_GPUS_ON_NODE", 1))
     cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1))

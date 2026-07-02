@@ -6,8 +6,6 @@ import argparse
 from pathlib import Path
 from ase.io import read, write
 from pathlib import Path
-#from os import environ
-# from mpi4py import MPI
 
 def preprocess_fhi(ifile, ofolder, cdata):
  
@@ -39,11 +37,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Create input files for FHI-aims.")
     parser.add_argument("--input", type=str, help="Path to the input XYZ file")
     parser.add_argument("--output", type=str, help="Output folder for the FHI-aims input files")
+    parser.add_argument("--config", type=str, help="Path to the EQMgen configs directory (contains nctr1.in)")
     args = parser.parse_args()
 
-    ifile = Path(args.input) 
+    ifile = Path(args.input)
     ofolder = Path(args.output)
-    cdata = Path(os.environ["CONFIG"],"nctr1.in")
+    cdata = Path(args.config, "nctr1.in")
 
     preprocess_fhi(ifile, ofolder, cdata)
 

@@ -194,33 +194,17 @@ conda activate ./conda_envs/env-activeloop/
 4. **Replace the installed ASE DFTB calculator file with the repository patch:**
 
 ```bash
-python - <<'PY'
-from pathlib import Path
-import shutil
-import ase.calculators.dftb as ase_dftb
-
-repo_root = Path.cwd()
-src = repo_root / "dftb.py"
-dst = Path(ase_dftb.__file__)
-
-if not src.exists():
-    raise FileNotFoundError(f"Missing source patch file: {src}")
-
-backup = dst.with_suffix(dst.suffix + ".bak")
-if not backup.exists():
-    shutil.copy2(dst, backup)
-
-shutil.copy2(src, dst)
-print(f"Patched ASE DFTB calculator: {dst}")
-print(f"Backup created at: {backup}")
-PY
+ASE_DFTB="EQMgen/conda_envs/env-activeloop/lib/python3.10/site-packages/ase/calculators/dftb.py"
+cp "$ASE_DFTB" "${ASE_DFTB}.bak"
+cp EQMgen/dftb.py "$ASE_DFTB"
 ```
 
-5. **Configure the code config path and SKfiles location:**
+> **Note:** Run this from the directory where you cloned the repo (the parent of `EQMgen/`). The original ASE file is backed up as `dftb.py.bak` in the same location.
+
+5. **Export the SKfiles path:**
 
 ```bash
-export CONFIG="$PWD/EQMgen/configs"
-export DFTB_PREFIX="$CONFIG/SKfiles/3ob-3-1/"
+export DFTB_PREFIX="$PWD/EQMgen/configs/SKfiles/3ob-3-1/"
 ```
 
 6. **Ensure SKfiles are available under the code config directory:**
@@ -233,9 +217,63 @@ If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before runnin
 
 > **Note:** `environment-al.yml` produces a single combined environment (`env-activeloop`) that contains both the GPU/diffusion stack (PyTorch, PyTorch Geometric, MACE) and the chemistry/DFT stack (ASE, RDKit, xTB, DFTB+). Both the forward and backward job scripts activate this same environment.
 
+> **Troubleshooting:** If you encounter `ModuleNotFoundError: No module named 'pkg_resources'` when running the forward pipeline, install `setuptools` into the environment: `conda activate ./conda_envs/env-activeloop/ && conda install setuptools`. This package is already included in `environment-al.yml` as of this version.
+
+## Quick Start
+
+1. **Initialize an experiment**
+
+```bash
+python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /path/to/base_dataset.hdf5
+```
+
+This creates the experiment directory with template job scripts:
+
+```
+Experiments/my_exp_0/
+├── configs/
+│   └── experiment_config.yaml
+├── jobs/
+│   ├── eqmgen_forward.sh      # runs on the GPU cluster
+│   └── eqmgen_backward.sh     # runs on the heavy CPU cluster
+├── logs/
+└── results/
+```
+
+2. **Edit the experiment config**
+
+Update `Experiments/my_exp_0/configs/experiment_config.yaml`.
+
+3. **Customize the SLURM job scripts for your cluster**
+
+The copied job scripts must be adapted to your cluster before submitting. See [HPC Cluster Configuration (SLURM)](#hpc-cluster-configuration-slurm) below.
+
+4. **Copy Navigator trajectory CSV files**
+
+Copy the trajectory CSV files into `Experiments/my_exp_0/configs/`.
+
+5. **Submit the jobs**
+
+```bash
+cd Experiments/my_exp_0/jobs
+sbatch eqmgen_forward.sh
+sbatch eqmgen_backward.sh
+```
+
+6. **Monitor job status**
+
+```bash
+squeue -u $USER
+squeue -j <job_id>          # check a specific job
+```
+
+7. **Analyze results**
+
+Generated iteration data and HDF5 outputs are written under `Data/my_exp_0/`.
+
 ## HPC Cluster Configuration (SLURM)
 
-The EQMgen workflow is designed to run on HPC clusters using SLURM. The workflow is split into two complementary job types:
+The EQMgen workflow is designed to run on HPC clusters using SLURM. It is split into two complementary job types that target different hardware. When you initialize an experiment, these scripts are copied from `Experiments/templates/jobs/` into your experiment directory — **you must customize them for your specific cluster before running experiments.**
 
 ### Forward Pipeline (GPU Cluster)
 
@@ -281,7 +319,7 @@ The backward pipeline runs **on heavy CPU clusters** and handles:
 - **CPU:** 32 tasks per node
 - **Nodes:** 10 (distributed computing)
 - **Memory:** 12000 MB per CPU
-- **Account:** `p_nanoparticle`
+- **Account:** (set your SLURM project account)
 - **Time:** 5 hours
 - **Module dependencies:** FHI-aims, Intel compiler, MPI
 
@@ -311,105 +349,7 @@ module load <release> <compiler> <mpi>
 module load <fhi-aims-module>
 ```
 
-### Setting Up Experiments with Cluster Information
-
-When initializing a new experiment, the job scripts are copied from `Experiments/templates/jobs/` to your experiment directory. **You must customize these scripts for your specific cluster before running experiments.**
-
-**Workflow:**
-
-1. **Initialize experiment:**
-
-```bash
-python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /path/to/dataset.hdf5
-```
-
-This creates:
-```
-Experiments/my_exp_0/
-├── configs/
-│   └── experiment_config.yaml
-├── jobs/
-│   ├── eqmgen_forward.sh      # ← CUSTOMIZE FOR YOUR GPU CLUSTER
-│   └── eqmgen_backward.sh     # ← CUSTOMIZE FOR YOUR CPU CLUSTER
-├── logs/
-└── results/
-```
-
-2. **Customize SLURM parameters in the generated job scripts** for your cluster:
-
-```bash
-cd Experiments/my_exp_0/jobs
-
-# Edit forward script:
-nano eqmgen_forward.sh
-# Update: partition, GPU count, CPU cores, memory, time, conda environment path
-
-# Edit backward script:
-nano eqmgen_backward.sh
-# Update: account, partition, node count, tasks per node, memory, time, module loads, conda environment path
-```
-
-3. **Verify the conda environment path:**
-
-Both scripts activate the same combined environment. Ensure the path matches your setup:
-
-```bash
-# In both eqmgen_forward.sh and eqmgen_backward.sh:
-conda activate $REPO_ROOT/conda_envs/env-activeloop
-```
-
-If you installed the environment under a different name or location, update these lines accordingly.
-
-4. **Test a job submission:**
-
-```bash
-cd Experiments/my_exp_0/jobs
-sbatch eqmgen_forward.sh    # Test forward job
-# or
-sbatch eqmgen_backward.sh   # Test backward job
-```
-
-5. **Monitor job status:**
-
-```bash
-squeue -u $USER
-squeue -j <job_id>          # Check specific job
-```
-
-## Quick Start
-
-1. **Initialize an experiment**
-
-```bash
-python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /path/to/base_dataset.hdf5
-```
-
-2. **Edit experiment config**
-
-Update the generated file:
-
-`Experiments/my_exp_0/configs/experiment_config.yaml`
-
-3. **Customize SLURM job scripts** (see "HPC Cluster Configuration" section above)
-
-4. **Copy Navigator trajectory CSV files**
-
-Copy Navigator trajectory CSV files into `Experiments/my_exp_0/configs/`
-
-5. **Submit forward/backward jobs**
-
-```bash
-cd Experiments/my_exp_0/jobs
-sbatch eqmgen_forward.sh
-sbatch eqmgen_backward.sh
-```
-
-6. **Analyze results**
-
-Generated iteration data and HDF5 outputs are written under:
-
-`Data/my_exp_0/`
-
+> **Tip:** Both scripts activate the same combined environment. If you installed it under a different name or location, update the `conda activate $REPO_ROOT/conda_envs/env-activeloop` line in each script accordingly.
 
 ## Project Structure
 
@@ -432,14 +372,33 @@ EQMgen/
 
 ## Requirements
 
-Core dependencies include:
-- PyTorch
-- NumPy
-- Pandas
-- RDKit
-- ASE (Atomic Simulation Environment)
-- Matplotlib/Seaborn (visualization)
-- Jupyter (analysis notebooks)
+All dependencies are installed via `environment-al.yml`. The core stack includes:
 
-See `environment-al.yml` for a complete list.
+**Deep learning / diffusion model**
+- Python 3.10
+- PyTorch 2.0.1
+- PyTorch Geometric 2.3.0 (with `pytorch-scatter`, `pytorch-sparse`, `pytorch-cluster`)
+- PyTorch Lightning 2.0.6
+- `torch_ema`, TensorBoard
+- MACE (machine-learning force field, from source)
+- JAX (CUDA 12)
+
+**Quantum chemistry / structure**
+- ASE (Atomic Simulation Environment)
+- FHI-aims (DFT, loaded as an HPC module — not via conda)
+- DFTB+ 24.1 (`dftbplus`, `dftbplus-tools`, `dftbplus-python`)
+- xTB (`xtb`, `xtb-python`)
+- RDKit 2023.03.2
+- Open Babel
+
+**Configuration / data handling**
+- Hydra / OmegaConf (experiment configuration)
+- NumPy (<2), Pandas, h5py, LMDB
+
+**Visualization / analysis**
+- Matplotlib, Seaborn
+- Jupyter / Notebook
+- py3Dmol, nglview, RMSD, Biopython
+
+See `environment-al.yml` for the complete, version-pinned list.
 
