@@ -233,9 +233,61 @@ If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before runnin
 
 > **Note:** `environment-al.yml` produces a single combined environment (`env-activeloop`) that contains both the GPU/diffusion stack (PyTorch, PyTorch Geometric, MACE) and the chemistry/DFT stack (ASE, RDKit, xTB, DFTB+). Both the forward and backward job scripts activate this same environment.
 
+## Quick Start
+
+1. **Initialize an experiment**
+
+```bash
+python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /path/to/base_dataset.hdf5
+```
+
+This creates the experiment directory with template job scripts:
+
+```
+Experiments/my_exp_0/
+├── configs/
+│   └── experiment_config.yaml
+├── jobs/
+│   ├── eqmgen_forward.sh      # runs on the GPU cluster
+│   └── eqmgen_backward.sh     # runs on the heavy CPU cluster
+├── logs/
+└── results/
+```
+
+2. **Edit the experiment config**
+
+Update `Experiments/my_exp_0/configs/experiment_config.yaml`.
+
+3. **Customize the SLURM job scripts for your cluster**
+
+The copied job scripts must be adapted to your cluster before submitting. See [HPC Cluster Configuration (SLURM)](#hpc-cluster-configuration-slurm) below.
+
+4. **Copy Navigator trajectory CSV files**
+
+Copy the trajectory CSV files into `Experiments/my_exp_0/configs/`.
+
+5. **Submit the jobs**
+
+```bash
+cd Experiments/my_exp_0/jobs
+sbatch eqmgen_forward.sh
+sbatch eqmgen_backward.sh
+```
+
+6. **Monitor job status**
+
+```bash
+squeue -u $USER
+squeue -j <job_id>          # check a specific job
+```
+
+7. **Analyze results**
+
+Generated iteration data and HDF5 outputs are written under `Data/my_exp_0/`.
+
 ## HPC Cluster Configuration (SLURM)
 
-The EQMgen workflow is designed to run on HPC clusters using SLURM. The workflow is split into two complementary job types:
+The EQMgen workflow is designed to run on HPC clusters using SLURM. It is split into two complementary job types that target different hardware. When you initialize an experiment, these scripts are copied from `Experiments/templates/jobs/` into your experiment directory — **you must customize them for your specific cluster before running experiments.**
 
 ### Forward Pipeline (GPU Cluster)
 
@@ -281,7 +333,7 @@ The backward pipeline runs **on heavy CPU clusters** and handles:
 - **CPU:** 32 tasks per node
 - **Nodes:** 10 (distributed computing)
 - **Memory:** 12000 MB per CPU
-- **Account:** `p_nanoparticle`
+- **Account:** (set your SLURM project account)
 - **Time:** 5 hours
 - **Module dependencies:** FHI-aims, Intel compiler, MPI
 
@@ -311,105 +363,7 @@ module load <release> <compiler> <mpi>
 module load <fhi-aims-module>
 ```
 
-### Setting Up Experiments with Cluster Information
-
-When initializing a new experiment, the job scripts are copied from `Experiments/templates/jobs/` to your experiment directory. **You must customize these scripts for your specific cluster before running experiments.**
-
-**Workflow:**
-
-1. **Initialize experiment:**
-
-```bash
-python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /path/to/dataset.hdf5
-```
-
-This creates:
-```
-Experiments/my_exp_0/
-├── configs/
-│   └── experiment_config.yaml
-├── jobs/
-│   ├── eqmgen_forward.sh      # ← CUSTOMIZE FOR YOUR GPU CLUSTER
-│   └── eqmgen_backward.sh     # ← CUSTOMIZE FOR YOUR CPU CLUSTER
-├── logs/
-└── results/
-```
-
-2. **Customize SLURM parameters in the generated job scripts** for your cluster:
-
-```bash
-cd Experiments/my_exp_0/jobs
-
-# Edit forward script:
-nano eqmgen_forward.sh
-# Update: partition, GPU count, CPU cores, memory, time, conda environment path
-
-# Edit backward script:
-nano eqmgen_backward.sh
-# Update: account, partition, node count, tasks per node, memory, time, module loads, conda environment path
-```
-
-3. **Verify the conda environment path:**
-
-Both scripts activate the same combined environment. Ensure the path matches your setup:
-
-```bash
-# In both eqmgen_forward.sh and eqmgen_backward.sh:
-conda activate $REPO_ROOT/conda_envs/env-activeloop
-```
-
-If you installed the environment under a different name or location, update these lines accordingly.
-
-4. **Test a job submission:**
-
-```bash
-cd Experiments/my_exp_0/jobs
-sbatch eqmgen_forward.sh    # Test forward job
-# or
-sbatch eqmgen_backward.sh   # Test backward job
-```
-
-5. **Monitor job status:**
-
-```bash
-squeue -u $USER
-squeue -j <job_id>          # Check specific job
-```
-
-## Quick Start
-
-1. **Initialize an experiment**
-
-```bash
-python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /path/to/base_dataset.hdf5
-```
-
-2. **Edit experiment config**
-
-Update the generated file:
-
-`Experiments/my_exp_0/configs/experiment_config.yaml`
-
-3. **Customize SLURM job scripts** (see "HPC Cluster Configuration" section above)
-
-4. **Copy Navigator trajectory CSV files**
-
-Copy Navigator trajectory CSV files into `Experiments/my_exp_0/configs/`
-
-5. **Submit forward/backward jobs**
-
-```bash
-cd Experiments/my_exp_0/jobs
-sbatch eqmgen_forward.sh
-sbatch eqmgen_backward.sh
-```
-
-6. **Analyze results**
-
-Generated iteration data and HDF5 outputs are written under:
-
-`Data/my_exp_0/`
-
+> **Tip:** Both scripts activate the same combined environment. If you installed it under a different name or location, update the `conda activate $REPO_ROOT/conda_envs/env-activeloop` line in each script accordingly.
 
 ## Project Structure
 
