@@ -217,7 +217,7 @@ If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before runnin
 
 > **Note:** `environment-al.yml` produces a single combined environment (`env-activeloop`) that contains both the GPU/diffusion stack (PyTorch, PyTorch Geometric, MACE) and the chemistry/DFT stack (ASE, RDKit, xTB, DFTB+). Both the forward and backward job scripts activate this same environment.
 
-> **Troubleshooting:** If you encounter `ModuleNotFoundError: No module named 'pkg_resources'` when running the forward pipeline, install `setuptools` into the environment: `conda activate ./conda_envs/env-activeloop/ && conda install setuptools`. This package is already included in `environment-al.yml` as of this version.
+> **Note on `pkg_resources`:** `setuptools>=70` removed `pkg_resources` as a top-level module, which breaks `pytorch-lightning` and several other dependencies. `environment-al.yml` pins `setuptools<70` to prevent this. If you built an environment without this pin and encounter `ModuleNotFoundError: No module named 'pkg_resources'`, fix it with: `<env_python> -m pip install "setuptools<70" --force-reinstall` (replace `<env_python>` with the full path to the environment's `python` binary, e.g. `conda_envs/env-activeloop/bin/python`).
 
 ## Quick Start
 
