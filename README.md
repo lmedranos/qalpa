@@ -1,4 +1,4 @@
-# EQMgen: QM Active Learning Diffusion for Molecular Design
+# EQMgen: Efficient Quantum-Mechanical AI model GENerator
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
