@@ -10,8 +10,8 @@ defaults:
   - /global_config
   
   # EQMgen-level defaults (framework-specific)
-  - /EQMgen/configs/eqmgen_paths
-  - /EQMgen/configs/eqdiff_model
+  - /EQMgen/configs/eqmgen_paths@_global_
+  - /EQMgen/configs/eqdiff_model@_global_
 
 # ============================================================================
 # HYDRA SEARCH PATH
@@ -84,7 +84,7 @@ geometry:
 # ============================================================================
 
 query:
-  trajectory_csv: ${paths.experiments}/${experiment_name}/configs/trajectory.csv
+  trajectory_csv: ${paths.experiments}/${experiment_name}/configs/trajectory_*.csv
   props: ${EQdiffParam.properties_list}              # Properties to track
   scores: ["SAScore"]                   # Scores to track
   filter_scheme: [score, accuracy]      # Filtering scheme to apply

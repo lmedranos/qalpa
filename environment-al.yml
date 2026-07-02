@@ -42,6 +42,7 @@ dependencies:
   - conda-forge::nglview
   - conda-forge::rmsd
   - conda-forge::biopython
+  - setuptools
 
   - pip:
       - torch_ema

@@ -11,7 +11,12 @@ class Trajectory:
         csv_path = Path(csv_path)
 
         if not csv_path.exists():
-            raise FileNotFoundError(f"No trajectory CSV file found at {csv_path}")
+            # try resolving a glob pattern (e.g. trajectory_*.csv)
+            parent = csv_path.parent
+            matches = sorted(parent.glob(csv_path.name))
+            if not matches:
+                raise FileNotFoundError(f"No trajectory CSV file found at {csv_path}")
+            csv_path = matches[0]
 
         # read only requested columns
         df = pd.read_csv(csv_path, usecols=self.names)

@@ -25,9 +25,6 @@ def main(cfg: DictConfig):
     Main function to run the workflow.
     It sets up the environment, runs pipeline units in a loop.
     '''
-    # Set environment variables from config (configs dir holds nctr1.in, SKfiles, models)
-    os.environ["CONFIG"] = str(cfg.code_paths.configs)
-
     # Create exterapolating trajectory for properties and scores (experiment_config.yaml -> query.*)
     my_trajectory = Trajectory(cfg.query.trajectory_csv, prop_names=list(cfg.query.props), score_names=list(cfg.query.scores))
     context_flag = my_trajectory.has_properties

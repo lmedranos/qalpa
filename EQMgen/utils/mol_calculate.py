@@ -11,15 +11,13 @@ import ase.calculators.mixing
 from ase.calculators.dftb import Dftb
 
 
-skfiles_path = Path(os.environ["CONFIG"]).parent / "SKfiles/3ob-3-1"  # Path to Slater-Koster files for DFTB+
-# skfiles_path = "/data/horse/ws/miha493e-research_project/activediffusion/configs/SKfiles/3ob-3-1/
+
+
 
 def get_calculator(calc_name, model_path, device, atoms):
     """Instantiate and return the appropriate calculator."""
-    if calc_name == 'SO3LR':
-        warnings.warn("SO3LR is not yet enabled, skipping.", UserWarning)
-        return None
-    elif calc_name == 'DFTB+':
+    skfiles_path = Path(os.environ["DFTB_PREFIX"])  # Path to Slater-Koster files for DFTB+
+    if calc_name == 'DFTB+':
         return Dftb(
             label='current_dftb',
             atoms=atoms,

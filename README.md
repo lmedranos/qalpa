@@ -201,11 +201,10 @@ cp EQMgen/dftb.py "$ASE_DFTB"
 
 > **Note:** Run this from the directory where you cloned the repo (the parent of `EQMgen/`). The original ASE file is backed up as `dftb.py.bak` in the same location.
 
-5. **Configure the code config path and SKfiles location:**
+5. **Export the SKfiles path:**
 
 ```bash
-export CONFIG="$PWD/EQMgen/configs"
-export DFTB_PREFIX="$CONFIG/SKfiles/3ob-3-1/"
+export DFTB_PREFIX="$PWD/EQMgen/configs/SKfiles/3ob-3-1/"
 ```
 
 6. **Ensure SKfiles are available under the code config directory:**
@@ -217,6 +216,8 @@ test -d "$CONFIG/SKfiles/3ob-3-1" && echo "SKfiles found under $CONFIG"
 If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before running forward/backward jobs.
 
 > **Note:** `environment-al.yml` produces a single combined environment (`env-activeloop`) that contains both the GPU/diffusion stack (PyTorch, PyTorch Geometric, MACE) and the chemistry/DFT stack (ASE, RDKit, xTB, DFTB+). Both the forward and backward job scripts activate this same environment.
+
+> **Troubleshooting:** If you encounter `ModuleNotFoundError: No module named 'pkg_resources'` when running the forward pipeline, install `setuptools` into the environment: `conda activate ./conda_envs/env-activeloop/ && conda install setuptools`. This package is already included in `environment-al.yml` as of this version.
 
 ## Quick Start
 

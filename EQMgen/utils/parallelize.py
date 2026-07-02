@@ -63,7 +63,7 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=None, n
         "srun", "--nodes=1", f"--ntasks={ntasks}", f"--cpus-per-task={cpus_per_task}",
         "--exclusive", "--exact", "--distribution=block:block",
         "--mpi=pmi2",  # Intel MPI compatibility
-        f"--export=ALL,CONFIG={os.environ['CONFIG']}",
+        f"--export=ALL,DFTB_PREFIX={os.environ['DFTB_PREFIX']}",
     ]
 
     paths = [f for f in input_path.iterdir()]    
@@ -192,7 +192,7 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
         "srun", "--nodes=1", f"--ntasks={nranks}", f"--cpus-per-task={cpus_per_task}",
         "--exclusive", "--exact", "--distribution=block:block",
         "--mpi=pmi2",  # Intel MPI compatibility
-        f"--export=ALL,CONFIG={os.environ['CONFIG']}",
+        f"--export=ALL,DFTB_PREFIX={os.environ['DFTB_PREFIX']}",
     ]
 
     paths = [f for f in input_path.iterdir()]
@@ -305,7 +305,7 @@ def node_rank_parallelize(script_path, input_path, output_path, max_parallel_tas
         "srun", "--nodes=1", f"--ntasks-per-node={nranks}", f"--cpus-per-task={cpus_per_task}",
         "--exclusive", "--exact", "--distribution=block:block",
         "--mpi=pmi2",  # Intel MPI compatibility
-        f"--export=ALL,CONFIG={os.environ['CONFIG']}",
+        f"--export=ALL,DFTB_PREFIX={os.environ['DFTB_PREFIX']}",
     ]
 
     paths = [f for f in input_path.iterdir()]
