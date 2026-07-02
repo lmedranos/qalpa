@@ -1,8 +1,9 @@
 # global_config.yaml - Global configuration settings
 # location: EQMgen/global_config.yaml
 
-# The code root directory (1 levels up from configs)
-root: .
+# The code root directory — resolved to an absolute path via the repo_root resolver
+# so that all derived paths are CWD-independent.
+root: ${repo_root:}
 
 # Main directory paths
 Data_path: ${root}/Data

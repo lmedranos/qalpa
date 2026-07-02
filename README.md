@@ -217,8 +217,6 @@ If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before runnin
 
 > **Note:** `environment-al.yml` produces a single combined environment (`env-activeloop`) that contains both the GPU/diffusion stack (PyTorch, PyTorch Geometric, MACE) and the chemistry/DFT stack (ASE, RDKit, xTB, DFTB+). Both the forward and backward job scripts activate this same environment.
 
-> **Note on `pkg_resources`:** `setuptools>=70` removed `pkg_resources` as a top-level module, which breaks `pytorch-lightning` and several other dependencies. `environment-al.yml` pins `setuptools<70` to prevent this. If you built an environment without this pin and encounter `ModuleNotFoundError: No module named 'pkg_resources'`, fix it with: `<env_python> -m pip install "setuptools<70" --force-reinstall` (replace `<env_python>` with the full path to the environment's `python` binary, e.g. `conda_envs/env-activeloop/bin/python`).
-
 ## Quick Start
 
 1. **Initialize an experiment**
@@ -401,4 +399,24 @@ All dependencies are installed via `environment-al.yml`. The core stack includes
 - py3Dmol, nglview, RMSD, Biopython
 
 See `environment-al.yml` for the complete, version-pinned list.
+
+## Troubleshooting
+
+### `ModuleNotFoundError: Neither tensorboard nor tensorboardX is available`
+
+`tensorboard` is declared in `environment-al.yml` (`conda-forge::tensorboard`), but may be missing if the environment was created from an older version of the file. Fix it with:
+
+```bash
+conda_envs/env-activeloop/bin/pip3 install tensorboard
+```
+
+Then re-submit the job.
+
+### `ModuleNotFoundError: No module named 'pkg_resources'`
+
+`setuptools>=70` removed `pkg_resources` as a top-level module, which breaks `pytorch-lightning` and several other packages. `environment-al.yml` pins `setuptools<70` to prevent this. If your environment was created without this pin, fix it with:
+
+```bash
+conda_envs/env-activeloop/bin/python -m pip install "setuptools<70" --force-reinstall
+```
 
