@@ -64,7 +64,6 @@ def main(cfg: DictConfig):
             "python", str(Path(cfg.EQdiff.split)),
             "--file-path", str(hdf5_file_path),
             "--out-path", str(cfg.EQdiffParam.dataset_root),
-            "--batch-size", str(cfg.EQdiffParam.batch_size),
             ]
         subprocess.run(cmd, check=True)
 
