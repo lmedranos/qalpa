@@ -1,7 +1,7 @@
 # EQMgen: QM Active Learning Diffusion for Molecular Design
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
 This model uses the Diffusion model and Density Functional Theory (DFT) through active learning to navigate chemical space and improve our generative model for molecular design.
 
@@ -68,7 +68,7 @@ This phase provides an interactive environment for defining molecular trajectori
 
 <img width="400" height="400" alt="trajectory_planer" src="Navigator/example_trajectory.png" />
 
-**Tools:** Interactive trajectory planner in the `trajectory/` directory
+**Tools:** Interactive trajectory planner in `Navigator/design_trajectory.ipynb`
 
 ### Phase II – Active Diffusion Execution
 
@@ -77,7 +77,7 @@ This represents the core operational layer of the system, responsible for orches
 
 ### Phase III – Output Analysis
 
-The final phase focuses on analyzing and visualizing the output. Jupyter notebooks (`accuracy_analysis.ipynb`, `iteration_analysis.ipynb`, `hdf5_analysis.ipynb`) allow users to inspect the active diffusion results, model performance, and generated molecular properties.
+The final phase focuses on analyzing and visualizing the output. Jupyter notebooks in the `Navigator/` directory allow users to inspect the active diffusion results, model performance, and generated molecular properties (HDF5 outputs).
 
 
 ## Active Diffusion Architecture
@@ -99,9 +99,9 @@ graph TB
     subgraph orchestration["🔷 Orchestration Layer"]
         hpc["HPC Resource Allocator"]
         config["Configuration"]
-        orc["Orchestra"]
+        orc["Orchestrator"]
         Expsc["Experimentation Scripts"]
-        initsc["intiatation"]
+        initsc["Initiation"]
         forsc["Forward"]
         bacsc["Backward"]
         Evalsc["Benchmarking Scripts"]
@@ -156,20 +156,42 @@ graph TB
 
 ### Prerequisites
 
-- Python 3.8 or higher
-- CUDA-capable GPU (recommended for training)
-- HPC environment 
+- Python 3.10 or higher
+- Mamba or Conda package manager
+- Access to HPC cluster with SLURM
+- CUDA-capable GPU (for forward pipeline)
+- Multi-core CPU system (for backward pipeline)
 
-### Environment Setup
+### Installation Steps
 
-1. Create and activate the conda environment:
+1. **Clone the repository:**
 
 ```bash
-conda env create -f environment.yml
-conda activate env-activeloop
+git clone <repository-url>
+cd EQMgen
 ```
 
-2. Replace the installed ASE DFTB calculator file with the repository patch (`dftb.py`):
+2. **Create the conda environment:**
+
+```bash
+mamba env create -f environment-al.yml -p conda_envs/env-activeloop/
+```
+
+Alternatively, if you prefer to manage the environment separately:
+
+```bash
+mamba env create -f environment-al.yml -n env-activeloop
+```
+
+3. **Activate the environment:**
+
+```bash
+conda activate ./conda_envs/env-activeloop/
+# or if using named environment:
+# conda activate env-activeloop
+```
+
+4. **Replace the installed ASE DFTB calculator file with the repository patch:**
 
 ```bash
 python - <<'PY'
@@ -194,14 +216,14 @@ print(f"Backup created at: {backup}")
 PY
 ```
 
-3. Configure the code config path and SKfiles location:
+5. **Configure the code config path and SKfiles location:**
 
 ```bash
 export CONFIG="$PWD/EQMgen/configs"
 export DFTB_PREFIX="$CONFIG/SKfiles/3ob-3-1/"
 ```
 
-4. Ensure SKfiles are available under the code config directory used by the workflow:
+6. **Ensure SKfiles are available under the code config directory:**
 
 ```bash
 test -d "$CONFIG/SKfiles/3ob-3-1" && echo "SKfiles found under $CONFIG"
@@ -209,6 +231,150 @@ test -d "$CONFIG/SKfiles/3ob-3-1" && echo "SKfiles found under $CONFIG"
 
 If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before running forward/backward jobs.
 
+> **Note:** `environment-al.yml` produces a single combined environment (`env-activeloop`) that contains both the GPU/diffusion stack (PyTorch, PyTorch Geometric, MACE) and the chemistry/DFT stack (ASE, RDKit, xTB, DFTB+). Both the forward and backward job scripts activate this same environment.
+
+## HPC Cluster Configuration (SLURM)
+
+The EQMgen workflow is designed to run on HPC clusters using SLURM. The workflow is split into two complementary job types:
+
+### Forward Pipeline (GPU Cluster)
+
+**Script:** `Experiments/templates/jobs/eqmgen_forward.sh`
+
+The forward pipeline runs **on GPU clusters** and handles:
+- Diffusion model training
+- Molecular generation
+- Model inference
+
+**Default SLURM Configuration:**
+- **Partition:** `capella` (GPU partition)
+- **GPU:** 1 GPU per job
+- **CPU:** 6 cores per task
+- **Memory:** 8000 MB per CPU
+- **Nodes:** 1
+- **Time:** 20 hours
+
+**Update cluster parameters before running:**
+
+Edit `Experiments/templates/jobs/eqmgen_forward.sh` to match your GPU cluster specifications:
+
+```bash
+#SBATCH --partition=your_gpu_partition    # Change to your GPU partition name
+#SBATCH --gres=gpu:X                       # Adjust number of GPUs (1, 2, 4, etc.)
+#SBATCH --cpus-per-task=6                  # Adjust CPU cores
+#SBATCH --mem-per-cpu=8000                 # Adjust memory per CPU
+#SBATCH --time=HH:MM:SS                    # Adjust time limit
+```
+
+### Backward Pipeline (Heavy CPU Cluster)
+
+**Script:** `Experiments/templates/jobs/eqmgen_backward.sh`
+
+The backward pipeline runs **on heavy CPU clusters** and handles:
+- DFT calculations (FHI-aims)
+- Geometry optimization
+- Property evaluation
+- DFTB+ calculations
+
+**Default SLURM Configuration:**
+- **Partition:** `barnard` (CPU partition)
+- **CPU:** 32 tasks per node
+- **Nodes:** 10 (distributed computing)
+- **Memory:** 12000 MB per CPU
+- **Account:** `p_nanoparticle`
+- **Time:** 5 hours
+- **Module dependencies:** FHI-aims, Intel compiler, MPI
+
+**Update cluster parameters before running:**
+
+Edit `Experiments/templates/jobs/eqmgen_backward.sh` to match your CPU cluster specifications:
+
+```bash
+#SBATCH -A your_account              # Change to your SLURM account
+#SBATCH --partition=your_cpu_partition
+#SBATCH --cpus-per-task=X            # Adjust CPUs per task
+#SBATCH --mem-per-cpu=XXXX           # Adjust memory per CPU
+#SBATCH --nodes=X                    # Adjust number of nodes
+#SBATCH --ntasks-per-node=X          # Adjust tasks per node
+#SBATCH --time=HH:MM:SS              # Adjust time limit
+```
+
+Additionally, update the module load commands if your cluster has different module names:
+
+```bash
+# Original (example):
+module load release/24.04 intel-compilers/2023.2.1 impi/2021.10.0
+module load FHI-aims/240507
+
+# Update to your cluster's available modules:
+module load <release> <compiler> <mpi>
+module load <fhi-aims-module>
+```
+
+### Setting Up Experiments with Cluster Information
+
+When initializing a new experiment, the job scripts are copied from `Experiments/templates/jobs/` to your experiment directory. **You must customize these scripts for your specific cluster before running experiments.**
+
+**Workflow:**
+
+1. **Initialize experiment:**
+
+```bash
+python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /path/to/dataset.hdf5
+```
+
+This creates:
+```
+Experiments/my_exp_0/
+├── configs/
+│   └── experiment_config.yaml
+├── jobs/
+│   ├── eqmgen_forward.sh      # ← CUSTOMIZE FOR YOUR GPU CLUSTER
+│   └── eqmgen_backward.sh     # ← CUSTOMIZE FOR YOUR CPU CLUSTER
+├── logs/
+└── results/
+```
+
+2. **Customize SLURM parameters in the generated job scripts** for your cluster:
+
+```bash
+cd Experiments/my_exp_0/jobs
+
+# Edit forward script:
+nano eqmgen_forward.sh
+# Update: partition, GPU count, CPU cores, memory, time, conda environment path
+
+# Edit backward script:
+nano eqmgen_backward.sh
+# Update: account, partition, node count, tasks per node, memory, time, module loads, conda environment path
+```
+
+3. **Verify the conda environment path:**
+
+Both scripts activate the same combined environment. Ensure the path matches your setup:
+
+```bash
+# In both eqmgen_forward.sh and eqmgen_backward.sh:
+conda activate $REPO_ROOT/conda_envs/env-activeloop
+```
+
+If you installed the environment under a different name or location, update these lines accordingly.
+
+4. **Test a job submission:**
+
+```bash
+cd Experiments/my_exp_0/jobs
+sbatch eqmgen_forward.sh    # Test forward job
+# or
+sbatch eqmgen_backward.sh   # Test backward job
+```
+
+5. **Monitor job status:**
+
+```bash
+squeue -u $USER
+squeue -j <job_id>          # Check specific job
+```
 
 ## Quick Start
 
@@ -224,11 +390,13 @@ Update the generated file:
 
 `Experiments/my_exp_0/configs/experiment_config.yaml`
 
-3. **Copy Navigator trajectory CSV files**
+3. **Customize SLURM job scripts** (see "HPC Cluster Configuration" section above)
 
-Copy Navigator trajectory CSV files into `Experiments/my_exp_0/configs/'
+4. **Copy Navigator trajectory CSV files**
 
-4. **Submit forward/backward jobs**
+Copy Navigator trajectory CSV files into `Experiments/my_exp_0/configs/`
+
+5. **Submit forward/backward jobs**
 
 ```bash
 cd Experiments/my_exp_0/jobs
@@ -236,7 +404,7 @@ sbatch eqmgen_forward.sh
 sbatch eqmgen_backward.sh
 ```
 
-5. **Analyze results**
+6. **Analyze results**
 
 Generated iteration data and HDF5 outputs are written under:
 
@@ -252,10 +420,12 @@ EQMgen/
 │   ├── configs/                     # Framework configs (eqdiff_model.yaml, eqmgen_paths.yaml, SKfiles)
 │   ├── eqdiff/                      # Diffusion model code
 │   ├── pipeline_blocks/             # Geometry/props/filter/hdf5 blocks
-│   ├── scripts/                     # init_experiment.py, forward_p.py, backward_p.py
+│   ├── scripts/                     # init_experiment.py, forward.py, backward.py
 │   └── utils/                       # Data manager, trajectory, parallelization helpers
 ├── Experiments/
 │   └── templates/                   # Template config and job scripts for initialization
+├── Navigator/                       # Interactive trajectory planner (design_trajectory.ipynb)
+├── environment-al.yml               # Combined conda environment specification
 ├── global_config.yaml               # Root/shared config imported by experiments
 └── README.md
 ```
@@ -271,5 +441,5 @@ Core dependencies include:
 - Matplotlib/Seaborn (visualization)
 - Jupyter (analysis notebooks)
 
-See `scripts/environment.yml` for a complete list.
+See `environment-al.yml` for a complete list.
 

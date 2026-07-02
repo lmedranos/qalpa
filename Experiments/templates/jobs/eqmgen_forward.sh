@@ -30,7 +30,7 @@ export PYTHONPATH="$REPO_ROOT:$PYTHONPATH"
 
 # Load Anaconda environment and activate the conda environment
 source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
-conda activate $REPO_ROOT/conda_envs/env-activeloop-forward
+conda activate $REPO_ROOT/conda_envs/env-activeloop
 
 
 # Run the forward pipeline. 

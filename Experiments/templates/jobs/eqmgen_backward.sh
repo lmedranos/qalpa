@@ -35,7 +35,7 @@ module load FHI-aims/240507
 
 # Load Anaconda environment and activate the conda environment
 source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
-conda activate $REPO_ROOT/conda_envs/env-activeloop-backward
+conda activate $REPO_ROOT/conda_envs/env-activeloop
 
 export DFTB_PREFIX="$config/SKfiles/3ob-3-1/" # Set DFTB+ prefix to the location of Slater-Koster files
 

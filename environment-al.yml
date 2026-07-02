@@ -1,0 +1,49 @@
+name: env-activeloop
+channels:
+  - anaconda
+  - conda-forge
+  - defaults
+  - pytorch
+  - pyg
+  - nvidia
+dependencies:
+  - python=3.10
+  - pip
+  - hydra-core
+  - omegaconf
+  - numpy<2
+  - conda-forge::jupyter
+  - notebook
+  - matplotlib
+  - pandas
+  - h5py
+  - seaborn
+  - pytorch::pytorch=2.0.1
+  - pyg::pyg=2.3.0
+  - pyg::pytorch-scatter
+  - pyg::pytorch-sparse
+  - pyg::pytorch-cluster
+  - conda-forge::pytorch-lightning=2.0.6
+  - conda-forge::tensorboard
+  - conda-forge::lmdb
+
+  # chemistry / structure stack — conda-forge for compiled binaries
+  - conda-forge::ase
+  - conda-forge::rdkit=2023.03.2
+  - conda-forge::openbabel
+  - conda-forge::xtb
+  - conda-forge::xtb-python
+  - conda-forge::dftbplus=24.1=nompi*
+  - conda-forge::dftbplus-tools
+  - conda-forge::dftbplus-python
+
+  # visualization / misc — conda-forge for jupyter-integration consistency
+  - conda-forge::py3dmol
+  - conda-forge::nglview
+  - conda-forge::rmsd
+  - conda-forge::biopython
+
+  - pip:
+      - torch_ema
+      - "jax[cuda12]==0.5.3"
+      - "git+https://github.com/ACEsuit/mace.git"
