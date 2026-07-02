@@ -7,6 +7,6 @@ __pycache__/
 *.out
 *.err
 *.code-workspace
-
+conda_envs/
 EQMgen/eqdiff/e3mol_aqm
 EQMgen/configs/SKfiles/3ob-3-1
