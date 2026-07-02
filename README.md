@@ -194,27 +194,12 @@ conda activate ./conda_envs/env-activeloop/
 4. **Replace the installed ASE DFTB calculator file with the repository patch:**
 
 ```bash
-python - <<'PY'
-from pathlib import Path
-import shutil
-import ase.calculators.dftb as ase_dftb
-
-repo_root = Path.cwd()
-src = repo_root / "dftb.py"
-dst = Path(ase_dftb.__file__)
-
-if not src.exists():
-    raise FileNotFoundError(f"Missing source patch file: {src}")
-
-backup = dst.with_suffix(dst.suffix + ".bak")
-if not backup.exists():
-    shutil.copy2(dst, backup)
-
-shutil.copy2(src, dst)
-print(f"Patched ASE DFTB calculator: {dst}")
-print(f"Backup created at: {backup}")
-PY
+ASE_DFTB="EQMgen/conda_envs/env-activeloop/lib/python3.10/site-packages/ase/calculators/dftb.py"
+cp "$ASE_DFTB" "${ASE_DFTB}.bak"
+cp EQMgen/dftb.py "$ASE_DFTB"
 ```
+
+> **Note:** Run this from the directory where you cloned the repo (the parent of `EQMgen/`). The original ASE file is backed up as `dftb.py.bak` in the same location.
 
 5. **Configure the code config path and SKfiles location:**
 
