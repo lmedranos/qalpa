@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+from unittest import result
 from hydra import main as hydra_main
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
@@ -11,6 +12,14 @@ from EQMgen.utils.trajectory import Trajectory
 
 # Allow experiment_config.yaml to derive values such as num_context_features from list lengths
 OmegaConf.register_new_resolver("len", len, replace=True)
+
+# Resolve the repository root based on this file's location so that paths in
+# global_config.yaml work regardless of the current working directory.
+_REPO_ROOT = str(Path(__file__).resolve().parents[2])
+OmegaConf.register_new_resolver("repo_root", lambda: _REPO_ROOT, replace=True)
+
+# Capture the original working directory before Hydra changes it
+_ORIGINAL_CWD = os.getcwd()
 
 
 @hydra_main(version_base=None, config_path="../../configs", config_name="experiment_config")
@@ -64,10 +73,10 @@ def main(cfg: DictConfig):
             "python", str(Path(cfg.EQdiff.split)),
             "--file-path", str(hdf5_file_path),
             "--out-path", str(cfg.EQdiffParam.dataset_root),
-            "--batch-size", str(cfg.EQdiffParam.batch_size),
             ]
-        subprocess.run(cmd, check=True)
-
+        result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
+        print(result.stdout)
+        print(result.stderr)
     # step 2: Diffusion model training
     itr_model_path = Path(cfg.EQdiffParam.dataset_root) / f"model_iter_{n}"
     itr_model_path.mkdir(parents=True, exist_ok=True)
@@ -87,7 +96,7 @@ def main(cfg: DictConfig):
             "python", str(cfg.EQdiff.train),
             "--conf", str(Path(cfg.code_paths.configs) / "eqdiff_model.yaml"),
             "--save-dir", str(itr_model_path),
-            "--dataset", str(cfg.experiment.name),
+            "--dataset", str(cfg.EQdiffParam.dataset),
             "--dataset-root", str(Path(cfg.EQdiffParam.dataset_root)),
             "--gpus", str(gpus_per_task),
             "--batch-size", str(cfg.EQdiffParam.batch_size),
@@ -95,7 +104,9 @@ def main(cfg: DictConfig):
             ]
         if load_ckpt is not None:
             cmd += ["--load-ckpt-from-pretrained", str(load_ckpt)]
-        subprocess.run(cmd, check=True, env=os.environ.copy())
+        result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
+        print(result.stdout)
+        print(result.stderr)
         if not save_ckpt.exists():
             raise FileNotFoundError(f"Expected model checkpoint not found at {save_ckpt}. Check training logs for errors.")
             
@@ -125,7 +136,9 @@ def main(cfg: DictConfig):
                 "--generate-ngraphs-valid",
                 *target,
                 ]
-        subprocess.run(cmd, check=True, env=os.environ.copy())
+        result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
+        print(result.stdout)
+        print(result.stderr)
         # clean temp .ckpt files
         dm.clean_dir(itr_model_path / "run0", ".ckpt")
         dm.clean_dir(dm.diffusion_data_dir / 'raw')

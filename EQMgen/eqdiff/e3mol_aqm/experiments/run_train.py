@@ -7,7 +7,9 @@ import sys
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.append(parent_dir)
 print(parent_dir)
-sys.path.remove('/home/leme420g/.local/lib/python3.10/site-packages')
+_path_to_remove = '/home/leme420g/.local/lib/python3.10/site-packages'
+if _path_to_remove in sys.path:
+    sys.path.remove(_path_to_remove)
 print(sys.path)
 import numpy as np
 import pytorch_lightning as pl

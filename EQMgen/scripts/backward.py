@@ -19,6 +19,11 @@ from EQMgen.pipeline_blocks.to_hdf5 import run_to_hdf5
 # Allow experiment_config.yaml to derive values such as num_context_features from list lengths
 OmegaConf.register_new_resolver("len", len, replace=True)
 
+# Resolve the repository root based on this file's location so that paths in
+# global_config.yaml work regardless of the current working directory.
+_REPO_ROOT = str(Path(__file__).resolve().parents[2])
+OmegaConf.register_new_resolver("repo_root", lambda: _REPO_ROOT, replace=True)
+
 @hydra_main(version_base=None, config_path="../../configs", config_name="experiment_config")
 def main(cfg: DictConfig):
     '''

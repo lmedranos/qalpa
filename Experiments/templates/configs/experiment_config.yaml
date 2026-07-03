@@ -68,6 +68,8 @@ EQdiffParam:
   test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test/
   load_ckpt_from_pretrained: None
   save_dir: ${paths.experiments}/${experiment_name}/logs/ 
+  dataset: aqm            # (choose from 'qm9', 'drugs', 'aqm', 'aqm_qm7x', 'pcqm4mv2', 'pepconf', 'crossdocked')
+
 
 
 # ============================================================================

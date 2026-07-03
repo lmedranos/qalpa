@@ -42,9 +42,13 @@ dependencies:
   - conda-forge::nglview
   - conda-forge::rmsd
   - conda-forge::biopython
-  - setuptools
+  - setuptools<70  # >=70 drops pkg_resources top-level module
 
   - pip:
+      # Repeat the numpy<2 bound here so pip's resolver honors it too.
+      # conda's pin is invisible to pip, which would otherwise pull numpy>=2
+      # to satisfy unbounded 'numpy' requirements from jax/mace.
+      - "numpy<2"
       - torch_ema
       - "jax[cuda12]==0.5.3"
       - "git+https://github.com/ACEsuit/mace.git"

@@ -207,7 +207,7 @@ class AQMDataset(InMemoryDataset):
         np.save(self.processed_paths[10], statistics.is_in_ring)
         np.save(self.processed_paths[11], statistics.hybridization)
         save_pickle(set(all_smiles), self.processed_paths[12])
-        np.save(self.processed_paths[13], statistics.force_norms)
+        # np.save(self.processed_paths[13], statistics.force_norms)
 
 
 class AQMDataModule(AbstractDataModule):
