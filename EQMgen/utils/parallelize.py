@@ -44,7 +44,7 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=None, n
     """ 
     n_nodes = int(os.environ.get("SLURM_NNODES", "1"))
     max_parallel_tasks = max_parallel_tasks if max_parallel_tasks else n_nodes   
-    tasks_per_node = int(os.environ.get("SLURM_TASKS_PER_NODE", 1).split('(')[0])
+    tasks_per_node = int(os.environ.get("SLURM_TASKS_PER_NODE", "1").split('(')[0])
     ntasks = ntasks if ntasks and (ntasks <= tasks_per_node) else tasks_per_node
     cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) 
     print(f"Parallelizing with {ntasks} tasks and {cpus_per_task} cpus per task (max {max_parallel_tasks} parallel tasks)")
@@ -172,7 +172,7 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
     # Get SLURM parameters
     n_nodes = int(os.environ.get("SLURM_NNODES", "1"))
     max_parallel_tasks = max_parallel_tasks if max_parallel_tasks else n_nodes   
-    tasks_per_node = int(os.environ.get("SLURM_TASKS_PER_NODE", 1).split('(')[0])
+    tasks_per_node = int(os.environ.get("SLURM_TASKS_PER_NODE", "1").split('(')[0])
     nranks = nranks if nranks and (nranks <= tasks_per_node) else tasks_per_node
     cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) 
 
@@ -265,7 +265,7 @@ def node_rank_parallelize(script_path, input_path, output_path, max_parallel_tas
     # Get SLURM parameters
     n_nodes = int(os.environ.get("SLURM_NNODES", "1"))
     max_parallel_tasks = max_parallel_tasks if max_parallel_tasks else n_nodes   
-    tasks_per_node = int(os.environ.get("SLURM_TASKS_PER_NODE", 1).split('(')[0])
+    tasks_per_node = int(os.environ.get("SLURM_TASKS_PER_NODE", "1").split('(')[0])
     nranks = nranks if nranks and (nranks <= tasks_per_node) else tasks_per_node
     cpus_per_task = int(os.environ.get("SLURM_CPUS_PER_TASK", 1)) 
 
