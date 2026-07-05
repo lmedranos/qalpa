@@ -222,7 +222,10 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
             # else:
             aux_arg_cmd = ["--aux_arg"] + [str(a) for a in aux_arg] if aux_arg else []
             cmd = base_cmd + ["python3", str(script_path), "--input", str(fpath), "--output", str(output_path)] + aux_arg_cmd
-
+            # Recommended uptate to check
+        #     py_base_cmd = ["--ntasks=1" if c.startswith("--ntasks") else c for c in base_cmd]
+        #     cmd = py_base_cmd + ["python3", str(script_path), "--input", str(fpath), "--output", str(output_path)] + aux_arg_cmd
+        # p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if fpath.is_dir() else None, preexec_fn= os.setsid)
         p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if fpath.is_dir() else None, preexec_fn= os.setsid if shell_flag else None)
         processes.append(p)
         start_times[p.pid] = time.time()
