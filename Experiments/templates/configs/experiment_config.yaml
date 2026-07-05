@@ -66,7 +66,7 @@ EQdiffParam:
   num_context_features: ${len:${EQdiffParam.properties_list}}
   dataset_root: ${paths.data}/${experiment_name}/diffusion_wdir/data/
   test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test/
-  load_ckpt_from_pretrained: None
+  load_ckpt_from_pretrained: null
   save_dir: ${paths.experiments}/${experiment_name}/logs/ 
   dataset: aqm            # (choose from 'qm9', 'drugs', 'aqm', 'aqm_qm7x', 'pcqm4mv2', 'pepconf', 'crossdocked')
 
@@ -79,7 +79,7 @@ EQdiffParam:
 geometry:
   optimizer: DFTB+                      # Options: FHI-aims, DFTB+, EquiDTB
   calculate_forces: True
-  model: None                           # Model to use for geometry optimization (if applicable)
+  model: null                           # Model to use for geometry optimization (if applicable)
 
 # ============================================================================
 # QUERY CONFIGURATION (EXPERIMENT-SPECIFIC)
@@ -99,7 +99,7 @@ query:
 properties:
   calculator: DFTB+                     # Options: FHI-aims, EquiDTB, DFTB+
   filteration_threshold: 0.1
-  model: None
+  model: null
 
 # ============================================================================
 # HDF5 CONFIGURATION

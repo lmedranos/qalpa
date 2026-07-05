@@ -119,8 +119,13 @@ class MolecularFilter:
                 data = json.load(json_file)
             mol_name = jf.stem
             keys = prop_dict[prop]
-            value = float(get_value(data, keys))
-            if value is not None and lower_bound <= value <= upper_bound:
+            raw_value = get_value(data, keys)
+            if raw_value is None:
+                print(f"Warning: Property {prop} not found for molecule {mol_name}. Skipping.")
+                continue
+            value = float(raw_value) 
+
+            if lower_bound <= value <= upper_bound:
                 # copy this molecule to the output path
                 src_file = ipath / f"{mol_name}.xyz"
                 dst_file = opath / f"{mol_name}.xyz"

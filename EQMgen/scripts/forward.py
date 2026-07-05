@@ -2,7 +2,6 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
-from unittest import result
 from hydra import main as hydra_main
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
