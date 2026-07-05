@@ -135,18 +135,21 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
                         # print(f"Written {key} for {mol_name} in {name}")
                         
   
-                
+ 
+def _str2bool(value):
+    return str(value).strip().lower() in ("yes", "true", "t", "y", "1")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Convert filtered molecules to HDF5 format.")
     parser.add_argument("--input_xyz", type=str, required=True, help="Path to the directory containing xyz files.")
     parser.add_argument("--input_prop", type=str, required=True, help="Path to the directory containing JSON files.")
-    parser.add_argument("--appending_flag", type=bool, required=True, help="Flag to indicate if the HDF5 file should be appended to (True) or overwritten (False).")
+    parser.add_argument("--appending_flag", type=_str2bool, required=True, help="Flag to indicate if the HDF5 file should be appended to (True) or overwritten (False).")
     parser.add_argument("--h5file_output", type=str, required=True, help="Path to the output HDF5 file for the full dataset.")
-    parser.add_argument("--context", default=True ,type=bool, help="Flag to indicate if context properties should be added.")
+    parser.add_argument("--context", default=True ,type=_str2bool, help="Flag to indicate if context properties should be added.")
     parser.add_argument("--output_extra_prop", type=str, help="Path to the output HDF5 file for extra properties.")
     parser.add_argument("--h5file_itr", type=str, help="Path to the output HDF5 file for the current iteration.")
     parser.add_argument("--itr_extra_prop", type=str, help="Path to the output HDF5 file for extra properties in iteration files.")
     parser.add_argument("--itr", type=int, required=True, help="Current iteration number.")
     args = parser.parse_args()  
     
-    run_to_hdf5(args.input, args.appending_flag, args.h5file_output, args.context, args.output_extra_prop, args.h5file_itr, args.itr_extra_prop, args.itr)
+    run_to_hdf5(Path(args.input_xyz), Path(args.input_prop), args.appending_flag, args.h5file_output, args.context, args.output_extra_prop, args.h5file_itr, args.itr_extra_prop, args.itr)

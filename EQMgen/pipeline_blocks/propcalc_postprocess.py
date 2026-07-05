@@ -57,7 +57,7 @@ def postprocess_equidtb(input, ofolder):
 def prop_postprocess(input, ofolder, prop_calc):
     if prop_calc == "FHI-aims":
         postprocess_fhi(input, ofolder)
-    elif prop_calc == "EquiDTB":
+    elif prop_calc in ("EquiDTB", "DFTB+"):
         postprocess_equidtb(input, ofolder)
     else:
         print(f"Unsupported property calculator for postprocessing: {prop_calc}. Skipping postprocessing.")

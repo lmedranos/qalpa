@@ -43,10 +43,14 @@ class Trajectory:
         raise KeyError(f"No axis named {name}")
 
     def __getattr__(self, name):
-        if name in self._props:
-            return self._props[name]
-        if name in self._scores:
-            return self._scores[name]
+        if name.startswith("_"):
+            raise AttributeError(f"'Trajectory' object has no attribute '{name}'")
+        props = self.__dict__.get("_props", {})
+        scores = self.__dict__.get("_scores", {})
+        if name in props:
+            return props[name]
+        if name in scores:
+            return scores[name]
         raise AttributeError(f"'Trajectory' object has no attribute '{name}'")
 
     def __len__(self):
