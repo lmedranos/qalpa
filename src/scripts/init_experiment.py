@@ -122,7 +122,7 @@ def init_experiment(exp_name: str, dataset_path: str , base_path: str = None, ve
         job_content = job_script.read_text()
         job_content = job_content.replace("@@REPO_ROOT@@", repo_root_abs)
         job_content = job_content.replace("@@EXP_CONFIG_DIR@@", exp_config_dir_abs)
-        job_content = job_content.replace("@@JOBS_DIR@@", exp_jobs_dir_abs)
+        job_content = job_content.replace("@@JOB_DIR@@", exp_jobs_dir_abs)
         job_script.write_text(job_content)
     
     if verbose:

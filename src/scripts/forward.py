@@ -77,12 +77,12 @@ def main(cfg: DictConfig):
         print(result.stdout)
         print(result.stderr)
     # step 2: Diffusion model training
-    itr_model_path = Path(cfg.EQdiffParam.dataset_root) / f"model_iter_{n}"
+    itr_model_path = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n}"
     itr_model_path.mkdir(parents=True, exist_ok=True)
     save_ckpt = itr_model_path / "best_mol_stab.ckpt"
     # the previous iteration's checkpoint on every iteration after that.
     if n > 0:
-        load_ckpt = Path(cfg.EQdiffParam.dataset_root) / f"model_iter_{n - 1}" / "best_mol_stab.ckpt"
+        load_ckpt = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n - 1}" / "best_mol_stab.ckpt"
     elif cfg.EQdiffParam.load_ckpt_from_pretrained not in (None, "None", ""):
         load_ckpt = cfg.EQdiffParam.load_ckpt_from_pretrained
     else:
@@ -136,8 +136,6 @@ def main(cfg: DictConfig):
                 *target,
                 ]
         result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
-        print(result.stdout)
-        print(result.stderr)
         # clean temp .ckpt files
         dm.clean_dir(itr_model_path / "run0", ".ckpt")
         dm.clean_dir(dm.diffusion_data_dir / 'raw')
