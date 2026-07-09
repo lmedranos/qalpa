@@ -49,6 +49,9 @@ def main(cfg: DictConfig):
 
     # Current active-learning iteration and loop settings (experiment_config.yaml -> loop.* / EQdiffParam.*)
     n = cfg.loop.current_iter
+    
+    if n > cfg.loop.num_iterations:
+        raise ValueError(f"Current iteration {n} exceeds the total number of iterations {cfg.loop.num_iterations}.")
 
     # Pipeline blocks and optional resume point (eqmgen_paths.yaml -> pipeline.blocks / pipeline.start_at)
     pipeline_blocks = list(cfg.pipeline.blocks)

@@ -50,6 +50,10 @@ def main(cfg: DictConfig):
     dm = DataManager(cfg.base_dataset_path, cfg.data.exp_data_path)
     dm.initialize_data_directory()
     n = cfg.loop.current_iter
+    if n > cfg.loop.num_iterations:
+        raise ValueError(f"Current iteration {n} exceeds the total number of iterations {cfg.loop.num_iterations}.")
+         
+    
     dm.create_iteration_directories(n)
 
     prop_calc_path = dm.current_data / "prop_calc"
@@ -142,7 +146,14 @@ def main(cfg: DictConfig):
         print("  Running Create HDF5  ")
         run_to_hdf5(dm.query_data, prop_calc_path, cfg.hdf5.appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n)
     
+    
     print(f"\n Completed iteration {n} \n")
+    # increment cfg.loop.current_iter and save the updated configuration to the experiment_config.yaml file
+    cfg.loop.current_iter += 1
+    with open(Path(cfg.code_paths.configs) / "experiment_config.yaml", 'w') as f:
+        OmegaConf.save(cfg, f) 
+        
+        
 
 
 if __name__ == "__main__":
