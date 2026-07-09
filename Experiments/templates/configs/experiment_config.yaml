@@ -57,7 +57,6 @@ loop:
 
 EQdiffParam:
   num_samples: 200
-  n_nodes: 20
   batch_size: 40
   num_epochs: 50
   test_interval: 40
@@ -65,6 +64,7 @@ EQdiffParam:
   properties_list: ['HLgap', 'eMBD']            # Properties to track should be edited
   num_context_features: ${len:${EQdiffParam.properties_list}}
   dataset_root: ${paths.data}/${experiment_name}/diffusion_wdir/data/
+  model_root: ${paths.data}/${experiment_name}/diffusion_wdir/model_registry/
   test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test/
   load_ckpt_from_pretrained: null
   save_dir: ${paths.experiments}/${experiment_name}/logs/ 
