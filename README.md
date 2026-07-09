@@ -8,7 +8,7 @@ QALPA combines diffusion-based molecular generation with quantum-mechanical feed
 
 ## Overview
 
-The EQMgen framework combines diffusion models with quantum mechanical calculations to generate novel molecules with desired properties. The system leverages active learning to iteratively improve molecular generation by incorporating DFT feedback, enabling efficient exploration of chemical space.
+The QAPLA framework combines diffusion models with quantum mechanical calculations to generate novel molecules with desired properties. The system leverages active learning to iteratively improve molecular generation by incorporating DFT feedback, enabling efficient exploration of chemical space.
 
 **Key Features:**
 - Molecular trajectory planning in property space
@@ -168,7 +168,7 @@ graph TB
 
 ```bash
 git clone <repository-url>
-cd EQMgen
+cd qapla
 ```
 
 2. **Create the conda environment:**
@@ -194,17 +194,17 @@ conda activate ./conda_envs/env-activeloop/
 4. **Replace the installed ASE DFTB calculator file with the repository patch:**
 
 ```bash
-ASE_DFTB="EQMgen/conda_envs/env-activeloop/lib/python3.10/site-packages/ase/calculators/dftb.py"
+ASE_DFTB="./conda_envs/env-activeloop/lib/python3.10/site-packages/ase/calculators/dftb.py"
 cp "$ASE_DFTB" "${ASE_DFTB}.bak"
-cp EQMgen/dftb.py "$ASE_DFTB"
+cp qapla/dftb.py "$ASE_DFTB"
 ```
 
-> **Note:** Run this from the directory where you cloned the repo (the parent of `EQMgen/`). The original ASE file is backed up as `dftb.py.bak` in the same location.
+> **Note:** Run this from the directory where you cloned the repo (the parent of `qalpa/`). The original ASE file is backed up as `dftb.py.bak` in the same location.
 
 5. **Export the SKfiles path:**
 
 ```bash
-export DFTB_PREFIX="$PWD/EQMgen/configs/SKfiles/3ob-3-1/"
+export DFTB_PREFIX="$PWD/src/configs/SKfiles/3ob-3-1/"
 ```
 
 6. **Ensure SKfiles are available under the code config directory:**
@@ -222,7 +222,7 @@ If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before runnin
 1. **Initialize an experiment**
 
 ```bash
-python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /path/to/base_dataset.hdf5
+python src/scripts/init_experiment.py --name my_exp --dataset-path /path/to/base_dataset.hdf5
 ```
 
 This creates the experiment directory with template job scripts:
@@ -271,7 +271,7 @@ Generated iteration data and HDF5 outputs are written under `Data/my_exp_0/`.
 
 ## HPC Cluster Configuration (SLURM)
 
-The EQMgen workflow is designed to run on HPC clusters using SLURM. It is split into two complementary job types that target different hardware. When you initialize an experiment, these scripts are copied from `Experiments/templates/jobs/` into your experiment directory — **you must customize them for your specific cluster before running experiments.**
+The QAPLA workflow is designed to run on HPC clusters using SLURM. It is split into two complementary job types that target different hardware. When you initialize an experiment, these scripts are copied from `Experiments/templates/jobs/` into your experiment directory — **you must customize them for your specific cluster before running experiments.**
 
 ### Forward Pipeline (GPU Cluster)
 
@@ -352,9 +352,9 @@ module load <fhi-aims-module>
 ## Project Structure
 
 ```
-EQMgen/
+qapla/
 ├── Data/                            # Experiment data root (created/updated at runtime)
-├── EQMgen/
+├── src/
 │   ├── configs/                     # Framework configs (eqdiff_model.yaml, eqmgen_paths.yaml, SKfiles)
 │   ├── eqdiff/                      # Diffusion model code
 │   ├── pipeline_blocks/             # Geometry/props/filter/hdf5 blocks
