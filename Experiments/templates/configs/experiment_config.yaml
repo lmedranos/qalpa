@@ -9,14 +9,14 @@ defaults:
   # Root-level defaults (global settings)
   - /global_config
   
-  # EQMgen-level defaults (framework-specific)
-  - /EQMgen/configs/eqmgen_paths@_global_
-  - /EQMgen/configs/eqdiff_model@_global_
+  # src-level defaults (framework-specific)
+  - /src/configs/src_paths@_global_
+  - /src/configs/eqdiff_model@_global_
 
 # ============================================================================
 # HYDRA SEARCH PATH
 # ============================================================================
-# The absolute defaults above (/global_config, /EQMgen/configs/*) are resolved
+# The absolute defaults above (/global_config, /src/configs/*) are resolved
 # from the repository root. init_experiment.py injects the real path here.
 
 hydra:
@@ -75,7 +75,7 @@ EQdiffParam:
 # ============================================================================
 # GEOMETRY OPTIMIZATION (EXPERIMENT OVERRIDES)
 # ============================================================================
-
+ 
 geometry:
   optimizer: DFTB+                      # Options: FHI-aims, DFTB+, EquiDTB
   calculate_forces: True

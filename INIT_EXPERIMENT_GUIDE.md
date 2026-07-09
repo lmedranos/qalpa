@@ -4,20 +4,20 @@
 
 init_experiment scaffolds a runnable experiment by creating directories, copying templates, and injecting absolute paths into config and job scripts.
 
-It is implemented in EQMgen/scripts/init_experiment.py.
+It is implemented in src/scripts/init_experiment.py.
 
 ## Quick Start
 
 ### CLI
 
 ```bash
-python EQMgen/scripts/init_experiment.py --name my_experiment --dataset-path /path/to/base_dataset.hdf5
+python src/scripts/init_experiment.py --name my_experiment --dataset-path /path/to/base_dataset.hdf5
 ```
 
 ### Python
 
 ```python
-from EQMgen.scripts.init_experiment import init_experiment
+from src.scripts.init_experiment import init_experiment
 
 init_experiment(
     exp_name="my_experiment",
@@ -46,8 +46,8 @@ Experiments/my_experiment_0/
 ├── configs/
 │   └── experiment_config.yaml
 ├── jobs/
-│   ├── eqmgen_forward.sh
-│   └── eqmgen_backward.sh
+│   ├── qalpa_forward.sh
+│   └── qalpa_backward.sh
 ├── logs/
 └── results/
 
@@ -80,9 +80,9 @@ During initialization, the script replaces placeholders:
 Examples:
 
 ```bash
-python EQMgen/scripts/init_experiment.py my_exp --dataset-path /data/base.hdf5
-python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /data/base.hdf5 --quiet
-python EQMgen/scripts/init_experiment.py --name my_exp --dataset-path /data/base.hdf5 --base-path /path/to/repo
+python src/scripts/init_experiment.py my_exp --dataset-path /data/base.hdf5
+python src/scripts/init_experiment.py --name my_exp --dataset-path /data/base.hdf5 --quiet
+python src/scripts/init_experiment.py --name my_exp --dataset-path /data/base.hdf5 --base-path /path/to/repo
 ```
 
 ## After Initialization
@@ -98,14 +98,14 @@ vim Experiments/my_exp_0/configs/experiment_config.yaml
 
 ```bash
 cd Experiments/my_exp_0/jobs
-sbatch eqmgen_forward.sh
-sbatch eqmgen_backward.sh
+sbatch qalpa_forward.sh
+sbatch qalpa_backward.sh
 ```
 
 The job scripts run:
 
-- python -m EQMgen.scripts.forward.py
-- python -m EQMgen.scripts.backward.py
+- python -m src.scripts.forward.py
+- python -m src.scripts.backward.py
 
 using the generated experiment config directory.
 
