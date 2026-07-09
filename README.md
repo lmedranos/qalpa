@@ -1,9 +1,9 @@
-# EQMgen: QM Active Learning Diffusion for Molecular Design
+# QALPA - Quantum-Aware Learning for Property-Space Augmentation
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-This model uses the Diffusion model and Density Functional Theory (DFT) through active learning to navigate chemical space and improve our generative model for molecular design.
+QALPA combines diffusion-based molecular generation with quantum-mechanical feedback through active learning to explore property space and improve generative models for molecular design.
 
 
 ## Overview

@@ -1,5 +1,5 @@
 # global_config.yaml - Global configuration settings
-# location: EQMgen/global_config.yaml
+# location: ./global_config.yaml
 
 # The code root directory — resolved to an absolute path via the repo_root resolver
 # so that all derived paths are CWD-independent.
@@ -8,7 +8,7 @@ root: ${repo_root:}
 # Main directory paths
 Data_path: ${root}/Data
 Experiments_path: ${root}/Experiments
-Code_path: ${root}/EQMgen
+Code_path: ${root}/src
 
 # Absolute paths used by scripts
 paths:
@@ -17,6 +17,6 @@ paths:
   experiments: ${Experiments_path}
   code: ${Code_path}
  
-system:
+system: 
   seed: 42
   fih_aims_exc: /software/rome/r24.04/FHI-aims/240507-intel-2023b/bin/aims.x 
