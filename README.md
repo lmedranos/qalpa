@@ -1,9 +1,9 @@
-# EQMgen: Efficient Quantum-Mechanical AI model GENerator
+# QALPA - Quantum-Aware Learning for Property-Space Augmentation
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-EQMgen combines diffusion-based molecular generation with quantum-mechanical feedback through active learning to explore property space and improve generative models for molecular design.
+QALPA combines diffusion-based molecular generation with quantum-mechanical feedback through active learning to explore property space and improve generative models for molecular design. 
 
 
 ## Overview
