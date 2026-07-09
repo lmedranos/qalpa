@@ -8,7 +8,6 @@
 #SBATCH --mem-per-cpu=12000                    
 #SBATCH --nodes=10
 #SBATCH --ntasks-per-node=32
-
 #SBATCH -o ../logs/backward_check-log.out
 #SBATCH -e ../logs/backward_check-log.err
 
@@ -16,12 +15,9 @@
 ulimit -s unlimited
 export OMP_NUM_THREADS=1
 
-# Read current iteration value
-STATE_FILE="@@JOB_DIR@@MY_ITER.state"
-MY_ITER=$(cat "$STATE_FILE")
 
 echo "Running backward path active loop script ..."
-echo "Iteration: $MY_ITER"
+
 
 
 # Repo root (Python package location) and experiment config dir (injected by init_experiment.py)
@@ -33,8 +29,11 @@ config="$REPO_ROOT/src/configs"                              # diffusion model c
 
 # Load FHI-aims and other necessary modules
 # Please ensure that the module names and versions are correct for your system. Adjust the module load commands if necessary.
-module load release/24.04  intel-compilers/2023.2.1  impi/2021.10.0   #imkl/2023.2.0  
-module load FHI-aims/240507
+if module load release/24.04 intel-compilers/2023.2.1 impi/2021.10.0 FHI-aims/240507; then
+    echo "Modules loaded successfully"
+else
+    echo "Failed to load modules"
+fi
 
 # Load Anaconda environment and activate the conda environment
 # Please ensure that the path to the Anaconda installation is correct for your system. Adjust the path if necessary.
@@ -46,15 +45,12 @@ export DFTB_PREFIX="$config/SKfiles/3ob-3-1/" # Set DFTB+ prefix to the location
 
 python -m src.scripts.backward \
     --config-path "$EXP_CONFIG_DIR" \
-    --config-name experiment_config \
-    loop.current_iter="$MY_ITER"
+    --config-name experiment_config 
 
 if [ $? -ne 0 ]; then
-    echo "Backward pipeline failed at iteration $MY_ITER"
+    echo "Backward pipeline failed"
     exit 1
 else
-    # else increment for next run
-    echo $((MY_ITER + 1)) > "$STATE_FILE"
     echo "Backward Job completed" 
 fi
 
