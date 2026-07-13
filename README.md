@@ -177,11 +177,6 @@ cd qapla
 mamba env create -f environment-al.yml -p conda_envs/env-activeloop/
 ```
 
-Alternatively, if you prefer to manage the environment separately:
-
-```bash
-mamba env create -f environment-al.yml -n env-activeloop
-```
 
 3. **Activate the environment:**
 
@@ -196,7 +191,7 @@ conda activate ./conda_envs/env-activeloop/
 ```bash
 ASE_DFTB="./conda_envs/env-activeloop/lib/python3.10/site-packages/ase/calculators/dftb.py"
 cp "$ASE_DFTB" "${ASE_DFTB}.bak"
-cp qapla/dftb.py "$ASE_DFTB"
+cp src/dftb.py "$ASE_DFTB"
 ```
 
 > **Note:** Run this from the directory where you cloned the repo (the parent of `qalpa/`). The original ASE file is backed up as `dftb.py.bak` in the same location.
