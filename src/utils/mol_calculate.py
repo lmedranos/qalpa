@@ -11,12 +11,9 @@ import ase.calculators.mixing
 from ase.calculators.dftb import Dftb
 
 
-
-
-
 def get_calculator(calc_name, model_path, device, atoms):
     """Instantiate and return the appropriate calculator."""
-    skfiles_path = Path(os.environ["DFTB_PREFIX"])  # Path to Slater-Koster files for DFTB+
+    skfiles_path = os.environ["DFTB_PREFIX"]
     if calc_name == 'DFTB+':
         return Dftb(
             label='current_dftb',
@@ -33,7 +30,7 @@ def get_calculator(calc_name, model_path, device, atoms):
             Hamiltonian_Dispersion_NOmegaGrid=25,
             Hamiltonian_Dispersion_ReferenceSet='ts',
             ParserOptions_ParserVersion='13',
-            slako_dir = str(skfiles_path),
+            slako_dir = skfiles_path + "/",
         )
     elif calc_name == 'EquiDTB':
         MLcalc = MACECalculator(model_path=model_path, device=device, default_dtype="float32")
@@ -51,7 +48,8 @@ def get_calculator(calc_name, model_path, device, atoms):
                         Hamiltonian_Dispersion_Beta = 0.83, 
                         Hamiltonian_Dispersion_NOmegaGrid = 25,
                         Hamiltonian_Dispersion_ReferenceSet = 'ts',
-                        ParserOptions_ParserVersion = '13')
+                        ParserOptions_ParserVersion = '13',
+                        slako_dir = skfiles_path + "/")
         # Mixing calculators
         return  ase.calculators.mixing.SumCalculator([DFTBcalc,MLcalc])
 

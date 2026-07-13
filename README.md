@@ -162,7 +162,24 @@ graph TB
 - CUDA-capable GPU (for forward pipeline)
 - Multi-core CPU system (for backward pipeline)
 
+### Installation Options
+
+The project supports two environment configuration strategies:
+
+| Approach | Environments | Use Case | Pros | Cons |
+|----------|---|----------|------|------|
+| **Split** | `env-qalpa-forward` + `env-qalpa-backward` | HPC clusters, production workflows (recommended) | Smaller per-node installations, hardware-specific optimization, better scalability | Requires managing two environments |
+| **Combined** | Single `env-activeloop` | Development, single-machine testing | Simpler setup, unified environment | Larger download, slower installation |
+
+**Recommended:** Use **Split** environments for production workflows and HPC clusters. 
+
 ### Installation Steps
+
+#### Default option: Split Environments (Recommended) ⭐
+
+For production workflows on HPC systems and general use, use separate forward (GPU) and backward (CPU) environments:
+
+For production workflows on HPC systems, use separate forward (GPU) and backward (CPU) environments:
 
 1. **Clone the repository:**
 
@@ -171,44 +188,48 @@ git clone <repository-url>
 cd qapla
 ```
 
-2. **Create the conda environment:**
+2. **Create the forward environment (GPU cluster):**
 
 ```bash
-mamba env create -f environment-al.yml -p conda_envs/env-activeloop/
+mamba env create -f environment_f.yml -p conda_envs/env-qalpa-forward/
 ```
 
-
-3. **Activate the environment:**
+3. **Create the backward environment (CPU cluster):**
 
 ```bash
-conda activate ./conda_envs/env-activeloop/
-# or if using named environment:
-# conda activate env-activeloop
+mamba env create -f environment_b.yml -p conda_envs/env-qalpa-backward/
 ```
 
-4. **Replace the installed ASE DFTB calculator file with the repository patch:**
+4. **Patch the backward environment's ASE DFTB calculator:**
 
 ```bash
-ASE_DFTB="./conda_envs/env-activeloop/lib/python3.10/site-packages/ase/calculators/dftb.py"
+ASE_DFTB="./conda_envs/env-qalpa-backward/lib/python3.10/site-packages/ase/calculators/dftb.py"
 cp "$ASE_DFTB" "${ASE_DFTB}.bak"
 cp src/dftb.py "$ASE_DFTB"
 ```
 
-5. **Export the SKfiles path:**
+5. **Export the SKfiles path (for both environments):**
 
 ```bash
 export DFTB_PREFIX="$PWD/src/configs/SKfiles/3ob-3-1/"
 ```
 
-6. **Ensure SKfiles are available under the code config directory:**
+6. **Update your job scripts to use split environments:**
 
+Edit `Experiments/templates/jobs/eqmgen_forward.sh`:
 ```bash
-test -d "$DFTB_PREFIX" && echo "SKfiles found under $DFTB_PREFIX"
+conda activate $REPO_ROOT/conda_envs/env-qalpa-forward/
 ```
 
-If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before running forward/backward jobs.
+Edit `Experiments/templates/jobs/eqmgen_backward.sh`:
+```bash
+conda activate $REPO_ROOT/conda_envs/env-qalpa-backward/
+```
 
-> **Note:** `environment-al.yml` produces a single combined environment (`env-activeloop`) that contains both the GPU/diffusion stack (PyTorch, PyTorch Geometric, MACE) and the chemistry/DFT stack (ASE, RDKit, xTB, DFTB+). Both the forward and backward job scripts activate this same environment.
+> **Note:** Three environment configurations are available:
+> - `environment-al.yml`: Single combined environment with GPU/diffusion and chemistry/DFT stacks
+> - `environment_f.yml`: GPU-optimized forward pipeline (PyTorch, PyTorch Geometric, MACE)
+> - `environment_b.yml`: CPU-optimized backward pipeline (ASE, RDKit, xTB, DFTB+)
 
 ## Quick Start
 
@@ -340,7 +361,30 @@ module load <release> <compiler> <mpi>
 module load <fhi-aims-module>
 ```
 
-> **Tip:** Both scripts activate the same combined environment. If you installed it under a different name or location, update the `conda activate $REPO_ROOT/conda_envs/env-activeloop` line in each script accordingly.
+### Switching Between Environment Strategies
+
+By default, the job script templates use **split environments** (`env-qalpa-forward` and `env-qalpa-backward`). To switch strategies:
+
+**To use the combined environment:**
+
+Edit both `Experiments/templates/jobs/eqmgen_forward.sh` and `Experiments/templates/jobs/eqmgen_backward.sh`:
+
+```bash
+# Replace:
+conda activate $REPO_ROOT/conda_envs/env-qalpa-forward/
+conda activate $REPO_ROOT/conda_envs/env-qalpa-backward/
+
+# With:
+conda activate $REPO_ROOT/conda_envs/env-activeloop/
+```
+
+**To use split environments** (default):
+
+No changes needed. The templates already reference:
+- Forward: `$REPO_ROOT/conda_envs/env-qalpa-forward/`
+- Backward: `$REPO_ROOT/conda_envs/env-qalpa-backward/`
+
+> **Recommendation:** Use split environments for production HPC workflows to optimize hardware utilization and reduce environment sizes on each node.
 
 ## Project Structure
 
@@ -357,15 +401,24 @@ qapla/
 │   └── templates/                   # Template config and job scripts for initialization
 ├── Navigator/                       # Interactive trajectory planner (design_trajectory.ipynb)
 ├── environment-al.yml               # Combined conda environment specification
+├── environment_f.yml                # Forward (GPU) pipeline environment
+├── environment_b.yml                # Backward (CPU) pipeline environment
 ├── global_config.yaml               # Root/shared config imported by experiments
 └── README.md
 ```
 
 ## Requirements
 
-All dependencies are installed via `environment-al.yml`. The core stack includes:
+All dependencies are installed via one of the environment specification files:
 
-**Deep learning / diffusion model**
+**Environment Options:**
+- `environment-al.yml` – Combined environment with GPU/diffusion and chemistry/DFT stacks (recommended for single-machine setup)
+- `environment_f.yml` – Forward pipeline (GPU) – PyTorch, PyTorch Geometric, MACE
+- `environment_b.yml` – Backward pipeline (CPU) – ASE, RDKit, xTB, DFTB+
+
+**Core Stack Components:**
+
+**Deep learning / diffusion model** (in `environment-al.yml` and `environment_f.yml`)
 - Python 3.10
 - PyTorch 2.0.1
 - PyTorch Geometric 2.3.0 (with `pytorch-scatter`, `pytorch-sparse`, `pytorch-cluster`)
@@ -374,7 +427,7 @@ All dependencies are installed via `environment-al.yml`. The core stack includes
 - MACE (machine-learning force field, from source)
 - JAX (CUDA 12)
 
-**Quantum chemistry / structure**
+**Quantum chemistry / structure** (in `environment-al.yml` and `environment_b.yml`)
 - ASE (Atomic Simulation Environment)
 - FHI-aims (DFT, loaded as an HPC module — not via conda)
 - DFTB+ 24.1 (`dftbplus`, `dftbplus-tools`, `dftbplus-python`)
@@ -382,34 +435,48 @@ All dependencies are installed via `environment-al.yml`. The core stack includes
 - RDKit 2023.03.2
 - Open Babel
 
-**Configuration / data handling**
+**Configuration / data handling** (in all environments)
 - Hydra / OmegaConf (experiment configuration)
 - NumPy (<2), Pandas, h5py, LMDB
 
-**Visualization / analysis**
+**Visualization / analysis** (in all environments)
 - Matplotlib, Seaborn
 - Jupyter / Notebook
 - py3Dmol, nglview, RMSD, Biopython
 
-See `environment-al.yml` for the complete, version-pinned list.
+See the environment YAML files for the complete, version-pinned lists.
 
 ## Troubleshooting
 
 ### `ModuleNotFoundError: Neither tensorboard nor tensorboardX is available`
 
-`tensorboard` is declared in `environment-al.yml` (`conda-forge::tensorboard`), but may be missing if the environment was created from an older version of the file. Fix it with:
+`tensorboard` is declared in the environment files but may be missing if the environment was created from an older version. Fix it with:
 
+**For combined environment:**
 ```bash
 conda_envs/env-activeloop/bin/pip3 install tensorboard
+```
+
+**For split environments:**
+```bash
+conda_envs/env-qalpa-forward/bin/pip3 install tensorboard
+conda_envs/env-qalpa-backward/bin/pip3 install tensorboard
 ```
 
 Then re-submit the job.
 
 ### `ModuleNotFoundError: No module named 'pkg_resources'`
 
-`setuptools>=70` removed `pkg_resources` as a top-level module, which breaks `pytorch-lightning` and several other packages. `environment-al.yml` pins `setuptools<70` to prevent this. If your environment was created without this pin, fix it with:
+`setuptools>=70` removed `pkg_resources` as a top-level module, which breaks `pytorch-lightning` and several other packages. The environment files pin `setuptools<70` to prevent this. If your environment was created without this pin, fix it with:
 
+**For combined environment:**
 ```bash
 conda_envs/env-activeloop/bin/python -m pip install "setuptools<70" --force-reinstall
+```
+
+**For split environments:**
+```bash
+conda_envs/env-qalpa-forward/bin/python -m pip install "setuptools<70" --force-reinstall
+conda_envs/env-qalpa-backward/bin/python -m pip install "setuptools<70" --force-reinstall
 ```
 
