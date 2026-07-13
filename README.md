@@ -203,7 +203,7 @@ export DFTB_PREFIX="$PWD/src/configs/SKfiles/3ob-3-1/"
 6. **Ensure SKfiles are available under the code config directory:**
 
 ```bash
-test -d "$CONFIG/SKfiles/3ob-3-1" && echo "SKfiles found under $CONFIG"
+test -d "$DFTB_PREFIX" && echo "SKfiles found under $DFTB_PREFIX"
 ```
 
 If SKfiles are stored elsewhere, copy them into `$CONFIG/SKfiles/` before running forward/backward jobs.

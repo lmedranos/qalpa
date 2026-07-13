@@ -51,6 +51,10 @@ loop:
   current_iter: 0
   max_parallel_tasks: 20 
 
+pipeline:
+  start_at: split
+  blocks: [split, train, generate, score_filter, relax_geo, prop_calc, prop_filter, hdf5, compress]
+
 # ============================================================================
 # Generative Model CONFIGURATION (EXPERIMENT OVERRIDES)
 # ============================================================================
