@@ -194,8 +194,6 @@ cp "$ASE_DFTB" "${ASE_DFTB}.bak"
 cp src/dftb.py "$ASE_DFTB"
 ```
 
-> **Note:** Run this from the directory where you cloned the repo (the parent of `qalpa/`). The original ASE file is backed up as `dftb.py.bak` in the same location.
-
 5. **Export the SKfiles path:**
 
 ```bash
