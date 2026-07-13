@@ -38,7 +38,7 @@ fi
 # Load Anaconda environment and activate the conda environment
 # Please ensure that the path to the Anaconda installation is correct for your system. Adjust the path if necessary.
 source /software/rome/r23.04/Anaconda3/2022.05/etc/profile.d/conda.sh
-conda activate $REPO_ROOT/conda_envs/env-activeloop
+conda activate $REPO_ROOT/conda_envs/env-qalpa-backward
 
 export DFTB_PREFIX="$config/SKfiles/3ob-3-1/" # Set DFTB+ prefix to the location of Slater-Koster files
 
