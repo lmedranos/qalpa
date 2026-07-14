@@ -60,35 +60,111 @@ def relax_molecule(input, output, calc_name, model_path=None, device='cpu', rela
             print("No valid calculator available, skipping relaxation.")
             return
 
-        atoms.calc = calc
 
+        # Attach calculator BEFORE any force/energy calculation
+        atoms.calc = calc
+        
         if unrelaxed_forces:
             (output_folder.parent / "force_calc" / "unrelaxed").mkdir(parents=True, exist_ok=True)
-            unrelaxed_path = output_folder.parent / "force_calc" / "unrelaxed" 
+            unrelaxed_path = output_folder.parent / "force_calc" / "unrelaxed"
+
             forces_before = atoms.get_forces()
             energy_before = atoms.get_potential_energy()
-            np.savetxt(unrelaxed_path / f"forces_{file.stem}.txt", forces_before, fmt="%.10f")
-            write(unrelaxed_path / f"pos_{file.stem}.xyz", atoms, format='xyz')
-            atoms.arrays['forces'] = forces_before
-            write(unrelaxed_path / f"{file.stem}.extxyz", atoms, format='extxyz')  # includes forces, energy, positions
-            del atoms.arrays['forces']
 
-        qn = BFGS(atoms, logfile=None)  # suppress optimizer stdout logging
+            np.savetxt(
+                unrelaxed_path / f"forces_{file.stem}.txt",
+                forces_before,
+                fmt="%.10f"
+            )
+
+            # make independent copy for writing
+            atoms_unrelaxed = atoms.copy()
+            atoms_unrelaxed.info["energy_before"] = energy_before
+            atoms_unrelaxed.arrays["forces_before"] = forces_before
+
+            # detach calculator so extxyz does not try to save calculator results
+            atoms_unrelaxed.calc = None
+
+            write(
+                unrelaxed_path / f"pos_{file.stem}.xyz",
+                atoms_unrelaxed,
+                format="xyz"
+            )
+
+            write(
+                unrelaxed_path / f"{file.stem}.extxyz",
+                atoms_unrelaxed,
+                format="extxyz"
+            )
+
+        # if unrelaxed_forces:
+        #     (output_folder.parent / "force_calc" / "unrelaxed").mkdir(parents=True, exist_ok=True)
+        #     unrelaxed_path = output_folder.parent / "force_calc" / "unrelaxed" 
+        #     forces_before = atoms.get_forces()
+        #     energy_before = atoms.get_potential_energy()
+        #     atoms.info["energy_before"] = energy_before
+        #     atoms.arrays["forces_before"] = forces_before
+        #     atoms.calc = None
+        #     np.savetxt(unrelaxed_path / f"forces_{file.stem}.txt", forces_before, fmt="%.10f")
+        #     write(unrelaxed_path / f"pos_{file.stem}.xyz", atoms, format='xyz')
+        #     atoms.arrays['forces'] = forces_before
+        #     write(unrelaxed_path / f"{file.stem}.extxyz", atoms, format='extxyz')  # includes forces, energy, positions
+        #     del atoms.arrays['forces']
+        # atoms.calc = calc
+        # qn = BFGS(atoms, logfile=None)  # suppress optimizer stdout logging
+        # qn.run(fmax=0.001, steps=4000)
+
+        # if relaxed_forces:
+        #     (output_folder.parent / "force_calc" / "relaxed").mkdir(parents=True, exist_ok=True)
+        #     relaxed_path = output_folder.parent / "force_calc" / "relaxed" 
+        #     forces_after = atoms.get_forces()
+        #     energy_after = atoms.get_potential_energy()
+        #     np.savetxt(relaxed_path / f"forces_opt-{file.stem}.txt", forces_after, fmt="%.10f")
+        #     write(relaxed_path / f"pos_opt-{file.stem}.xyz", atoms, format='xyz')
+        #     atoms.arrays['forces'] = forces_after
+        #     write(relaxed_path / f"opt-{file.stem}.extxyz", atoms, format='extxyz')  # includes forces, energy, positions
+        #     del atoms.arrays['forces']
+
+        # 2. Attach calculator for optimization  <--- HERE
+        atoms.calc = calc
+
+        qn = BFGS(atoms, logfile=None)
         qn.run(fmax=0.001, steps=4000)
 
         if relaxed_forces:
             (output_folder.parent / "force_calc" / "relaxed").mkdir(parents=True, exist_ok=True)
-            relaxed_path = output_folder.parent / "force_calc" / "relaxed" 
+            relaxed_path = output_folder.parent / "force_calc" / "relaxed"
+
             forces_after = atoms.get_forces()
             energy_after = atoms.get_potential_energy()
-            np.savetxt(relaxed_path / f"forces_opt-{file.stem}.txt", forces_after, fmt="%.10f")
-            write(relaxed_path / f"pos_opt-{file.stem}.xyz", atoms, format='xyz')
-            atoms.arrays['forces'] = forces_after
-            write(relaxed_path / f"opt-{file.stem}.extxyz", atoms, format='extxyz')  # includes forces, energy, positions
-            del atoms.arrays['forces']
+
+            np.savetxt(
+                relaxed_path / f"forces_opt-{file.stem}.txt",
+                forces_after,
+                fmt="%.10f"
+            )
+
+            atoms_relaxed = atoms.copy()
+            atoms_relaxed.info["energy_after"] = energy_after
+            atoms_relaxed.arrays["forces_after"] = forces_after
+
+            atoms_relaxed.calc = None
+
+            write(
+                relaxed_path / f"pos_opt-{file.stem}.xyz",
+                atoms_relaxed,
+                format="xyz"
+            )
+
+            write(
+                relaxed_path / f"opt-{file.stem}.extxyz",
+                atoms_relaxed,
+                format="extxyz"
+            )
 
     finally:
         os.chdir(original_cwd)
+        atoms.calc = None
 
     write(str(output_file), atoms, format='xyz')
     print(f"Relaxed molecule saved as {output_file}")

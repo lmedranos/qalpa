@@ -70,6 +70,7 @@ def parallelize(script_path, input_path, output_path, max_parallel_tasks=None, n
     processes = []
 
     for fpath in paths:
+     
         if shell_flag:
             if skip_processing(fpath / output_path):
                 print(f"Skipping {fpath}")
@@ -178,13 +179,6 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
 
     print(f"Parallelizing with {nranks} tasks and {cpus_per_task} cpus per task (max {max_parallel_tasks} parallel tasks)")
     
-    # # Setup environment for parallel calculations of molecules
-    # env = os.environ.copy()
-    # env["OMP_NUM_THREADS"] = str(cpus_per_task)
-    # env["MKL_NUM_THREADS"] = str(cpus_per_task)
-    # # env["OPENBLAS_NUM_THREADS"] = str(cpus_per_task)
-    # # env["NUMEXPR_NUM_THREADS"] = str(cpus_per_task)
-    # os.environ.update(env)
     
     shell_flag = not str(script_path).endswith(".py")
 
@@ -209,12 +203,24 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
     fkilled = []
 
     for fpath in paths:
+        # print for debuging 
+        print(f"Processing file: {fpath}")
+        print(f"Output path: {output_path}")
+        print(f"Script path: {script_path}")
+        print(f"Shell flag: {shell_flag}")
+        print(f"Base command: {base_cmd}")
+        print(f"Max parallel tasks: {max_parallel_tasks}")
+        print(f"Number of processes currently running: {len(processes)}")
+        print(f"Processes: {[p.pid for p in processes]}")
+        print(f"Environment variables: {os.environ}")
+        print(f"Current working directory: {os.getcwd()}")
         if shell_flag:
             if skip_processing(fpath / output_path, marker= " Have a nice day."):
                 print(f"Skipping {fpath}")
                 continue
             else:
                 cmd = " ".join(base_cmd + [str(script_path), ">", str(fpath / output_path)])
+                
         else:
             # if skip_processing (output_path / fpath.name, marker= None):
             #     print(f"Skipping {fpath}")
@@ -222,30 +228,41 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
             # else:
             aux_arg_cmd = ["--aux_arg"] + [str(a) for a in aux_arg] if aux_arg else []
             cmd = base_cmd + ["python3", str(script_path), "--input", str(fpath), "--output", str(output_path)] + aux_arg_cmd
+            print("COMMAND:")
+            print(" ".join(cmd) if isinstance(cmd, list) else cmd)
             # Recommended uptate to check
-        #     py_base_cmd = ["--ntasks=1" if c.startswith("--ntasks") else c for c in base_cmd]
-        #     cmd = py_base_cmd + ["python3", str(script_path), "--input", str(fpath), "--output", str(output_path)] + aux_arg_cmd
-        # p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if fpath.is_dir() else None, preexec_fn= os.setsid)
-        p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if fpath.is_dir() else None, preexec_fn= os.setsid if shell_flag else None)
+            py_base_cmd = ["--ntasks=1" if c.startswith("--ntasks") else c for c in base_cmd]
+            cmd = py_base_cmd + ["python3", str(script_path), "--input", str(fpath), "--output", str(output_path)] + aux_arg_cmd
+        p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if fpath.is_dir() else None, preexec_fn= os.setsid)
+        # p = subprocess.Popen(cmd, shell=shell_flag, cwd = str(fpath) if fpath.is_dir() else None, preexec_fn= os.setsid, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)# if shell_flag else None)
         processes.append(p)
         start_times[p.pid] = time.time()
         proc_to_file[p.pid] = fpath.name
         # Control max parallelism
         while len(processes) >= int(max_parallel_tasks):
             time.sleep(5)
+            # for p in processes[:]:
+            #     ret = p.poll()
+
+            #     if ret is not None:
+            #         stdout, stderr = p.communicate()
+
+            #         print("=" * 80)
+            #         print("Process finished:", p.pid)
+            #         print("Return code:", ret)
+            #         print("STDOUT:")
+            #         print(stdout)
+            #         print("STDERR:")
+            #         print(stderr)
+            #         print("=" * 80)
             processes, pkilled = monitor_processes(processes, start_times, timeout_hours)
             fkilled.extend([proc_to_file.get(pk.pid, "unknown") for pk in pkilled])
     # Wait for all processor jobs to finish
+    
     while processes:
         time.sleep(5)
         processes, pkilled = monitor_processes(processes, start_times, timeout_hours)
         fkilled.extend([proc_to_file.get(pk.pid, "unknown") for pk in pkilled])
-        
-    # for p in processes:
-    #     try:
-    #         os.waitpid(p.pid, 0)  # ensures it’s truly reaped
-    #     except ChildProcessError:
-    #         pass
         
     return fkilled 
 
@@ -353,13 +370,7 @@ def node_rank_parallelize(script_path, input_path, output_path, max_parallel_tas
         time.sleep(5)
         processes, pkilled = monitor_processes(processes, start_times, timeout_hours)
         fkilled.extend([proc_to_file.get(pk.pid, "unknown") for pk in pkilled])
-        
-    # for p in processes:
-    #     try:
-    #         os.waitpid(p.pid, 0)  # ensures it’s truly reaped
-    #     except ChildProcessError:
-    #         pass
-        
+
     return fkilled 
 
 def monitor_processes(processes, start_times, timeout_hours):

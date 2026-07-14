@@ -4,11 +4,17 @@ import warnings
 from pathlib import Path
 import numpy as np
 #import torch
-from ase.io import read, write
-from ase.optimize import BFGS
-from mace.calculators import MACECalculator
-import ase.calculators.mixing
-from ase.calculators.dftb import Dftb
+try:
+    from ase.io import read, write
+    from ase.optimize import BFGS
+    from mace.calculators import MACECalculator
+    import ase.calculators.mixing
+    from ase.calculators.dftb import Dftb
+except ImportError:
+    warnings.warn("ASE or MACE is not installed. Some functionalities may be limited.")
+    
+    
+
 
 
 def get_calculator(calc_name, model_path, device, atoms):
@@ -16,7 +22,7 @@ def get_calculator(calc_name, model_path, device, atoms):
     skfiles_path = os.environ["DFTB_PREFIX"]
     if calc_name == 'DFTB+':
         return Dftb(
-            label='current_dftb',
+            label=str(Path.cwd() / "dftb_calc"),
             atoms=atoms,
             Hamiltonian_SCC='Yes',
             Hamiltonian_MaxSCCIterations='2000',
@@ -35,7 +41,7 @@ def get_calculator(calc_name, model_path, device, atoms):
     elif calc_name == 'EquiDTB':
         MLcalc = MACECalculator(model_path=model_path, device=device, default_dtype="float32")
         # Load DFTB calculator with MBD
-        DFTBcalc = Dftb(label='current_dftb',
+        DFTBcalc = Dftb(label=str(Path.cwd() / "dftb_calc"),
                         atoms=atoms,
                         Hamiltonian_SCC = 'Yes',
                         Hamiltonian_ThirdOrderFull = 'Yes',
