@@ -85,9 +85,9 @@ def main(cfg: DictConfig):
     
     # the previous iteration's checkpoint on every iteration after that.
     if n > 0:
-        dir_ckpt = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n - 1}" 
-        best_ckpt = dir_ckpt / "best_mol_stab.ckpt"
-        last_ckpt = dir_ckpt / "last.ckpt"
+        pervious_ckpt_dir = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n - 1}" 
+        best_ckpt = pervious_ckpt_dir / "best_mol_stab.ckpt"
+        last_ckpt = pervious_ckpt_dir / "run0" / "last.ckpt"
         load_ckpt = best_ckpt if best_ckpt.exists() else last_ckpt
     elif cfg.EQdiffParam.load_ckpt_from_pretrained not in (None, "None", ""):
         load_ckpt = cfg.EQdiffParam.load_ckpt_from_pretrained
@@ -111,8 +111,8 @@ def main(cfg: DictConfig):
             cmd += ["--load-ckpt-from-pretrained", str(load_ckpt)]
         result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
         
-    best_ckpt = itr_model_path / "best_mol_stab.ckpt"
-    last_ckpt = itr_model_path / "last.ckpt"
+    best_ckpt = itr_model_path  / "best_mol_stab.ckpt"
+    last_ckpt = itr_model_path / "run0" / "last.ckpt"
     save_ckpt = best_ckpt if best_ckpt.exists() else last_ckpt
     if not save_ckpt.exists():
         raise FileNotFoundError(f"Expected model checkpoint not found at {save_ckpt}. Check training logs for errors.")
@@ -145,7 +145,7 @@ def main(cfg: DictConfig):
                 ]
         result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
         # clean temp .ckpt files
-        dm.clean_dir(itr_model_path / "run0", ".ckpt")
+        # dm.clean_dir(itr_model_path / "run0", ".ckpt")
         dm.clean_dir(dm.diffusion_data_dir / 'raw')
         dm.clean_dir(dm.diffusion_data_dir / 'processed')
         # clean temp generated files .pickle
