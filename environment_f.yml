@@ -1,53 +1,60 @@
 name: env-qalpa-forward
 
 channels:
-  - conda-forge
-  - pyg
+  - pytorch
   - nvidia
+  - pyg
+  - conda-forge
   - defaults
+
 dependencies:
   - python=3.10
   - pip
+
   - hydra-core
   - omegaconf
   - numpy<2
-  - conda-forge::jupyter
+
+  - jupyter
   - notebook
   - matplotlib
   - pandas
   - h5py
   - seaborn
-  - pytorch::pytorch=2.0.1
-  - pyg::pyg=2.3.0
-  - pyg::pytorch-scatter
-  - pyg::pytorch-sparse
-  - pyg::pytorch-cluster
-  - conda-forge::pytorch-lightning=2.0.6
-  - conda-forge::tensorboard
-  - conda-forge::lmdb
 
-  - conda-forge::rdkit=2023.03.2    # RDKit for cheminformatics tasks like calculating SAscore
-  - conda-forge::openbabel                # Open Babel for chemical file format conversions to SMILES or mol
-  - conda-forge::xtb
-  - conda-forge::ase
-  - conda-forge::py3dmol
-  - conda-forge::lmdb
-  - conda-forge::nglview
-  - conda-forge::rmsd
-  - conda-forge::biopython
-  - conda-forge::torch-ema
+  # PyTorch stack
+  - pytorch=2.0.1
+  - pytorch-cuda=11.8
+  - pytorch-lightning=2.0.6
+
+  # PyG stack
+  - pyg=2.3.0
+  - pytorch-scatter
+  - pytorch-sparse
+  - pytorch-cluster
+
+  # Avoid OpenMP mismatch
+  - intel-openmp
+
   - tensorboard
-  - setuptools<70  # >=70 drops pkg_resources top-level module
+  - lmdb
+
+  # Chemistry packages
+  - rdkit=2023.03.2
+  - openbabel
+  - xtb
+  - ase
+  - py3dmol
+  - nglview
+  - rmsd
+  - biopython
+
+  # Utilities
+  - torch-ema
+  - setuptools<70
+
   - pip:
-      # Repeat the numpy<2 bound here so pip's resolver honors it too.
-      # conda's pin is invisible to pip, which would otherwise pull numpy>=2
-      # to satisfy unbounded 'numpy' requirements from jax/mace.
       - "numpy<2"
       - torch_ema
-      - "jax[cuda12]==0.5.3"
-    
-
-
-
-
-  
+      # Remove CUDA12 JAX unless you really need it:
+      # - "jax[cuda12]==0.5.3"

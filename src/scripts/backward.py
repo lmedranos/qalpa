@@ -95,7 +95,7 @@ def main(cfg: DictConfig):
             dm.clean_dir(dm.query_data)
             # Copy all relaxed molecules to the query data path
             shutil.copytree(relaxed_data_path, dm.query_data, dirs_exist_ok=True, ignore=dm.ignore_dirs)
-
+            
 
     # Step 6: Calculate properties 
     if context_flag and ('prop_calc' in active_blocks):
