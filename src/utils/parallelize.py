@@ -203,17 +203,6 @@ def node_parallelize(script_path, input_path, output_path, max_parallel_tasks=No
     fkilled = []
 
     for fpath in paths:
-        # print for debuging 
-        print(f"Processing file: {fpath}")
-        print(f"Output path: {output_path}")
-        print(f"Script path: {script_path}")
-        print(f"Shell flag: {shell_flag}")
-        print(f"Base command: {base_cmd}")
-        print(f"Max parallel tasks: {max_parallel_tasks}")
-        print(f"Number of processes currently running: {len(processes)}")
-        print(f"Processes: {[p.pid for p in processes]}")
-        print(f"Environment variables: {os.environ}")
-        print(f"Current working directory: {os.getcwd()}")
         if shell_flag:
             if skip_processing(fpath / output_path, marker= " Have a nice day."):
                 print(f"Skipping {fpath}")

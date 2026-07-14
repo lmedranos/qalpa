@@ -245,13 +245,17 @@ class DataManager:
         for kf in kfiles:
             if kf == "unknown":
                 continue
-            src = self.query_data / kf
-            dest = kdir / kf
+            xyz_file = kf + ".xyz"
+            src = self.query_data / xyz_file
+            dest = kdir / xyz_file
+            
             if src.exists():
                 try:
                     shutil.move(str(src), str(dest))
                 except Exception as e:
                     print(f"Error moving {src} to {dest}: {e}")
+                    
+ 
                     
 
     

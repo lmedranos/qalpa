@@ -95,7 +95,7 @@ def main(cfg: DictConfig):
             dm.clean_dir(dm.query_data)
             # Copy all relaxed molecules to the query data path
             shutil.copytree(relaxed_data_path, dm.query_data, dirs_exist_ok=True, ignore=dm.ignore_dirs)
-
+            
 
     # Step 6: Calculate properties 
     if context_flag and ('prop_calc' in active_blocks):
@@ -111,13 +111,14 @@ def main(cfg: DictConfig):
                 kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"])                  
             else:
                 kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"])
+            print(f"  Killed files during property calculation: {kfiles} ")
             dm.move_kfiles(kfiles, prop_calc_path)
             # Postprocess  to create json files
             [prop_postprocess(f, prop_calc_path, prop_calc) for f in dm.query_data.iterdir() if f.is_file() and f.name not in kfiles]
         else:
             print(f"Property calculator is not supported. Skipping property calculation step.")   
             
-       
+        
     # Step 7: Filter molecules based on properties
     if 'prop_filter' in active_blocks and context_flag:
         if 'accuracy' in filteration_scheme and my_trajectory.has_properties:
