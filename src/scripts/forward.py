@@ -82,10 +82,13 @@ def main(cfg: DictConfig):
     # step 2: Diffusion model training
     itr_model_path = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n}"
     itr_model_path.mkdir(parents=True, exist_ok=True)
-    save_ckpt = itr_model_path / "best_mol_stab.ckpt"
+    
     # the previous iteration's checkpoint on every iteration after that.
     if n > 0:
-        load_ckpt = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n - 1}" / "best_mol_stab.ckpt"
+        dir_ckpt = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n - 1}" 
+        best_ckpt = dir_ckpt / "best_mol_stab.ckpt"
+        last_ckpt = dir_ckpt / "last.ckpt"
+        load_ckpt = best_ckpt if best_ckpt.exists() else last_ckpt
     elif cfg.EQdiffParam.load_ckpt_from_pretrained not in (None, "None", ""):
         load_ckpt = cfg.EQdiffParam.load_ckpt_from_pretrained
     else:
@@ -107,11 +110,13 @@ def main(cfg: DictConfig):
         if load_ckpt is not None:
             cmd += ["--load-ckpt-from-pretrained", str(load_ckpt)]
         result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
-        print(result.stdout)
-        print(result.stderr)
-        if not save_ckpt.exists():
-            raise FileNotFoundError(f"Expected model checkpoint not found at {save_ckpt}. Check training logs for errors.")
-            
+        
+    best_ckpt = itr_model_path / "best_mol_stab.ckpt"
+    last_ckpt = itr_model_path / "last.ckpt"
+    save_ckpt = best_ckpt if best_ckpt.exists() else last_ckpt
+    if not save_ckpt.exists():
+        raise FileNotFoundError(f"Expected model checkpoint not found at {save_ckpt}. Check training logs for errors.")
+        
     # Step 3: Generate molecules
     generated_data_path = dm.current_data / "generated"
     if 'generate' in active_blocks:
