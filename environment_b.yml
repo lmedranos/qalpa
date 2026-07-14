@@ -1,0 +1,41 @@
+name: env-qalpa-backward
+
+channels:
+  - conda-forge
+  - nvidia 
+  - defaults 
+dependencies:
+  - python=3.10
+  - pip
+  - hydra-core
+  - omegaconf
+  - numpy<2  
+  - defaults::matplotlib        
+  - conda-forge::tensorboard
+  - conda-forge::lmdb
+  - conda-forge::jupyter
+  - notebook
+  - pandas
+  - h5py
+  - seaborn
+ 
+  # chemistry / structure stack — conda-forge for compiled binaries
+  - conda-forge::ase
+  - conda-forge::rdkit=2023.03.2
+  - conda-forge::openbabel
+  - conda-forge::dftbplus=24.1=nompi*
+  - conda-forge::dftbplus-tools=24.1
+  - conda-forge::dftbplus-python=24.1
+
+  # visualization / misc — conda-forge for jupyter-integration consistency
+  - conda-forge::py3dmol
+  - conda-forge::nglview
+  - conda-forge::rmsd
+  - conda-forge::biopython
+  - setuptools<70  # >=70 drops pkg_resources top-level module
+
+
+  - pip:
+    - "numpy<2"  # to be checked
+    - "git+https://github.com/ACEsuit/mace.git"  # Mace for molecular generation and optimization
+  
