@@ -139,7 +139,7 @@ def main(cfg: DictConfig):
                 # copy filtered molecules to the query data path
                 shutil.copytree(fprop_path, dm.query_data, dirs_exist_ok=True)
                 # clean temp accuracy filtered files .xyz
-                dm.clean_dir(fprop_path, '.xyz')
+                # dm.clean_dir(fprop_path, '.xyz')
 
         
     # Step 8: Create HDF5
