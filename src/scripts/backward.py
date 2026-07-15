@@ -130,10 +130,10 @@ def main(cfg: DictConfig):
                 print(f"    Filtering based on {trajprop}  ")
                 fprop_path = accuracy_filtered_path / trajprop
                 fprop_path.mkdir(parents=True, exist_ok=True)
-                for f in dm.query_data.iterdir():
-                            if f.is_file() and f.suffix == '.xyz': 
-                                molecular_filter.accuracy_calculation(f, accuracy_filtered_path, trajprop, prop_calc_path, n)           
-                molecular_filter.accuracy_filter(input_path=dm.query_data, output_path=fprop_path, prop=trajprop, pjsons=prop_calc_path, target_indx=n, threshold=cfg.properties.filteration_threshold)
+                # for f in dm.query_data.iterdir():
+                #             if f.is_file() and f.suffix == '.xyz':  
+                #                 molecular_filter.accuracy_calculation(f, accuracy_filtered_path, trajprop, prop_calc_path, n)           
+                molecular_filter.accuracy_filter(input_path=dm.query_data, output_path=fprop_path, prop=trajprop, pjsons=prop_calc_path, target_indx=n, threshold=cfg.query.filter_threshold)
                 # clean query directory 
                 dm.clean_dir(dm.query_data)
                 # copy filtered molecules to the query data path
