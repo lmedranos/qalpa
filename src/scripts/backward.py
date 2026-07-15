@@ -88,7 +88,7 @@ def main(cfg: DictConfig):
             print("  Running Relax molecules  ")
             relaxed_data_path = dm.current_data  / "relaxed"
             aux_arg = ["relaxed_forces", "unrelaxed_forces"] if cfg.geometry.calculate_forces else []
-            kfiles = node_parallelize(cfg.pipeline_blocks.GeoRelax, dm.query_data, relaxed_data_path, aux_arg=[str(opt_calc), str(opt_calc_model), *aux_arg, "keep_temp", "cpu"])   
+            kfiles = node_parallelize(cfg.pipeline_blocks.GeoRelax, dm.query_data, relaxed_data_path, aux_arg=[str(opt_calc), str(opt_calc_model), *aux_arg, "keep_temp", "cpu"], max_parallel_tasks=cfg.max_parallel_tasks, timeout_hours=cfg.processing_timeout_hours)   
             print(f"killed files during geometry optimization: {kfiles} ")  
             dm.move_kfiles(kfiles, relaxed_data_path)
             # clean query directory
@@ -106,11 +106,11 @@ def main(cfg: DictConfig):
             print(f"  Running Calculate properties preprocessing using {prop_calc} ")
             if prop_calc == "FHI-aims":
                 [preprocess_fhi(f, prop_calc_path, Path(cfg.code_paths.configs) / "nctr1.in") for f in dm.query_data.iterdir()]
-                kfiles = node_parallelize(cfg.system.fih_aims_exc, prop_calc_path, 'aims.out', cfg.loop.max_parallel_tasks) 
+                kfiles = node_parallelize(cfg.system.fih_aims_exc, prop_calc_path, 'aims.out', cfg.max_parallel_tasks, timeout_hours=cfg.processing_timeout_hours)
             elif prop_calc == "EquiDTB":
-                kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"])                  
+                kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, cfg.max_parallel_tasks, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"], timeout_hours=cfg.processing_timeout_hours)                  
             else:
-                kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"])
+                kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, cfg.max_parallel_tasks, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"], timeout_hours=cfg.processing_timeout_hours)
             print(f"  Killed files during property calculation: {kfiles} ")
             dm.move_kfiles(kfiles, prop_calc_path)
             # Postprocess  to create json files
