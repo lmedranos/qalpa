@@ -32,6 +32,7 @@ experiment:
   name: template_experiment
   description: "molecular generation experiment"
  
+exp_config_path: ${paths.experiments}/${experiment_name}/configs/experiment_config.yaml
 
 # ============================================================================
 # DATA CONFIGURATION (EXPERIMENT-SPECIFIC)
@@ -49,11 +50,13 @@ data:
 loop:
   num_iterations: 10
   current_iter: 0
-  max_parallel_tasks: 20 
 
 pipeline:
   start_at: split
   blocks: [split, train, generate, score_filter, relax_geo, prop_calc, prop_filter, hdf5, compress]
+
+max_parallel_tasks: 20 
+processing_timeout_hours: 2
 
 # ============================================================================
 # Generative Model CONFIGURATION (EXPERIMENT OVERRIDES)
@@ -83,7 +86,7 @@ EQdiffParam:
 geometry:
   optimizer: DFTB+                      # Options: FHI-aims, DFTB+, EquiDTB
   calculate_forces: True
-  model: null                           # Model to use for geometry optimization (if applicable)
+  model: ${code_paths.configs}/MACE_model_swa.model                           # Model to use for geometry optimization (if applicable)
 
 # ============================================================================
 # QUERY CONFIGURATION (EXPERIMENT-SPECIFIC)
@@ -94,7 +97,7 @@ query:
   props: ${EQdiffParam.properties_list}              # Properties to track
   scores: ["SAScore"]                   # Scores to track
   filter_scheme: [score, accuracy]      # Filtering scheme to apply
-  filter_threshold: 0.1                 # Filteration threshold for accuracy
+  filter_threshold: 0.2                 # Filteration threshold for accuracy
 
 # ============================================================================
 # PROPERTIES CALCULATION (EXPERIMENT OVERRIDES)
@@ -102,8 +105,7 @@ query:
 
 properties:
   calculator: DFTB+                     # Options: FHI-aims, EquiDTB, DFTB+
-  filteration_threshold: 0.1
-  model: null
+  model: ${code_paths.configs}/MACE_model_swa.model
 
 # ============================================================================
 # HDF5 CONFIGURATION

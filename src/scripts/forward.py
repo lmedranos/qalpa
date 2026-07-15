@@ -65,7 +65,24 @@ def main(cfg: DictConfig):
 
     # Create directories for the current iteration
     dm.create_iteration_directories(n)
-    # query_data_path = dm.current_data / "query"
+    
+    # Determine checkpoint to load from
+    pervious_model_path = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n - 1}"
+    pervious_best_ckpt = pervious_model_path / "best_mol_stab.ckpt"
+    pervious_last_ckpt = pervious_model_path / "run0" / "last.ckpt"
+    if n > 0:
+        load_ckpt = pervious_best_ckpt if pervious_best_ckpt.exists() else pervious_last_ckpt
+    elif cfg.EQdiffParam.load_ckpt_from_pretrained not in (None, "None", ""):
+        load_ckpt = cfg.EQdiffParam.load_ckpt_from_pretrained
+    else:
+        load_ckpt = None
+    # Prepare current iteration's model directory
+    itr_model_path = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n}"
+    itr_model_path.mkdir(parents=True, exist_ok=True)
+    iter_best_ckpt = itr_model_path  / "best_mol_stab.ckpt"
+    iter_last_ckpt = itr_model_path / "run0" / "last.ckpt"
+    save_ckpt = iter_best_ckpt if iter_best_ckpt.exists() else iter_last_ckpt  
+
 
     # Step 1: Run data split
     if 'split' in active_blocks:
@@ -79,21 +96,8 @@ def main(cfg: DictConfig):
         result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
         print(result.stdout)
         print(result.stderr)
+        
     # step 2: Diffusion model training
-    itr_model_path = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n}"
-    itr_model_path.mkdir(parents=True, exist_ok=True)
-    
-    # the previous iteration's checkpoint on every iteration after that.
-    if n > 0:
-        pervious_ckpt_dir = Path(cfg.EQdiffParam.model_root) / f"model_iter_{n - 1}" 
-        best_ckpt = pervious_ckpt_dir / "best_mol_stab.ckpt"
-        last_ckpt = pervious_ckpt_dir / "run0" / "last.ckpt"
-        load_ckpt = best_ckpt if best_ckpt.exists() else last_ckpt
-    elif cfg.EQdiffParam.load_ckpt_from_pretrained not in (None, "None", ""):
-        load_ckpt = cfg.EQdiffParam.load_ckpt_from_pretrained
-    else:
-        load_ckpt = None
-
     if 'train' in active_blocks:
         print("  Running Diffusion model training ")
         cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}", f"--gres=gpu:{gpus_per_task}",
@@ -110,13 +114,9 @@ def main(cfg: DictConfig):
         if load_ckpt is not None:
             cmd += ["--load-ckpt-from-pretrained", str(load_ckpt)]
         result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
-        
-    best_ckpt = itr_model_path  / "best_mol_stab.ckpt"
-    last_ckpt = itr_model_path / "run0" / "last.ckpt"
-    save_ckpt = best_ckpt if best_ckpt.exists() else last_ckpt
     if not save_ckpt.exists():
         raise FileNotFoundError(f"Expected model checkpoint not found at {save_ckpt}. Check training logs for errors.")
-        
+
     # Step 3: Generate molecules
     generated_data_path = dm.current_data / "generated"
     if 'generate' in active_blocks:

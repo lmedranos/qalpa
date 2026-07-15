@@ -111,10 +111,17 @@ class MolecularFilter:
         lower_bound = ref_value - delta
         upper_bound = ref_value + delta
         lower_bound, upper_bound = sorted((lower_bound, upper_bound )) 
+        print(f"reference value: {ref_value}, threshold: {threshold}, lower bound: {lower_bound}, upper bound: {upper_bound}")
         ipath = Path(input_path)
         opath = Path(output_path)
-        jfiles = [f for f in pjsons.iterdir() if f.is_file() and f.suffix == '.json']  
+        jfiles = [f for f in pjsons.iterdir() if f.is_file() and f.suffix == '.json'] 
+        print(f"input path: {ipath}, output path: {opath}, jfiles: {jfiles}") 
         for jf in jfiles:
+            mol_name = jf.stem
+            src_file = ipath / f"{mol_name}.xyz"
+            dst_file = opath / f"{mol_name}.xyz"
+            if src_file.exists() == False:
+                continue
             with jf.open("r") as json_file:
                 data = json.load(json_file)
             mol_name = jf.stem
@@ -124,13 +131,13 @@ class MolecularFilter:
                 print(f"Warning: Property {prop} not found for molecule {mol_name}. Skipping.")
                 continue
             value = float(raw_value) 
-
+            print(f"molecule: {mol_name}, value: {value}")
             if lower_bound <= value <= upper_bound:
                 # copy this molecule to the output path
-                src_file = ipath / f"{mol_name}.xyz"
-                dst_file = opath / f"{mol_name}.xyz"
+                print(f"Copying {src_file} to {dst_file}")
                 if src_file.exists():
                     shutil.copy(src_file, dst_file)
+                    print("copied")
 
     def accuracy_calculation(self, input_file, output_path, prop, pjsons, target_indx):
         """ Calculate accuracy of molecules based on a property from a file.

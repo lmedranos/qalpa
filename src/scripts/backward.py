@@ -88,7 +88,7 @@ def main(cfg: DictConfig):
             print("  Running Relax molecules  ")
             relaxed_data_path = dm.current_data  / "relaxed"
             aux_arg = ["relaxed_forces", "unrelaxed_forces"] if cfg.geometry.calculate_forces else []
-            kfiles = node_parallelize(cfg.pipeline_blocks.GeoRelax, dm.query_data, relaxed_data_path, aux_arg=[str(opt_calc), str(opt_calc_model), *aux_arg, "keep_temp", "cpu"])   
+            kfiles = node_parallelize(cfg.pipeline_blocks.GeoRelax, dm.query_data, relaxed_data_path, aux_arg=[str(opt_calc), str(opt_calc_model), *aux_arg, "keep_temp", "cpu"], max_parallel_tasks=cfg.max_parallel_tasks, timeout_hours=cfg.processing_timeout_hours)   
             print(f"killed files during geometry optimization: {kfiles} ")  
             dm.move_kfiles(kfiles, relaxed_data_path)
             # clean query directory
@@ -106,11 +106,11 @@ def main(cfg: DictConfig):
             print(f"  Running Calculate properties preprocessing using {prop_calc} ")
             if prop_calc == "FHI-aims":
                 [preprocess_fhi(f, prop_calc_path, Path(cfg.code_paths.configs) / "nctr1.in") for f in dm.query_data.iterdir()]
-                kfiles = node_parallelize(cfg.system.fih_aims_exc, prop_calc_path, 'aims.out', cfg.loop.max_parallel_tasks) 
+                kfiles = node_parallelize(cfg.system.fih_aims_exc, prop_calc_path, 'aims.out', cfg.max_parallel_tasks, timeout_hours=cfg.processing_timeout_hours)
             elif prop_calc == "EquiDTB":
-                kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"])                  
+                kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, cfg.max_parallel_tasks, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"], timeout_hours=cfg.processing_timeout_hours)                  
             else:
-                kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"])
+                kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, cfg.max_parallel_tasks, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"], timeout_hours=cfg.processing_timeout_hours)
             print(f"  Killed files during property calculation: {kfiles} ")
             dm.move_kfiles(kfiles, prop_calc_path)
             # Postprocess  to create json files
@@ -130,31 +130,27 @@ def main(cfg: DictConfig):
                 print(f"    Filtering based on {trajprop}  ")
                 fprop_path = accuracy_filtered_path / trajprop
                 fprop_path.mkdir(parents=True, exist_ok=True)
-                for f in dm.query_data.iterdir():
-                            if f.is_file() and f.suffix == '.xyz': 
-                                molecular_filter.accuracy_calculation(f, accuracy_filtered_path, trajprop, prop_calc_path, n)           
-                molecular_filter.accuracy_filter(input_path=dm.query_data, output_path=fprop_path, prop=trajprop, pjsons=prop_calc_path, target_indx=n, threshold=cfg.properties.filteration_threshold)
+                # for f in dm.query_data.iterdir():
+                #             if f.is_file() and f.suffix == '.xyz':  
+                #                 molecular_filter.accuracy_calculation(f, accuracy_filtered_path, trajprop, prop_calc_path, n)           
+                molecular_filter.accuracy_filter(input_path=dm.query_data, output_path=fprop_path, prop=trajprop, pjsons=prop_calc_path, target_indx=n, threshold=cfg.query.filter_threshold)
                 # clean query directory 
                 dm.clean_dir(dm.query_data)
                 # copy filtered molecules to the query data path
                 shutil.copytree(fprop_path, dm.query_data, dirs_exist_ok=True)
                 # clean temp accuracy filtered files .xyz
-                dm.clean_dir(fprop_path, '.xyz')
+                # dm.clean_dir(fprop_path, '.xyz')
 
         
     # Step 8: Create HDF5
     if 'hdf5' in active_blocks:
         print("  Running Create HDF5  ")
-        run_to_hdf5(dm.query_data, prop_calc_path, cfg.hdf5.appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n)
-    
+        run_to_hdf5(dm.query_data, prop_calc_path, cfg.hdf5.appending_flag, dm.output_hdf5, context_flag, cfg.hdf5.extra_properties_flag, cfg.hdf5.hdf5_iter_flag, dm.itr_extra_prop_path, n)
     
     print(f"\n Completed iteration {n} \n")
     # increment cfg.loop.current_iter and save the updated configuration to the experiment_config.yaml file
     cfg.loop.current_iter += 1
-    with open(Path(cfg.code_paths.configs) / "experiment_config.yaml", 'w') as f:
-        OmegaConf.save(cfg, f) 
-        
-        
+    OmegaConf.save(cfg, Path(cfg.exp_config_path))
 
 
 if __name__ == "__main__":
