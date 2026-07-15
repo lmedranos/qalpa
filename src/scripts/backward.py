@@ -151,10 +151,7 @@ def main(cfg: DictConfig):
     print(f"\n Completed iteration {n} \n")
     # increment cfg.loop.current_iter and save the updated configuration to the experiment_config.yaml file
     cfg.loop.current_iter += 1
-    with open(Path(cfg.code_paths.configs) / "experiment_config.yaml", 'w') as f:
-        OmegaConf.save(cfg, f) 
-        
-        
+    OmegaConf.save(cfg, Path(cfg.exp_config_path))
 
 
 if __name__ == "__main__":
