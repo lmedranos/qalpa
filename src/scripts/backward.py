@@ -145,8 +145,7 @@ def main(cfg: DictConfig):
     # Step 8: Create HDF5
     if 'hdf5' in active_blocks:
         print("  Running Create HDF5  ")
-        run_to_hdf5(dm.query_data, prop_calc_path, cfg.hdf5.appending_flag, dm.output_hdf5, context_flag, dm.extra_prop_hdf5, dm.itr_hdf5_path, dm.itr_extra_prop_path, n)
-    
+        run_to_hdf5(dm.query_data, prop_calc_path, cfg.hdf5.appending_flag, dm.output_hdf5, context_flag, cfg.hdf5.extra_properties_flag, cfg.hdf5.hdf5_iter_flag, dm.itr_extra_prop_path, n)
     
     print(f"\n Completed iteration {n} \n")
     # increment cfg.loop.current_iter and save the updated configuration to the experiment_config.yaml file
