@@ -5,18 +5,21 @@
 
 QALPA combines diffusion-based molecular generation with quantum-mechanical feedback through active learning to explore property space and improve generative models for molecular design. 
 
-<img width="400" height="400" alt="workflow" src="img/qalpa.png" />
+<p align="center">
+<img width="600" alt="workflow" src="img/qalpa.png" />
+</p>
 
 ## Overview
 
-The QAPLA framework combines diffusion models with quantum mechanical calculations to generate novel molecules with desired properties. The system leverages active learning to iteratively improve molecular generation by incorporating DFT feedback, enabling efficient exploration of chemical space.
+The QALPA framework combines diffusion models with quantum-mechanical (QM) calculations to generate novel molecules with desired properties. The system leverages active learning (AL) to iteratively improve molecular generation by incorporating quantum property data feedback, enabling efficient exploration of chemical space.
 
 **Key Features:**
 - Molecular trajectory planning in property space
-- Iterative active learning with DFT feedback
+- Iterative active learning with DFT and EquiDTB feedback
 - HPC-optimized workflow orchestration
 - Comprehensive analysis and visualization tools
 - Property-guided molecular generation
+- The QM packages currently implemented are FHI-aims and DFTB+.
 
 ## WorkFlow
 
@@ -67,7 +70,7 @@ flowchart LR
 
 This phase provides an interactive environment for defining molecular trajectories within a property space (e.g., HOMO-LUMO gap, many-body dispersion energy, atomic number). The resulting trajectory files (`trajectory_*.csv`) serve as input for the active learning process. 
 
-<img width="400" height="400" alt="trajectory_planer" src="Navigator/example_trajectory.png" />
+<img width="400" alt="trajectory_planer" src="Navigator/example_trajectory.png" />
 
 **Tools:** Interactive trajectory planner in `Navigator/design_trajectory.ipynb`
 
@@ -481,3 +484,7 @@ conda_envs/env-qalpa-forward/bin/python -m pip install "setuptools<70" --force-r
 conda_envs/env-qalpa-backward/bin/python -m pip install "setuptools<70" --force-reinstall
 ```
 
+## Citations
+If you use the dataset please cite
+```
+```
