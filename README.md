@@ -5,6 +5,7 @@
 
 QALPA combines diffusion-based molecular generation with quantum-mechanical feedback through active learning to explore property space and improve generative models for molecular design. 
 
+<img width="400" height="400" alt="workflow" src="img/qalpa.png" />
 
 ## Overview
 
