@@ -485,6 +485,13 @@ conda_envs/env-qalpa-backward/bin/python -m pip install "setuptools<70" --force-
 ```
 
 ## Citations
-If you use the dataset please cite
+If you use parts of the code please cite
 ```
+@article{qalpa,
+title={QALPA: Property-guided diffusion modeling for efficient exploration of chemical spaces of flexible molecules}, 
+author={Michael Hanna and Julian Cremer and Zekiye Erarslan and Leonardo Medrano Sandonas},
+year={2026},
+journal={arXiv preprint arXiv:2609.16527},
+url={https://arxiv.org/abs/2609.16527}, 
+}
 ```
