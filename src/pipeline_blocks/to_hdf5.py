@@ -11,9 +11,36 @@ from ase import Atoms
 import json
 from ase.io import read
 import h5py
+import shutil
 from contextlib import ExitStack
 
-def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr):
+from src.active_learning.constants import EPBE0_ATOM
+from src.active_learning.ids import canonical_id
+from src.active_learning.labels import valid_qm_result
+
+
+def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr, al_meta=None, al_props=None):
+    """Append molecules to the HDF5 files; the cumulative file is backed up and restored if the write fails."""
+    backup = Path(str(h5file_output) + ".bak") if (appending_flag and h5file_output) else None
+    if backup is not None and backup.exists():
+        # A previous run died mid-write: the backup is the last consistent copy.
+        print(f"Restoring {h5file_output} from interrupted run backup {backup}")
+        shutil.copy2(backup, h5file_output)
+    elif backup is not None and Path(h5file_output).exists():
+        shutil.copy2(h5file_output, backup)
+    else:
+        backup = None
+    try:
+        _write_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr, al_meta, al_props)
+    except BaseException:
+        if backup is not None and backup.exists():
+            shutil.copy2(backup, h5file_output)
+        raise
+    if backup is not None and backup.exists():
+        backup.unlink()
+
+
+def _write_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr, al_meta=None, al_props=None):
     """
     Function to convert filtered molecules into HDF5 format.
     It reads filtered molecules from a directory, extracts properties,
@@ -30,8 +57,7 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
         - itr: Current iteration number.
     """
     ## initialize database
-    EPBE0_atom = {1:-13.64136507, 6:-1027.59344601, \
-                7:-1484.25358313, 8:-2039.74560236, 9: -3139.751675679, 15:-9283.01120606, 16: -10828.726222083, 17: -12516.462339357}
+    EPBE0_atom = EPBE0_ATOM
 
     
     mode = 'a' if appending_flag else 'w'
@@ -60,8 +86,12 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
                     if mol_name in grp:
                         print(f"{mol_name} already exists in {name}, skipping...")
                         continue
-                    subgrp = grp.create_group(f"{mol_name}")
                     xyz_file_path = query_dir / f"{mol_name}.xyz"       # path to the xyz file if coordinate is not in json file
+                    if context_flag:
+                        ok, reason = valid_qm_result(prop_dir / f"{mol_name}.json", xyz_file_path, [])
+                        if not ok:
+                            print(f"Skipping {mol_name} in {name}: {reason}")
+                            continue
                     atoms = read(xyz_file_path)
                     Z = atoms.get_atomic_numbers()
                     POS = atoms.get_positions()
@@ -128,11 +158,25 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
                             if exx_raw is not None:
                                 molecule['eXX'] = np.array([exx_raw], dtype=np.float64)
 
-                    # Writing properties
-                    for key, value in molecule.items():
-                        dset = subgrp.create_dataset(key, value.shape, dtype=value.dtype)
-                        dset[...] = value
-                        # print(f"Written {key} for {mol_name} in {name}")
+                    if al_meta is not None and 'extra_prop' not in name:
+                        meta = al_meta.get(canonical_id(mol_name))
+                        if meta is not None:
+                            molecule['al_iteration'] = np.array([meta['iteration']], dtype=np.int64)
+                            molecule['al_target_id'] = np.array([meta['target_id']], dtype=np.int64)
+                            molecule['al_requested'] = np.array(meta['requested'], dtype=np.float64)
+                            molecule['al_hit'] = np.array([meta['hit']], dtype=np.int8)
+
+                    # Writing properties: the group is created only now and removed if a dataset fails
+                    subgrp = grp.create_group(f"{mol_name}")
+                    try:
+                        if al_props and 'al_requested' in molecule:
+                            subgrp.attrs['al_props'] = ','.join(al_props)
+                        for key, value in molecule.items():
+                            dset = subgrp.create_dataset(key, value.shape, dtype=value.dtype)
+                            dset[...] = value
+                    except Exception:
+                        del grp[mol_name]
+                        raise
                         
   
  

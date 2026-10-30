@@ -78,6 +78,18 @@ This phase provides an interactive environment for defining molecular trajectori
 
 This represents the core operational layer of the system, responsible for orchestrating the iterative molecular generation, evaluation, and feedback process. 
 
+#### Active learning (`al:` block in `experiment_config.yaml`)
+
+With `al.enabled: true` the loop chooses what to evaluate instead of following one trajectory row per iteration:
+
+1. **plan** – picks `targets_per_iter` property targets inside the trajectory corridor. `kde_map` favors sparse regions (KDE of labelled data), places where the generator missed its past targets, and under-explored targets. `trajectory` and `frontier` are simpler alternatives.
+2. **generate** – one generator call per target, `num_samples * oversample` candidates in total.
+3. **acquire** – a fingerprint random-forest ensemble predicts each candidate's properties and uncertainty; candidates are ranked by hit probability, uncertainty, novelty, diversity and cost, and only `budget` of them go on to relax and QM.
+4. **hdf5** – every molecule with a valid QM result is kept (even if it missed its target) with its true properties, so the generator is retrained on what it actually produced. Set `keep_off_target: false` to keep hits only.
+5. **evaluate** – appends hit rate, surrogate error, calibration and coverage to `<experiment>/metrics.csv`; optional early stopping sets `loop.stop`.
+
+Run with `al.enabled: false` to get the original fixed-trajectory loop. `kde_map` needs at least two trajectory rows and `hdf5.appending_flag: true`. Forward and backward remain separate jobs, so submit them alternately as before. Use `al.acquisition.mode: random` for a baseline.
+
 
 ### Phase III – Output Analysis
 

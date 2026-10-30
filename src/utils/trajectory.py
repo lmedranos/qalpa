@@ -81,18 +81,21 @@ class Trajectory:
         """
         if index < 0 or index >= len(self):
             raise IndexError(f"Index {index} out of range for trajectory with length {len(self)}")
-        
-        context = [self._props[p][index] for p in self.prop_names if p != "atNUM"]
-        num_nodes = self._props["atNUM"][index] if "atNUM" in self.prop_names else None
+        return self.target_args({p: self._props[p][index] for p in self.prop_names})
+
+    def target_args(self, values):
+        """CLI arguments for one target given as {prop name: value}; atNUM maps to --num-nodes."""
+        context = [values[p] for p in self.prop_names if p != "atNUM"]
+        num_nodes = values["atNUM"] if "atNUM" in self.prop_names else None
         row_list = []
 
         if num_nodes is not None:
-            row_list.append(f"--num-nodes")
-            row_list.append(str(num_nodes))
+            row_list.append("--num-nodes")
+            row_list.append(str(int(round(float(num_nodes)))))
         if context:
-            row_list.append(f"--fixed-context")
+            row_list.append("--fixed-context")
             row_list.extend(str(c) for c in context)
             # row_list.append("--calculate-props")
             # row_list.append("--calculate-relax-change")
-            
+
         return row_list

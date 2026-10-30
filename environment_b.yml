@@ -18,6 +18,8 @@ dependencies:
   - pandas
   - h5py
   - seaborn
+  - scipy
+  - scikit-learn   # active-learning surrogate
  
   # chemistry / structure stack — conda-forge for compiled binaries
   - conda-forge::ase

@@ -18,6 +18,8 @@ dependencies:
   - pandas
   - h5py
   - seaborn
+  - scipy
+  - scikit-learn   # active-learning surrogate
   - pytorch::pytorch=2.0.1
   - pyg::pyg=2.3.0
   - pyg::pytorch-scatter

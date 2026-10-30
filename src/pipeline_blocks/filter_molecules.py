@@ -4,7 +4,8 @@ import shutil
 import argparse
 from pathlib import Path
 import json
-from functools import reduce
+
+from src.active_learning.constants import PROP_JSON_KEYS, get_json_value
 
 
 
@@ -95,16 +96,8 @@ class MolecularFilter:
         of the reference value from the trajectory at a given iteration.
         The molecules that meet the criteria are copied to the output directory.
         """
-        prop_dict = {
-            "eMBD": ("SUM", "MBD"),  # nested path
-            "HLgap": ("HOMO-LUMO gap",),  # top-level
-            "DIP": ("Absolute Total Dipole (eAng):",)  # top-level
-        }
-        
-        get_value = lambda data, keys: reduce(
-            lambda d, k: d.get(k) if isinstance(d, dict) else None,
-            keys if isinstance(keys, (list, tuple)) else (keys,),
-            data)
+        prop_dict = PROP_JSON_KEYS
+        get_value = get_json_value
         
         ref_value = float(self.trajectory.properties[prop][target_indx])
         delta = threshold * abs(ref_value)
@@ -150,17 +143,10 @@ class MolecularFilter:
         # Get the reference value from the trajectory
         ref_value = float(self.trajectory.properties[prop][target_indx])
         # Define the property keys for extraction
-        prop_dict = {
-            "eMBD": ("SUM", "MBD"),  # nested path
-            "HLgap": ("HOMO-LUMO gap",),  # top-level
-            "DIP": ("Absolute Total Dipole (eAng):",)  # top-level
-        }
+        prop_dict = PROP_JSON_KEYS
         keys = prop_dict[prop]
         # Helper to extract a value of a key from given data
-        get_value = lambda data, keys: reduce(
-            lambda d, k: d.get(k) if isinstance(d, dict) else None,
-            keys if isinstance(keys, (list, tuple)) else (keys,),
-            data)
+        get_value = get_json_value
         # Read properties from a json file
         fname = input_file.name
         mol_name = input_file.stem
