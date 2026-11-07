@@ -21,11 +21,12 @@ class FingerprintRF:
         self.y_mean = Y.mean(axis=0)
         self.y_std = np.where(Y.std(axis=0) > 1e-12, Y.std(axis=0), 1.0)
         Yn = (Y - self.y_mean) / self.y_std
+        train_y = Yn[:, 0] if Yn.shape[1] == 1 else Yn
         self.members = []
         for m in range(self.n_members):
             rf = RandomForestRegressor(n_estimators=self.n_trees, max_features="sqrt", min_samples_leaf=2,
                                        bootstrap=True, n_jobs=1, random_state=self.seed + m)
-            self.members.append(rf.fit(X, Yn))
+            self.members.append(rf.fit(X, train_y))
         return self
 
     def predict(self, X: np.ndarray) -> tuple:

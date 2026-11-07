@@ -128,6 +128,16 @@ al:
   keep_off_target: true                 # label and keep molecules that miss their target
   generation_budget_hours: 12
   min_neff: 5
+  tolerances:
+    default:
+      relative: 0.20
+      absolute: 0.0
+    HLgap:
+      relative: 0.10
+      absolute: 0.05
+    eMBD:
+      relative: 0.05
+      absolute: 0.02
   density:
     bandwidth: scott
     n_candidates: 2000

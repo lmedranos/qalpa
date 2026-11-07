@@ -7,7 +7,8 @@ from src.active_learning.ids import canonical_id, read_candidates_meta, read_tar
 from src.active_learning.labels import build_al_meta
 
 
-def prepare_al_labels(*, query_dir, prop_dir, iter_dir, prop_names: list, threshold: float, iteration: int,
+def prepare_al_labels(*, query_dir, prop_dir, iter_dir, prop_names: list, iteration: int,
+                      tolerances=None, threshold: float | None = None,
                       keep_off_target: bool, log=print) -> dict:
     """Validate QM results and build the AL metadata for to_hdf5.
 
@@ -17,8 +18,11 @@ def prepare_al_labels(*, query_dir, prop_dir, iter_dir, prop_names: list, thresh
     query_dir, iter_dir = Path(query_dir), Path(iter_dir)
     plan = read_targets(iter_dir)
     targets = plan[1] if plan else []
+    if tolerances is None:
+        tolerances = {p: {"relative": 0.1 if threshold is None else threshold, "absolute": 0.0}
+                      for p in prop_names if p != "atNUM"}
     al_meta, rejected = build_al_meta(query_dir, prop_dir, targets, read_candidates_meta(iter_dir),
-                                      prop_names, threshold, iteration)
+                                      prop_names, tolerances, iteration)
     drop = {name: reason for name, reason in rejected}
     if not keep_off_target:
         for cid, m in al_meta.items():

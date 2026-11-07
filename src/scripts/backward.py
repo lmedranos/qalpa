@@ -15,7 +15,10 @@ from src.pipeline_blocks.calculate_sascore import sascore
 from src.pipeline_blocks.propcalc_postprocess import prop_postprocess
 from src.pipeline_blocks.propcalc_preprocess import preprocess_fhi
 from src.pipeline_blocks.to_hdf5 import run_to_hdf5
-from src.active_learning.config import al_paths, get_al_cfg, request_stop, resolve_blocks, resolve_start, should_stop, validate_al_cfg
+from src.active_learning.config import (
+    al_paths, get_al_cfg, request_stop, resolve_blocks, resolve_start, resolve_tolerances,
+    should_stop, validate_al_cfg,
+)
 
 # Allow experiment_config.yaml to derive values such as num_context_features from list lengths
 OmegaConf.register_new_resolver("len", len, replace=True)
@@ -37,6 +40,7 @@ def main(cfg: DictConfig):
     al = get_al_cfg(cfg)
     al_on = al["enabled"]
     al_files = al_paths(cfg)
+    al_tolerances = resolve_tolerances(al, list(cfg.query.props), float(cfg.query.filter_threshold)) if al_on else None
 
     # Create exterapolating trajectory for properties and scores (experiment_config.yaml -> query.*)
     my_trajectory = Trajectory(cfg.query.trajectory_csv, prop_names=list(cfg.query.props), score_names=list(cfg.query.scores))
@@ -101,7 +105,7 @@ def main(cfg: DictConfig):
         print("  Running Acquire candidates  ")
         from src.active_learning.acquire_block import run_acquire
         run_acquire(al=al, prop_names=list(my_trajectory.prop_names), query_dir=dm.query_data, iter_dir=dm.current_data,
-                    hdf5_path=dm.output_hdf5, cache_dir=al_files["cache_dir"], threshold=cfg.query.filter_threshold,
+                    hdf5_path=dm.output_hdf5, cache_dir=al_files["cache_dir"], tolerances=al_tolerances,
                     seed=int(cfg.system.seed), iteration=n)
 
     # Step 5: Relax molecules
@@ -174,7 +178,7 @@ def main(cfg: DictConfig):
             from src.active_learning.hdf5_block import prepare_al_labels
             al_props = list(my_trajectory.prop_names)
             al_meta = prepare_al_labels(query_dir=dm.query_data, prop_dir=prop_calc_path, iter_dir=dm.current_data,
-                                        prop_names=al_props, threshold=cfg.query.filter_threshold, iteration=n,
+                                        prop_names=al_props, tolerances=al_tolerances, iteration=n,
                                         keep_off_target=bool(al["keep_off_target"]))
         run_to_hdf5(dm.query_data, prop_calc_path, cfg.hdf5.appending_flag, dm.output_hdf5, context_flag, cfg.hdf5.extra_properties_flag, cfg.hdf5.hdf5_iter_flag, dm.itr_extra_prop_path, n, al_meta=al_meta, al_props=al_props)
 

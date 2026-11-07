@@ -36,7 +36,7 @@ class FakeFeaturizer:
         pass
 
 
-def make_cfg(tmp_path, al_enabled=True, keep_off_target=True):
+def make_cfg(tmp_path, al_enabled=True, keep_off_target=True, surrogate_props=None):
     exp = tmp_path / "Experiments" / "exp"
     (exp / "configs").mkdir(parents=True)
     write_trajectory(tmp_path / "traj.csv")
@@ -66,7 +66,8 @@ def make_cfg(tmp_path, al_enabled=True, keep_off_target=True):
         "max_parallel_tasks": 2, "processing_timeout_hours": 1,
         "al": {"enabled": al_enabled, "targets_per_iter": 3, "oversample": OVERSAMPLE, "budget": BUDGET,
                "keep_off_target": keep_off_target,
-               "surrogate": {"n_members": 2, "n_trees": 10, "min_train": 20},
+               "surrogate": {"n_members": 2, "n_trees": 10, "min_train": 20,
+                             "props": surrogate_props or ["HLgap", "eMBD"]},
                "density": {"n_candidates": 300}, "validation": {"size": 10}},
     }
     c = OmegaConf.create(cfg)
@@ -196,6 +197,15 @@ def test_keep_off_target_false_keeps_only_hits(tmp_path, monkeypatch):
     with h5py.File(out, "r") as f:
         grp = f["G-active-loop-0"]
         assert len(grp) > 0 and all(int(grp[k]["al_hit"][0]) == 1 for k in grp)
+
+
+def test_surrogate_can_use_subset_of_query_properties(tmp_path, monkeypatch):
+    cfg = make_cfg(tmp_path, surrogate_props=["HLgap"])
+    run_forward(cfg, monkeypatch)
+    run_backward(cfg, monkeypatch)
+    acq = pd.read_csv(data_dir(cfg) / "iter_0" / "acquisition.csv")
+    assert acq["mu_HLgap"].notna().any()
+    assert acq["mu_eMBD"].isna().all()
 
 
 def test_loop_stop_flag_makes_both_scripts_exit_cleanly(tmp_path, monkeypatch):

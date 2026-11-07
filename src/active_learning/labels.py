@@ -5,6 +5,8 @@ import math
 from pathlib import Path
 from typing import Optional
 
+import numpy as np
+
 from src.active_learning.constants import (
     NUM_ATOMS_PROP,
     PROP_JSON_KEYS,
@@ -13,6 +15,7 @@ from src.active_learning.constants import (
     get_json_value,
     is_finite_number,
 )
+from src.active_learning.config import tolerance_delta
 from src.active_learning.ids import canonical_id
 
 
@@ -85,19 +88,23 @@ def valid_qm_result(json_path, xyz_path, prop_names) -> tuple:
     return True, ""
 
 
-def is_hit(achieved: dict, requested: dict, threshold: float, prop_names) -> bool:
-    """All non-atNUM properties within `threshold` relative tolerance of the request (same rule as accuracy_filter)."""
-    for p in prop_names:
+def is_hit(achieved: dict, requested: dict, tolerances, prop_names) -> bool:
+    """Return whether all non-atNUM properties are within their configured tolerances."""
+    names = [p for p in prop_names if p != NUM_ATOMS_PROP]
+    if isinstance(tolerances, (int, float)):
+        tolerances = {p: {"relative": float(tolerances), "absolute": 0.0} for p in names}
+    target = np.array([requested[p] for p in names], dtype=float)
+    delta = tolerance_delta(target, names, tolerances)
+    for p, allowed in zip(names, delta):
         if p == NUM_ATOMS_PROP:
             continue
-        t = float(requested[p])
-        if abs(float(achieved[p]) - t) > threshold * abs(t):
+        if abs(float(achieved[p]) - float(requested[p])) > allowed:
             return False
     return True
 
 
 def build_al_meta(query_dir, prop_dir, targets: list, cand_meta: dict, prop_names: list,
-                  threshold: float, iteration: int) -> tuple:
+                  tolerances, iteration: int) -> tuple:
     """Validate QM results and attach target/hit metadata.
 
     Returns (al_meta keyed by canonical ID, rejected list of (file name, reason)).
@@ -123,7 +130,7 @@ def build_al_meta(query_dir, prop_dir, targets: list, cand_meta: dict, prop_name
             "iteration": iteration,
             "target_id": int(tid),
             "requested": [float(target.props[p]) for p in prop_names],
-            "hit": int(is_hit(achieved, target.props, threshold, prop_names)),
+            "hit": int(is_hit(achieved, target.props, tolerances, prop_names)),
             "achieved": achieved,
         }
     return al_meta, rejected

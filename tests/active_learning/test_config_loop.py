@@ -9,7 +9,9 @@ from src.active_learning.config import (
     request_stop,
     resolve_blocks,
     resolve_start,
+    resolve_tolerances,
     should_stop,
+    tolerance_delta,
     validate_al_cfg,
 )
 
@@ -75,8 +77,39 @@ def test_validation_rejects_unreadable_property_and_ignores_disabled():
     validate_al_cfg(get_al_cfg(make_cfg(al={"enabled": False, "targets_per_iter": 0})), 20, [])
 
 
+def test_validation_rejects_surrogate_property_outside_query():
+    al = get_al_cfg(make_cfg(al={"enabled": True, "budget": 50, "surrogate": {"props": ["DIP"]}}))
+    with pytest.raises(ValueError, match="subset of query.props"):
+        validate_al_cfg(al, 20, ["HLgap", "eMBD"])
+
+
+def test_validation_rejects_count_only_surrogate():
+    al = get_al_cfg(make_cfg(al={"enabled": True, "budget": 50, "surrogate": {"props": ["atNUM"]}}))
+    with pytest.raises(ValueError, match="non-atNUM"):
+        validate_al_cfg(al, 20, ["HLgap", "eMBD", "atNUM"])
+
+
 def test_loop_stop_flag_on_struct_config():
     cfg = make_cfg()
     assert not should_stop(cfg)
     request_stop(cfg)
     assert should_stop(cfg) and cfg.loop.stop is True
+
+
+def test_property_tolerances_use_relative_and_absolute_limits():
+    al = get_al_cfg(make_cfg(al={"enabled": True, "tolerances": {
+        "default": {"relative": 0.2, "absolute": 0.0},
+        "HLgap": {"relative": 0.1, "absolute": 0.05},
+    }}))
+    tolerances = resolve_tolerances(al, ["HLgap", "eMBD"], fallback=0.3)
+    assert tolerances["HLgap"] == {"relative": 0.1, "absolute": 0.05}
+    assert tolerances["eMBD"] == {"relative": 0.2, "absolute": 0.0}
+    assert tolerance_delta([0.2, -2.0], ["HLgap", "eMBD"], tolerances).tolist() == [0.05, 0.4]
+
+
+def test_property_tolerances_reject_negative_values():
+    al = get_al_cfg(make_cfg(al={"enabled": True, "tolerances": {
+        "HLgap": {"relative": -0.1},
+    }}))
+    with pytest.raises(ValueError, match="non-negative"):
+        resolve_tolerances(al, ["HLgap"], fallback=0.2)

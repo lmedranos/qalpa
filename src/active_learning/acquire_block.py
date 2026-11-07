@@ -6,6 +6,7 @@ import numpy as np
 import pandas as pd
 
 from src.active_learning.acquisition import select_batch
+from src.active_learning.config import resolve_tolerances, tolerance_delta
 from src.active_learning.constants import NUM_ATOMS_PROP
 from src.active_learning.density import PropertyDensity
 from src.active_learning.features import MolFeaturizer, hdf5_atoms
@@ -27,7 +28,8 @@ def _shares(budget: int, targets: list, available: dict) -> dict:
     return dict(zip([t.id for t in live], allocate(budget, [t.n_samples for t in live], minimum)))
 
 
-def run_acquire(*, al: dict, prop_names: list, query_dir, iter_dir, hdf5_path, cache_dir, threshold: float,
+def run_acquire(*, al: dict, prop_names: list, query_dir, iter_dir, hdf5_path, cache_dir,
+                tolerances: dict | None = None, threshold: float | None = None,
                 seed: int, iteration: int, featurizer=None, log=print) -> dict:
     """Keep the best `al.budget` candidates in query_dir (others are deleted) and write acquisition.csv."""
     query_dir, iter_dir = Path(query_dir), Path(iter_dir)
@@ -38,6 +40,7 @@ def run_acquire(*, al: dict, prop_names: list, query_dir, iter_dir, hdf5_path, c
     by_id = {t.id: t for t in targets}
     meta = read_candidates_meta(iter_dir)
     acq = al["acquisition"]
+    tolerances = tolerances or resolve_tolerances(al, prop_names, 0.1 if threshold is None else threshold)
     rng = np.random.default_rng([int(seed), int(iteration), 1])
 
     files = sorted(f for f in query_dir.iterdir() if f.is_file() and f.suffix == ".xyz")
@@ -48,6 +51,8 @@ def run_acquire(*, al: dict, prop_names: list, query_dir, iter_dir, hdf5_path, c
 
     cols = [j for j, p in enumerate(prop_names) if p != NUM_ATOMS_PROP]
     sp_names = [prop_names[j] for j in cols]
+    surrogate_names = [p for p in al["surrogate"]["props"] if p != NUM_ATOMS_PROP]
+    surrogate_cols = [sp_names.index(p) for p in surrogate_names]
     mu = np.full((n, len(cols)), np.nan)
     sigma = np.full((n, len(cols)), np.nan)
     diag = {k: np.full(n, np.nan) for k in ("p_hit", "unc", "nov", "cost", "div", "score")}
@@ -81,6 +86,7 @@ def run_acquire(*, al: dict, prop_names: list, query_dir, iter_dir, hdf5_path, c
         n_bits = featurizer.n_bits
         ref_fps = np.array(ref_fps, dtype=bool).reshape(-1, n_bits) if len(ref_fps) else np.zeros((0, n_bits), dtype=bool)
         ref_y = np.array(rows, dtype=float).reshape(-1, len(cols))
+        surrogate_y = ref_y[:, surrogate_cols] if len(ref_y) else np.empty((0, len(surrogate_cols)))
         featurizer.save()
 
         fps = np.zeros((n, ref_fps.shape[1]), dtype=bool)
@@ -106,39 +112,48 @@ def run_acquire(*, al: dict, prop_names: list, query_dir, iter_dir, hdf5_path, c
         cold = len(ref_y) < int(sur["min_train"])
         summary.update(cold_start=bool(cold), n_train=int(len(ref_y)))
         if len(ref_y):
-            dens = PropertyDensity(ref_y, bandwidth=al["density"]["bandwidth"], logp_floor=al["density"]["logp_floor"])
+            dens = PropertyDensity(surrogate_y, bandwidth=al["density"]["bandwidth"], logp_floor=al["density"]["logp_floor"])
             prop_scale = dens.scale
         else:
             dens, prop_scale = None, np.ones(len(cols))
         req = np.array([[by_id[t].props[p] for p in sp_names] if t in by_id else [np.nan] * len(cols) for t in tids])
+        ok_rows = np.flatnonzero(ok)
         if cold:
-            mu[ok], sigma[ok] = req[ok], np.tile(prop_scale, (int(ok.sum()), 1))
+            mu[np.ix_(ok_rows, surrogate_cols)] = req[np.ix_(ok_rows, surrogate_cols)]
+            sigma[np.ix_(ok_rows, surrogate_cols)] = (
+                np.tile(prop_scale, (len(ok_rows), 1))
+            )
         else:
             take = np.arange(len(ref_y))
             if len(take) > int(sur["max_train"]):
                 take = rng.choice(take, size=int(sur["max_train"]), replace=False)
-            model = build_surrogate(sur["backend"], sur["n_members"], sur["n_trees"], seed).fit(ref_fps[take], ref_y[take])
+            model = build_surrogate(sur["backend"], sur["n_members"], sur["n_trees"], seed).fit(
+                ref_fps[take], surrogate_y[take]
+            )
             if ok.any():
-                mu[ok], sigma[ok] = model.predict(fps[ok])
+                pred_mu, pred_sigma = model.predict(fps[ok])
+                mu[np.ix_(ok_rows, surrogate_cols)] = pred_mu
+                sigma[np.ix_(ok_rows, surrogate_cols)] = pred_sigma
         if dens is None:
-            dens = PropertyDensity(mu[ok] if ok.any() else np.zeros((1, len(cols))))
+            fallback = mu[np.ix_(ok_rows, surrogate_cols)] if len(ok_rows) else np.zeros((1, len(surrogate_cols)))
+            dens = PropertyDensity(fallback)
 
         ref_cap = int(acq["novelty_ref_max"])
         existing = ref_fps if len(ref_fps) <= ref_cap else ref_fps[rng.choice(len(ref_fps), ref_cap, replace=False)]
         for tid, share in shares.items():
             sel = np.flatnonzero(tids == tid)
             t = by_id[tid]
-            target = np.array([t.props[p] for p in sp_names], dtype=float)
-            delta = threshold * np.abs(target)
-            m = np.where(ok[sel, None], mu[sel], np.nan)
-            chosen, d = select_batch(mu=m, sigma=sigma[sel], target=target, delta=delta, fps=fps[sel],
+            target = np.array([t.props[p] for p in surrogate_names], dtype=float)
+            delta = tolerance_delta(target, surrogate_names, tolerances)
+            m = np.where(ok[sel, None], mu[sel][:, surrogate_cols], np.nan)
+            chosen, d = select_batch(mu=m, sigma=sigma[sel][:, surrogate_cols], target=target, delta=delta, fps=fps[sel],
                                      existing_fps=existing, n_heavy=n_heavy[sel], budget=share, weights=acq,
                                      density=dens, prop_scale=prop_scale, mode="score", rng=rng)
             for k, arr in diag.items():
                 arr[sel] = d[k]
             selected[sel[chosen]] = True
             if len(chosen):
-                dens.add_points(mu[sel[chosen]])
+                dens.add_points(mu[np.ix_(sel[chosen], surrogate_cols)])
                 existing = np.vstack([existing, fps[sel[chosen]]])
 
     table = pd.DataFrame({"name": [f.name for f in files], "target_id": tids, "status": status})

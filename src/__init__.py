@@ -10,9 +10,4 @@ This package provides tools for:
 __version__ = "0.1.0"
 __author__ = "Research Team"
 
-# Make key modules easily importable
-from . import utils
-from . import pipeline_blocks
-from . import scripts
-
 __all__ = ["utils", "pipeline_blocks", "scripts"]
