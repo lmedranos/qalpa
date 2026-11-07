@@ -26,49 +26,59 @@ The QALPA framework combines diffusion models with quantum-mechanical (QM) calcu
 The software system is organized into a modular architecture that follows a three-phase workflow, guiding the process from molecular trajectory design to data analysis. 
 
 ```mermaid
-flowchart LR
-    subgraph phase1["Phase I: Trajectory Definition"]
-        A["Define property space"]
-        B["Navigator<br/>interactive planner"]
-        C["trajectory_*.csv"]
-        A --> B --> C
+flowchart TB
+    A["Navigator<br/>define trajectory"] --> B["trajectory_*.csv"]
+
+    subgraph forward["Forward job — src/scripts/forward.py"]
+        direction LR
+        ALP["AL enabled:<br/>plan_targets.py"] --> TARGET["targets.json"]
+        FIXED["AL disabled:<br/>select trajectory row"] --> TARGET
+        TARGET --> S["Split cumulative HDF5"]
+        S --> T["Train or resume<br/>diffusion model"]
+        T --> D["Generate molecules"]
     end
 
-    subgraph phase2["Phase II: Iterative Forward/Backward Loop"]
-        P["Plan targets<br/>(optional AL)"]
-        SP["Split labelled HDF5"]
-        T["Train diffusion model"]
-        D["Generate molecules"]
-        SF["Score and filter"]
-        AC["Acquire candidates<br/>fingerprint diversity/cost"]
-        G["Optimize geometry"]
-        E["Calculate QM properties"]
-        H["Append valid labels<br/>to HDF5"]
-        EV["Evaluate metrics"]
-
-        P --> SP --> T --> D --> SF --> AC --> G --> E --> H --> EV
-        EV -. "next iteration" .-> P
+    subgraph backward["Backward job: src/scripts/backward.py"]
+        direction LR
+        F["Score/filter"] --> DEC{"AL enabled?"}
+        DEC -->|yes| AC["Acquire candidates<br/>fingerprint diversity/cost"]
+        DEC -->|no| R["Relax geometry"]
+        AC --> R
+        R --> Q["Calculate QM properties"]
+        Q --> PROP{"Property context?"}
+        PROP -->|yes| PF["Property accuracy filter"]
+        PROP -->|no| H["Write/append HDF5"]
+        PF --> H
+        H --> EVAL["AL enabled?"]
+        EVAL -->|yes| M["Evaluate metrics"]
+        EVAL -->|no| DONE["Iteration complete"]
+        M --> DONE
     end
-    
-    subgraph phase3["Phase III: Analysis"]
-        I["HDF5 and metrics"]
+
+    B --> ALP
+    B --> FIXED
+    D --> F
+    H -. "next iteration:<br/>cumulative labels" .-> S
+    M -. "next iteration:<br/>al_state.json" .-> ALP
+
+    subgraph analysis["Analysis"]
+        direction LR
+        I["HDF5 + metrics"]
         J["Iteration analysis"]
         K["Visualization"]
         I --> J --> K
     end
-    
-    C ==> P
     H ==> I
-    EV ==> I
-    
-    style phase1 fill:#FFE082,stroke:#F57C00,stroke-width: 2px
-    style phase2 fill:#81C784,stroke:#388E3C,stroke-width: 2px
-    style phase3 fill:#90CAF9,stroke:#1976D2,stroke-width: 2px
+    M ==> I
+
+    style forward fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px
+    style backward fill:#FFCCBC,stroke:#D84315,stroke-width:2px
+    style analysis fill:#90CAF9,stroke:#1976D2,stroke-width:2px
 ```
 
 ### Phase I – Trajectory Planning
 
-This phase provides an interactive environment for defining molecular trajectories within a property space (e.g., HOMO-LUMO gap, many-body dispersion energy, atomic number). The resulting trajectory files (`trajectory_*.csv`) serve as input for the active learning process. 
+This phase provides an interactive environment for defining molecular trajectories within a property space (e.g., HOMO-LUMO gap, many-body dispersion energy, atomic number). The resulting trajectory files (`trajectory_*.csv`) are consumed by `forward.py`; with active learning enabled, they define the corridor from which targets are planned.
 
 <img width="400" alt="trajectory_planer" src="Navigator/example_trajectory.png" />
 
@@ -76,19 +86,19 @@ This phase provides an interactive environment for defining molecular trajectori
 
 ### Phase II – Active Diffusion Execution
 
-This represents the core operational layer of the system, responsible for orchestrating the iterative molecular generation, evaluation, and feedback process. 
+This represents the core operational layer of the system. Each iteration is executed by two jobs: the forward job prepares data and generates molecules, and the backward job evaluates those molecules and persists the resulting labels for the next iteration.
 
 #### Active learning (`al:` block in `experiment_config.yaml`)
 
-With `al.enabled: true` the loop chooses what to evaluate instead of following one trajectory row per iteration:
+With `al.enabled: true`, one iteration proceeds as follows:
 
-1. **plan** – picks `targets_per_iter` property targets inside the trajectory corridor. `kde_map` favors sparse regions (KDE of labelled data), places where the generator missed its past targets, and under-explored targets. `trajectory` and `frontier` are simpler alternatives. The public contracts are `Planner`, `AcquiScorer`, and `CoverageEstimator` in `src/base`; KDE implementations live in `src/components/kde_plan.py`.
-2. **generate** – one generator call per target, `num_samples * oversample` candidates in total.
-3. **acquire** – converts generated structures to canonical SMILES and Morgan fingerprints, removes invalid/duplicate candidates, and selects at most `budget` candidates using fingerprint diversity/novelty and heavy-atom cost. `random` mode provides a random baseline. Acquisition does not use a predictive surrogate or uncalculated candidate properties.
-4. **hdf5** – every molecule with a valid QM result is kept (even if it missed its target) with its true properties, so the generator is retrained on what it actually produced. Set `keep_off_target: false` to keep hits only.
-5. **evaluate** – loads the accumulated state from HDF5, computes hit rate, coverage, selected-count, and acquisition-score metrics, and appends them to `<experiment>/metrics.csv`; optional early stopping sets `loop.stop`.
+1. **Forward: plan** – `plan_targets.py` loads the cumulative HDF5 state and writes `targets.json`. `kde_map` samples a padded trajectory corridor and scores sparse, under-explored, and historically difficult regions; `trajectory` and `frontier` are simpler alternatives.
+2. **Forward: split/train/generate** – the labelled HDF5 is split into a training dataset, the diffusion model is trained or resumed, and molecules are generated for each planned target. The total candidate pool is `num_samples * oversample`.
+3. **Backward: score and acquire** – score filters run first. `acquire_candidates.py` converts structures to canonical SMILES and Morgan fingerprints, removes invalid/duplicate candidates, and selects at most `budget` candidates using fingerprint diversity/novelty and heavy-atom cost. `random` mode provides a baseline; no predictive surrogate is used.
+4. **Backward: relax and calculate** – selected candidates undergo geometry optimization and QM property calculation. Optional property-accuracy filtering can remove candidates outside the configured tolerance.
+5. **Backward: persist and evaluate** – valid results are written to the cumulative HDF5. Active-learning metadata records requested properties, achieved properties, target IDs, iteration, and hit flags. Evaluation appends hit rate, coverage, selected-count, and acquisition-score metrics to `<experiment>/metrics.csv`; optional early stopping sets `loop.stop`.
 
-Run with `al.enabled: false` to get the original fixed-trajectory loop. `kde_map` needs at least two trajectory rows and `hdf5.appending_flag: true`. Forward and backward remain separate jobs, so submit them alternately as before. Use `al.acquisition.mode: random` for a baseline. Active-learning sidecar files are `al_state.json`, `validation_ids.json`, `metrics.csv`, and the `al_cache/` fingerprint cache.
+Run with `al.enabled: false` to use the fixed trajectory row for each iteration. In that mode, target planning, candidate acquisition, and active-learning evaluation are skipped; the forward job generates the configured number of molecules and the backward job runs the regular score/filter, relaxation, property, and HDF5 stages. `kde_map` needs at least two trajectory rows and `hdf5.appending_flag: true`. Submit forward and backward alternately so generated molecules are available to the backward job and updated HDF5 labels are available to the next forward job. Active-learning sidecar files are `al_state.json`, `validation_ids.json`, `metrics.csv`, and the `al_cache/` fingerprint cache.
 
 
 ### Phase III – Output Analysis
@@ -169,8 +179,9 @@ The reusable components in `src/components` provide trajectory and candidate per
 
 
 ```mermaid
-graph TB
+flowchart TB
     subgraph orchestration["🔷 Orchestration Layer"]
+        direction LR
         init["init_experiment.py"]
         forward["forward.py"]
         backward["backward.py"]
@@ -179,12 +190,8 @@ graph TB
 
     end
 
-    config --> forward
-    config --> backward
-    init --> forward
-    init --> backward
-   
     subgraph components["🟢 Components Layer"]
+        direction LR
         trajectory["trajectory.py<br/>Target and trajectory I/O"]
         candidates["candidates.py<br/>Candidate identity and metadata"]
         state["al_state.py<br/>Accumulated AL state"]
@@ -195,12 +202,14 @@ graph TB
     end
     
     subgraph contracts["🟣 Replaceable Contracts"]
+        direction LR
         planner["base/planner.py<br/>Planner"]
         acq["base/acquisition.py<br/>AcquiScorer"]
         coverage["base/coverage.py<br/>CoverageEstimator"]
     end
 
-    subgraph pipeline["🔴 Pipeline Blocks"]
+    subgraph pipeline["🔴 Pipeline Blocks — execution order"]
+        direction LR
         plan["plan_targets.py"]
         split["dataset split"]
         generate["diffusion train/generate"]
@@ -209,29 +218,34 @@ graph TB
         props["prop_calc.py"]
         hdf5["prepare_hdf5_labels.py<br/>to_hdf5.py"]
         evaluate["evaluate_active_learning.py"]
+        plan --> split --> generate --> acquire --> relax --> props --> hdf5 --> evaluate
     end
 
+    config --> init
+    config --> forward
+    config --> backward
+    init --> forward
+    init --> backward
     forward --> plan
-    forward --> split
-    forward --> generate
     backward --> acquire
     backward --> relax
     backward --> props
     backward --> hdf5
     backward --> evaluate
 
-    plan --> planner
-    plan --> kde
-    acquire --> acq
-    acquire --> candidates
-    evaluate --> coverage
-    evaluate --> state
-    hdf5 --> labels
-    plan --> state
-    forward --> trajectory
-    backward --> data
-    backward --> parallel
-    benchmark --> kde
+    planner -. "implemented by" .-> kde
+    acq -. "implemented by" .-> kde
+    coverage -. "implemented by" .-> kde
+    plan -. "uses" .-> planner
+    plan -. "reads/writes" .-> trajectory
+    plan -. "reads" .-> state
+    acquire -. "uses" .-> candidates
+    hdf5 -. "uses" .-> labels
+    evaluate -. "reads" .-> state
+    evaluate -. "uses" .-> coverage
+    forward -. "uses" .-> data
+    backward -. "uses" .-> parallel
+    benchmark -. "compares" .-> kde
     
     style orchestration fill:#B3E5FC,stroke:#0277BD,stroke-width:2px,color:#000
     style components fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px,color:#000
