@@ -27,39 +27,39 @@ The software system is organized into a modular architecture that follows a thre
 
 ```mermaid
 flowchart LR
-    subgraph phase1["Phase I: Trajectory Planning"]
-        A["Define Property Space<br/>(HOMO-LUMO, MBD, etc.)"]
-        B["Interactive Planner"]
-        C["Trajectory CSV"]
+    subgraph phase1["Phase I: Trajectory Definition"]
+        A["Define property space"]
+        B["Navigator<br/>interactive planner"]
+        C["trajectory_*.csv"]
         A --> B --> C
     end
-    
-    subgraph phase2["Phase II: Active Diffusion"]
-        T["Train Model"]
-        D["Generate Molecules<br/>(Diffusion Model)"]
-        G["Geometry Optimization"]
-        R["Retrain Model"]
-        S["Scoring"]
-        F["Active Learning<br/>Selection"]
-        E["DFT Calculation"]
-        
-        T --> D --> G --> S--> E --> F --> R --> D
+
+    subgraph phase2["Phase II: Iterative Forward/Backward Loop"]
+        P["Plan targets<br/>(optional AL)"]
+        SP["Split labelled HDF5"]
+        T["Train diffusion model"]
+        D["Generate molecules"]
+        SF["Score and filter"]
+        AC["Acquire candidates<br/>fingerprint diversity/cost"]
+        G["Optimize geometry"]
+        E["Calculate QM properties"]
+        H["Append valid labels<br/>to HDF5"]
+        EV["Evaluate metrics"]
+
+        P --> SP --> T --> D --> SF --> AC --> G --> E --> H --> EV
+        EV -. "next iteration" .-> P
     end
     
-    subgraph phase3["Phase III:  Analysis"]
-        H["HDF5 Output"]
-        I["Accuracy Analysis"]
-        J["Iteration Analysis"]
+    subgraph phase3["Phase III: Analysis"]
+        I["HDF5 and metrics"]
+        J["Iteration analysis"]
         K["Visualization"]
-        H --> I
-        H --> J
-        I --> K
-        J --> K
+        I --> J --> K
     end
     
-    C ==> D
-    C ==> F
-    phase2 --> H
+    C ==> P
+    H ==> I
+    EV ==> I
     
     style phase1 fill:#FFE082,stroke:#F57C00,stroke-width: 2px
     style phase2 fill:#81C784,stroke:#388E3C,stroke-width: 2px
@@ -82,13 +82,13 @@ This represents the core operational layer of the system, responsible for orches
 
 With `al.enabled: true` the loop chooses what to evaluate instead of following one trajectory row per iteration:
 
-1. **plan** – picks `targets_per_iter` property targets inside the trajectory corridor. `kde_map` favors sparse regions (KDE of labelled data), places where the generator missed its past targets, and under-explored targets. `trajectory` and `frontier` are simpler alternatives. Concrete implementations inherit from `Planner`, `AcquiScorer`, and `CoverageEstimator` in `src/base`.
+1. **plan** – picks `targets_per_iter` property targets inside the trajectory corridor. `kde_map` favors sparse regions (KDE of labelled data), places where the generator missed its past targets, and under-explored targets. `trajectory` and `frontier` are simpler alternatives. The public contracts are `Planner`, `AcquiScorer`, and `CoverageEstimator` in `src/base`; KDE implementations live in `src/components/kde_plan.py`.
 2. **generate** – one generator call per target, `num_samples * oversample` candidates in total.
-3. **acquire** – a fingerprint random-forest ensemble predicts each candidate's properties and uncertainty; candidates are ranked by hit probability, uncertainty, novelty, diversity and cost, and only `budget` of them go on to relax and QM.
+3. **acquire** – converts generated structures to canonical SMILES and Morgan fingerprints, removes invalid/duplicate candidates, and selects at most `budget` candidates using fingerprint diversity/novelty and heavy-atom cost. `random` mode provides a random baseline. Acquisition does not use a predictive surrogate or uncalculated candidate properties.
 4. **hdf5** – every molecule with a valid QM result is kept (even if it missed its target) with its true properties, so the generator is retrained on what it actually produced. Set `keep_off_target: false` to keep hits only.
-5. **evaluate** – appends hit rate, acquisition and coverage metrics to `<experiment>/metrics.csv`; optional early stopping sets `loop.stop`.
+5. **evaluate** – loads the accumulated state from HDF5, computes hit rate, coverage, selected-count, and acquisition-score metrics, and appends them to `<experiment>/metrics.csv`; optional early stopping sets `loop.stop`.
 
-Run with `al.enabled: false` to get the original fixed-trajectory loop. `kde_map` needs at least two trajectory rows and `hdf5.appending_flag: true`. Forward and backward remain separate jobs, so submit them alternately as before. Use `al.acquisition.mode: random` for a baseline.
+Run with `al.enabled: false` to get the original fixed-trajectory loop. `kde_map` needs at least two trajectory rows and `hdf5.appending_flag: true`. Forward and backward remain separate jobs, so submit them alternately as before. Use `al.acquisition.mode: random` for a baseline. Active-learning sidecar files are `al_state.json`, `validation_ids.json`, `metrics.csv`, and the `al_cache/` fingerprint cache.
 
 
 ### Phase III – Output Analysis
@@ -109,7 +109,7 @@ src/
 │   ├── acquire_candidates.py
 │   ├── prepare_hdf5_labels.py
 │   ├── plan_targets.py
-│   └── evaluate_config.py
+│   └── evaluate_active_learning.py
 ├── components/
 │   ├── al_state.py           # Active-learning state persistence and records
 │   ├── surrogate.py          # Optional surrogate-model components
@@ -117,6 +117,10 @@ src/
 │   ├── dataset_labels.py     # Dataset label extraction and QM result validation
 │   ├── trajectory.py         # Generic trajectory CSV handling
 │   └── data_manage.py, parallelize.py, mol_calculate.py
+├── base/
+│   ├── planner.py       # Planner and PlanningRequest contracts
+│   ├── acquisition.py   # Acquisition scorer contract
+│   └── coverage.py      # Coverage estimator contract
 ├── configs/
 │   ├── al.yaml  # Declarative AL defaults
 │   ├── datasets/
@@ -154,73 +158,92 @@ data preparation therefore use one dataset-specific source instead of
 duplicating QM7 label logic. Active-learning hit and target metadata assembly
 remains with the HDF5 preparation block because it is workflow-specific.
 
-### Surface Layer – Experiment Orchestration Layer
-Responsible for workflow coordination, configuration management, and resource allocation across HPC environments. It defines the experiment lifecycle.
+### Orchestration Layer
+The scripts in `src/scripts` coordinate experiment initialization and the forward/backward iteration loop. Configuration loading and validation are centralized in `src/configs/config.py`.
 
-### Deep Layer – Functional Core Layer 
-Contains the domain-specific components that implement the scientific and computational functionality of the diffusion process, including molecular generation and property evaluation.
+### Pipeline Layer
+The blocks in `src/pipeline_blocks` implement planning, candidate acquisition, filtering, geometry optimization, property calculation, HDF5 preparation, and evaluation.
 
-### Utilities Subsystem 
-Provides cross-cutting services that support both layers by handling data management, task parallelization, and trajectory synchronization.
+### Components Layer
+The reusable components in `src/components` provide trajectory and candidate persistence, dataset-label contracts, active-learning state handling, KDE planning/scoring/coverage, data management, and parallelization. The base interfaces in `src/base` keep planning, acquisition scoring, and coverage estimation replaceable.
 
 
 ```mermaid
 graph TB
     subgraph orchestration["🔷 Orchestration Layer"]
-        hpc["HPC Resource Allocator"]
-        config["Configuration"]
-        orc["Orchestrator"]
-        Expsc["Experimentation Scripts"]
-        initsc["Initiation"]
-        forsc["Forward"]
-        bacsc["Backward"]
-        Evalsc["Benchmarking Scripts"]
-        gensc["Generate"]
-        calsc["Calculate"]
-        evalsc["Evaluate"]
+        init["init_experiment.py"]
+        forward["forward.py"]
+        backward["backward.py"]
+        config["configs/config.py<br/>al.yaml"]
+        benchmark["benchmark/compare_baseline.py"]
 
     end
 
-    Expsc --> initsc
-    Expsc --> forsc
-    Expsc --> bacsc
-    Evalsc --> gensc
-    Evalsc --> calsc
-    Evalsc --> evalsc
-    orc --> Expsc
-    orc --> Evalsc
+    config --> forward
+    config --> backward
+    init --> forward
+    init --> backward
    
-
-    subgraph utilities["🟢 Utilities Subsystem"]
-        data["Data Manager"]
-        parallel["Task Parallelizer"]
-        sync["Trajectory Synchronizer"]
+    subgraph components["🟢 Components Layer"]
+        trajectory["trajectory.py<br/>Target and trajectory I/O"]
+        candidates["candidates.py<br/>Candidate identity and metadata"]
+        state["al_state.py<br/>Accumulated AL state"]
+        labels["dataset_labels.py<br/>Dataset label contract"]
+        kde["kde_plan.py<br/>KDE planner, scorer, coverage"]
+        data["data_manage.py<br/>DataManager"]
+        parallel["parallelize.py"]
     end
     
-    subgraph functional["🔴 Functional Core Layer"]
-        Diff["Diffusion Model<br/>(Pytorch Geometry/PytorchLightning)"]
-        train["Model Trainer"]
-        gen["Molecular Generator"]
-        Pipeb["Pipeline Blocks"]
-        eval["Property Evaluator<br/>(DFT/FHI-aims)"]
-        opt["Geometry Optimizer<br/>(MLFF)"]
-        sco["Scoring Schemes Calculators<br/>(SAScore/QED)"]
-        sel["Molecular Filters"]
-        Aug["Dataset Augmentation"]
+    subgraph contracts["🟣 Replaceable Contracts"]
+        planner["base/planner.py<br/>Planner"]
+        acq["base/acquisition.py<br/>AcquiScorer"]
+        coverage["base/coverage.py<br/>CoverageEstimator"]
     end
-    Diff --> train
-    Diff --> gen
-    Pipeb --> eval
-    Pipeb --> opt
-    Pipeb --> sco
-    Pipeb --> sel
-    Pipeb --> Aug
+
+    subgraph pipeline["🔴 Pipeline Blocks"]
+        plan["plan_targets.py"]
+        split["dataset split"]
+        generate["diffusion train/generate"]
+        acquire["acquire_candidates.py"]
+        relax["optimize_geometry.py"]
+        props["prop_calc.py"]
+        hdf5["prepare_hdf5_labels.py<br/>to_hdf5.py"]
+        evaluate["evaluate_active_learning.py"]
+    end
+
+    forward --> plan
+    forward --> split
+    forward --> generate
+    backward --> acquire
+    backward --> relax
+    backward --> props
+    backward --> hdf5
+    backward --> evaluate
+
+    plan --> planner
+    plan --> kde
+    acquire --> acq
+    acquire --> candidates
+    evaluate --> coverage
+    evaluate --> state
+    hdf5 --> labels
+    plan --> state
+    forward --> trajectory
+    backward --> data
+    backward --> parallel
+    benchmark --> kde
     
     style orchestration fill:#B3E5FC,stroke:#0277BD,stroke-width:2px,color:#000
-    style utilities fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px,color:#000
-    style functional fill:#FFCCBC,stroke:#D84315,stroke-width:2px,color:#000
+    style components fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px,color:#000
+    style contracts fill:#E1BEE7,stroke:#6A1B9A,stroke-width:2px,color:#000
+    style pipeline fill:#FFCCBC,stroke:#D84315,stroke-width:2px,color:#000
     linkStyle default stroke:#424242,stroke-width:2px
 ```
+
+`surrogate.py` contains an optional fingerprint random-forest implementation for
+standalone experiments and benchmark comparisons. It is not part of the current
+candidate-acquisition path: acquisition runs before trusted QM properties exist
+and therefore uses only observable molecular structure features.
 
 ## Installation
 
