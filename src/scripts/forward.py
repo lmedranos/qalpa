@@ -6,11 +6,12 @@ import subprocess
 from hydra import main as hydra_main
 from omegaconf import DictConfig, ListConfig, OmegaConf
 
-from src.utils.data_manage import DataManager
-from src.utils.trajectory import Trajectory
-from src.active_learning.config import al_paths, get_al_cfg, resolve_blocks, resolve_start, should_stop, validate_al_cfg
-from src.active_learning.ids import candidate_name, read_targets, write_candidates_meta
-from src.active_learning.plan_block import run_plan
+from src.components.data_manage import DataManager
+from src.components.trajectory import Trajectory
+from src.configs.config import al_paths, get_al_cfg, resolve_blocks, resolve_start, should_stop, validate_al_cfg
+from src.components.candidates import candidate_name, write_candidates_meta
+from src.components.trajectory import read_targets
+from src.pipeline_blocks.plan_targets import run_plan
 
 
 # Allow experiment_config.yaml to derive values such as num_context_features from list lengths
@@ -59,11 +60,14 @@ def main(cfg: DictConfig):
     my_trajectory = Trajectory(cfg.query.trajectory_csv, prop_names=prop_names, score_names=score_names)
 
     if al_on:
-        validate_al_cfg(al, int(cfg.EQdiffParam.num_samples), prop_names)
+        validate_al_cfg(al, int(cfg.EQdiffParam.num_samples), prop_names, dataset=al["dataset"])
         if not my_trajectory.has_properties:
             raise ValueError("Active learning needs property targets in the trajectory (query.props).")
         if al["query_strategy"] == "kde_map" and len(my_trajectory) < 2:
-            raise ValueError("al.query_strategy=kde_map needs at least 2 trajectory rows to define a corridor.")
+            raise ValueError(
+                f"al.query_strategy={al['query_strategy']} needs at least 2 trajectory rows "
+                "to define a corridor."
+            )
 
     # Current active-learning iteration and loop settings (experiment_config.yaml -> loop.* / EQdiffParam.*)
     n = cfg.loop.current_iter
@@ -118,6 +122,8 @@ def main(cfg: DictConfig):
             "--file-path", str(hdf5_file_path),
             "--out-path", str(cfg.EQdiffParam.dataset_root),
             ]
+        if al.get("dataset_config"):
+            cmd += ["--dataset-config", str(al["dataset_config"])]
         if al_on:
             cmd += ["--seed", str(cfg.system.seed)]
             if al_files["validation_file"].exists():

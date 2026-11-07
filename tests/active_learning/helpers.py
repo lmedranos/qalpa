@@ -6,7 +6,7 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from src.utils.trajectory import Trajectory
+from src.components.trajectory import Trajectory
 
 PROPS = ["HLgap", "eMBD", "atNUM"]
 

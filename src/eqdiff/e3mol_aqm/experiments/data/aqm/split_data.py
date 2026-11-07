@@ -10,6 +10,7 @@ sys.path.append(parent_dir)
 print(parent_dir)
 
 import experiments.data.utils as dataset_utils
+from src.components.dataset_labels import load_label_dataset
 import h5py
 import numpy as np
 import torch
@@ -38,29 +39,6 @@ full_atom_encoder = {
     "Hg": 14,
     "Bi": 15,
 }
-mol_properties = [
-    "DIP",
-    "HLgap",
-    "eAT",
-    # "eC",
-    # "eEE",
-    "eH",
-    "eKIN",
- #   "eKSE",
-    "eL",
-    # "eNE",
-    # "eNN",group_name
-    "eMBD",
-##    "eTS",
-    # "eX",
-    "eXC",
-    "eXX",
-    # "mPOL", 
-]
-
-# DFTB+/EquiDTB labels do not provide these; they are stored as NaN when absent.
-optional_properties = {"eKIN", "eXC", "eXX"}
-
 def get_args():
     # fmt: off
     parser = argparse.ArgumentParser(description='Data generation')
@@ -69,6 +47,8 @@ def get_args():
     parser.add_argument('--seed', default=None, type=int, help='Seed for the shuffle (unseeded when omitted)')
     parser.add_argument('--validation-ids', default=None, type=str,
                         help='JSON list of "<top group>/<molecule>" keys kept as the fixed validation set')
+    parser.add_argument('--dataset-config', default=None, type=str,
+                        help='Dataset label schema YAML; QM7 is used when omitted')
     args = parser.parse_args()
     return args
 
@@ -98,7 +78,13 @@ def partition(data_list, keys, seed=None, validation_ids=None):
             data_list[n_train + n_val + 2 :])
 
 
-def split_data(file_path, out_path, seed=None, validation_ids=None):
+def split_data(file_path, out_path, seed=None, validation_ids=None, dataset_config=None):
+    dataset = load_label_dataset(dataset_config)
+    mol_properties = dataset["training_labels"]
+    optional_properties = {
+        name for name, spec in dataset.get("hdf5_labels", {}).items()
+        if spec.get("optional", False)
+    }
     data_list = []
     keys = []
     for top_name, mol in tqdm(h5py.File(file_path).items(), desc="Molecules"):
@@ -160,4 +146,5 @@ def split_data(file_path, out_path, seed=None, validation_ids=None):
 
 if __name__ == "__main__":
     args = get_args()
-    split_data(args.file_path, args.out_path, seed=args.seed, validation_ids=args.validation_ids)
+    split_data(args.file_path, args.out_path, seed=args.seed, validation_ids=args.validation_ids,
+               dataset_config=args.dataset_config)

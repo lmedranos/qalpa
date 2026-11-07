@@ -5,8 +5,8 @@ from pathlib import Path
 
 import numpy as np
 
-from src.active_learning.constants import NUM_ATOMS_PROP
-from src.active_learning.ids import read_json, write_json
+from src.components.dataset_labels import NUM_ATOMS_PROP
+from src.components.candidates import read_json, write_json
 
 
 @dataclass

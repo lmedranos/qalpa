@@ -1,6 +1,6 @@
 """Synthetic comparison of planners (trajectory vs kde_map) and acquisition modes (random vs score).
 
-Usage: python -m src.active_learning.compare_baseline [--rounds 6] [--seeds 3]
+Usage: python -m src.benchmark.compare_baseline [--rounds 6] [--seeds 3]
 
 The world is a toy generator whose accuracy is poor for low HLgap targets; no QM or GPU is involved.
 """
@@ -10,12 +10,12 @@ import argparse
 
 import numpy as np
 
-from src.active_learning.acquisition import select_batch
-from src.active_learning.config import DEFAULTS, _merge
-from src.active_learning.density import PropertyDensity
-from src.active_learning.query_planner import plan_targets
-from src.active_learning.state import ALState
-from src.active_learning.surrogate import FingerprintRF
+from src.pipeline_blocks.acquire_candidates import select_batch
+from src.configs.config import DEFAULTS, _merge
+from src.components.kde_plan import PropertyDensity
+from src.pipeline_blocks.plan_targets import plan_targets
+from src.components.al_state import ALState
+from src.components.surrogate import FingerprintRF
 
 PROPS = ["HLgap", "eMBD"]
 ROWS = np.array([[4.5, -1.9], [3.8, -2.1], [3.1, -2.3], [2.4, -2.5]])

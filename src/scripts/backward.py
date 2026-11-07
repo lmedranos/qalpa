@@ -6,16 +6,16 @@ from hydra import main as hydra_main
 from hydra.core.config_store import ConfigStore
 from omegaconf import DictConfig, OmegaConf
 
-from src.utils.data_manage import DataManager
-from src.utils.trajectory import Trajectory
-from src.utils.parallelize import node_parallelize
+from src.components.data_manage import DataManager
+from src.components.trajectory import Trajectory
+from src.components.parallelize import node_parallelize
 
 from src.pipeline_blocks.filter_molecules import MolecularFilter
 from src.pipeline_blocks.calculate_sascore import sascore
 from src.pipeline_blocks.propcalc_postprocess import prop_postprocess
 from src.pipeline_blocks.propcalc_preprocess import preprocess_fhi
 from src.pipeline_blocks.to_hdf5 import run_to_hdf5
-from src.active_learning.config import (
+from src.configs.config import (
     al_paths, get_al_cfg, request_stop, resolve_blocks, resolve_start, resolve_tolerances,
     should_stop, validate_al_cfg,
 )
@@ -46,14 +46,14 @@ def main(cfg: DictConfig):
     my_trajectory = Trajectory(cfg.query.trajectory_csv, prop_names=list(cfg.query.props), score_names=list(cfg.query.scores))
     context_flag = my_trajectory.has_properties
     if al_on:
-        validate_al_cfg(al, int(cfg.EQdiffParam.num_samples), list(cfg.query.props))
+        validate_al_cfg(al, int(cfg.EQdiffParam.num_samples), list(cfg.query.props), dataset=al["dataset"])
         if not context_flag:
             raise ValueError("Active learning needs property targets in the trajectory (query.props).")
         if not cfg.hdf5.appending_flag:
             raise ValueError("Active learning needs hdf5.appending_flag: true so that labels accumulate across iterations.")
 
     # Create Molecular Filter
-    molecular_filter = MolecularFilter(my_trajectory)
+    molecular_filter = MolecularFilter(my_trajectory, dataset=al["dataset"])
     filteration_scheme = cfg.query.filter_scheme
               
     # Flag to resume in the midde of the loop
@@ -103,7 +103,7 @@ def main(cfg: DictConfig):
     # Step 4b (active learning): keep only the most informative candidates before the expensive steps
     if al_on and 'acquire' in active_blocks:
         print("  Running Acquire candidates  ")
-        from src.active_learning.acquire_block import run_acquire
+        from src.pipeline_blocks.acquire_candidates import run_acquire
         run_acquire(al=al, prop_names=list(my_trajectory.prop_names), query_dir=dm.query_data, iter_dir=dm.current_data,
                     hdf5_path=dm.output_hdf5, cache_dir=al_files["cache_dir"], tolerances=al_tolerances,
                     seed=int(cfg.system.seed), iteration=n)
@@ -175,17 +175,19 @@ def main(cfg: DictConfig):
         print("  Running Create HDF5  ")
         al_meta, al_props = None, None
         if al_on:
-            from src.active_learning.hdf5_block import prepare_al_labels
+            from src.pipeline_blocks.prepare_hdf5_labels import prepare_al_labels
             al_props = list(my_trajectory.prop_names)
             al_meta = prepare_al_labels(query_dir=dm.query_data, prop_dir=prop_calc_path, iter_dir=dm.current_data,
                                         prop_names=al_props, tolerances=al_tolerances, iteration=n,
-                                        keep_off_target=bool(al["keep_off_target"]))
-        run_to_hdf5(dm.query_data, prop_calc_path, cfg.hdf5.appending_flag, dm.output_hdf5, context_flag, cfg.hdf5.extra_properties_flag, cfg.hdf5.hdf5_iter_flag, dm.itr_extra_prop_path, n, al_meta=al_meta, al_props=al_props)
+                                        keep_off_target=bool(al["keep_off_target"]), dataset=al["dataset"])
+        run_to_hdf5(dm.query_data, prop_calc_path, cfg.hdf5.appending_flag, dm.output_hdf5, context_flag,
+                    cfg.hdf5.extra_properties_flag, cfg.hdf5.hdf5_iter_flag, dm.itr_extra_prop_path, n,
+                    al_meta=al_meta, al_props=al_props, dataset=al["dataset"])
 
     # Step 9 (active learning): metrics and early stopping
     if al_on and 'evaluate' in active_blocks:
         print("  Running Evaluate  ")
-        from src.active_learning.evaluate_block import run_evaluate
+        from src.pipeline_blocks.evaluate_active_learning import run_evaluate
         _, stop, reason = run_evaluate(traj=my_trajectory, al=al, hdf5_path=dm.output_hdf5, iter_dir=dm.current_data,
                                        iteration=n, seed=int(cfg.system.seed), metrics_file=al_files["metrics_file"])
         if stop:

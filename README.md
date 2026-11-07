@@ -82,11 +82,11 @@ This represents the core operational layer of the system, responsible for orches
 
 With `al.enabled: true` the loop chooses what to evaluate instead of following one trajectory row per iteration:
 
-1. **plan** – picks `targets_per_iter` property targets inside the trajectory corridor. `kde_map` favors sparse regions (KDE of labelled data), places where the generator missed its past targets, and under-explored targets. `trajectory` and `frontier` are simpler alternatives.
+1. **plan** – picks `targets_per_iter` property targets inside the trajectory corridor. `kde_map` favors sparse regions (KDE of labelled data), places where the generator missed its past targets, and under-explored targets. `trajectory` and `frontier` are simpler alternatives. Concrete implementations inherit from `Planner`, `AcquiScorer`, and `CoverageEstimator` in `src/base`.
 2. **generate** – one generator call per target, `num_samples * oversample` candidates in total.
 3. **acquire** – a fingerprint random-forest ensemble predicts each candidate's properties and uncertainty; candidates are ranked by hit probability, uncertainty, novelty, diversity and cost, and only `budget` of them go on to relax and QM.
 4. **hdf5** – every molecule with a valid QM result is kept (even if it missed its target) with its true properties, so the generator is retrained on what it actually produced. Set `keep_off_target: false` to keep hits only.
-5. **evaluate** – appends hit rate, surrogate error, calibration and coverage to `<experiment>/metrics.csv`; optional early stopping sets `loop.stop`.
+5. **evaluate** – appends hit rate, acquisition and coverage metrics to `<experiment>/metrics.csv`; optional early stopping sets `loop.stop`.
 
 Run with `al.enabled: false` to get the original fixed-trajectory loop. `kde_map` needs at least two trajectory rows and `hdf5.appending_flag: true`. Forward and backward remain separate jobs, so submit them alternately as before. Use `al.acquisition.mode: random` for a baseline.
 
@@ -99,6 +99,60 @@ The final phase focuses on analyzing and visualizing the output. Jupyter noteboo
 ## Active Diffusion Architecture
 
 The architectural elements are organized as follows:
+
+The active-learning implementation follows the same block/component separation as
+the rest of `src`:
+
+```text
+src/
+├── pipeline_blocks/        # Workflow steps called by forward/backward
+│   ├── acquire_candidates.py
+│   ├── prepare_hdf5_labels.py
+│   ├── plan_targets.py
+│   └── evaluate_config.py
+├── components/
+│   ├── al_state.py           # Active-learning state persistence and records
+│   ├── surrogate.py          # Optional surrogate-model components
+│   ├── candidates.py         # Candidate IDs and candidate metadata
+│   ├── dataset_labels.py     # Dataset label extraction and QM result validation
+│   ├── trajectory.py         # Generic trajectory CSV handling
+│   └── data_manage.py, parallelize.py, mol_calculate.py
+├── configs/
+│   ├── al.yaml  # Declarative AL defaults
+│   ├── datasets/
+│   │   └── qm7.yaml  # Default dataset schema and atomic references
+│   └── config.py  # AL loading, validation, paths, and workflow helpers
+└── benchmark/              # Synthetic planner/acquisition comparisons
+    └── compare_baseline.py
+```
+
+The benchmark package contains the synthetic comparison executable. Workflow
+steps should be imported from `src.pipeline_blocks`, and reusable logic from
+`src.components`; evaluation metrics are kept with the evaluation block.
+
+Trajectory planning is kept together in [trajectory.py](src/components/trajectory.py):
+it contains trajectory CSV access plus the `Target` model and persistence for
+planned `targets.json` files. `components/candidates.py` owns candidate IDs, names,
+and candidate metadata persistence.
+
+Dataset-specific QM JSON mappings, required fields, supported elements, and
+atomic reference energies are defined in `src/configs/datasets/qm7.yaml`.
+Experiments use QM7 by default. To use another dataset, copy that file,
+customize it, and set `al.dataset_config` in the experiment configuration to
+the new YAML path.
+
+The same dataset file also owns the label contract:
+
+- `hdf5_labels` defines labels written by the HDF5 conversion block.
+- `extra_hdf5_labels` defines optional force/charge/volume labels.
+- `training_labels` defines the label order consumed by data splitting and
+  augmentation.
+
+The shared provider in `src/components/dataset_labels.py` reads, derives, and
+validates these labels. Active-learning validation, HDF5 conversion, and AQM
+data preparation therefore use one dataset-specific source instead of
+duplicating QM7 label logic. Active-learning hit and target metadata assembly
+remains with the HDF5 preparation block because it is workflow-specific.
 
 ### Surface Layer – Experiment Orchestration Layer
 Responsible for workflow coordination, configuration management, and resource allocation across HPC environments. It defines the experiment lifecycle.
@@ -412,7 +466,7 @@ qapla/
 │   ├── eqdiff/                      # Diffusion model code
 │   ├── pipeline_blocks/             # Geometry/props/filter/hdf5 blocks
 │   ├── scripts/                     # init_experiment.py, forward.py, backward.py
-│   └── utils/                       # Data manager, trajectory, parallelization helpers
+│   └── components/                  # Data manager, trajectory, parallelization helpers
 ├── Experiments/
 │   └── templates/                   # Template config and job scripts for initialization
 ├── Navigator/                       # Interactive trajectory planner (design_trajectory.ipynb)

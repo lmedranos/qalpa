@@ -1,0 +1,46 @@
+enabled: false
+dataset_config: null
+query_strategy: kde_map
+targets_per_iter: 4
+oversample: 5
+budget: 200
+corridor_pad: 0.1
+corridor_lookahead: null
+advance_hit_rate: 0.3
+keep_off_target: true
+generation_budget_hours: 12
+min_neff: 5
+tolerances:
+  default:
+    relative: null
+    absolute: 0.0
+density:
+  bandwidth: scott
+  n_candidates: 2000
+  w_sparse: 0.5
+  w_err: 0.5
+  w_explore: 0.5
+  min_reach: 0.05
+  logp_floor: -20.0
+  reweight: false
+acquisition:
+  mode: score
+  w_hit: 1.0
+  w_unc: 0.5
+  w_nov: 0.5
+  w_div: 0.5
+  w_cost: 0.1
+  novelty_ref_max: 20000
+surrogate:
+  backend: fingerprint_rf
+  n_members: 5
+  n_trees: 30
+  min_train: 50
+  max_train: 20000
+  props: null
+validation:
+  size: 200
+early_stop:
+  enabled: false
+  patience: 3
+  min_delta: 0.01

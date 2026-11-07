@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 import numpy as np
 
-from src.active_learning.constants import NUM_ATOMS_PROP
-from src.active_learning.density import PropertyDensity, kernel_regress, repulsion
-from src.active_learning.ids import Target
-from src.active_learning.state import ALState, read_al_state_file, write_al_state_file
+from src.components.dataset_labels import NUM_ATOMS_PROP
+from src.components.kde_plan import PropertyDensity, kernel_regress, repulsion
+from src.components.trajectory import Target, read_targets, write_targets
+from src.components.al_state import ensure_validation_ids, load_state
+from src.components.al_state import ALState, read_al_state_file, write_al_state_file
+from src.base import PlanningRequest
+from src.components.kde_plan import KDEPlanner
 
 
 def is_count_prop(name: str) -> bool:
@@ -187,7 +191,31 @@ def plan_targets(traj, state: ALState, al: dict, iteration: int, total: int, see
         return plan_trajectory(traj, iteration, total)
     if strategy == "frontier":
         return plan_frontier(traj, state, al, iteration, total, state_file)
-    if not state.record_mask().any():
+    if strategy == "kde_map" and not state.record_mask().any():
         return plan_trajectory(traj, iteration, total)
     rng = np.random.default_rng([int(seed), int(iteration)])
-    return plan_kde_map(traj, state, al, iteration, total, rng)
+    if strategy != "kde_map":
+        raise ValueError(f"Unknown planner: {strategy!r}")
+    return KDEPlanner().plan(PlanningRequest(traj, state, al, iteration, total, rng))
+
+
+
+def run_plan(*, traj, al: dict, hdf5_path, iter_dir, iteration: int, total_samples: int, seed: int,
+             state_file, validation_file, log=print) -> list:
+    """Write targets.json for the iteration (reused if it already exists) and fix the validation set once."""
+    existing = read_targets(iter_dir)
+    if existing is not None:
+        log(f"  Reusing the plan in {Path(iter_dir) / 'targets.json'} (delete it to re-plan)")
+        return existing[1]
+
+    state = load_state(hdf5_path, traj.prop_names)
+    if not Path(validation_file).exists():
+        lo, hi = trajectory_box(traj, al["corridor_pad"])
+        ids = ensure_validation_ids(validation_file, state, lo, hi, int(al["validation"]["size"]), seed)
+        log(f"  Fixed validation set: {len(ids)} molecules")
+
+    targets = plan_targets(traj, state, al, iteration, total_samples, seed, state_file)
+    write_targets(iter_dir, iteration, al["query_strategy"], traj.prop_names, targets)
+    for t in targets:
+        log(f"  Target {t.id}: {t.props} x {t.n_samples}")
+    return targets

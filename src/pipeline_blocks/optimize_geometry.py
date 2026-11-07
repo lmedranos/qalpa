@@ -8,7 +8,7 @@ import numpy as np
 from ase.io import read, write
 from ase.optimize import BFGS
  
-from src.utils.mol_calculate import get_calculator
+from src.components.mol_calculate import get_calculator
 
 def relax_molecule(input, output, calc_name, model_path=None, device='cpu', relaxed_forces=False, unrelaxed_forces=False, keep_temp=False):
     """Relax a molecule using the specified calculator.

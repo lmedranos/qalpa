@@ -16,6 +16,6 @@ def _stub(name: str, path: Path) -> None:
 
 
 _stub("src", ROOT / "src")
-_stub("src.utils", ROOT / "src" / "utils")
+_stub("src.components", ROOT / "src" / "components")
 _stub("src.pipeline_blocks", ROOT / "src" / "pipeline_blocks")
 _stub("src.scripts", ROOT / "src" / "scripts")

@@ -1,22 +1,6 @@
-"""
-src.pipeline_blocks - Pipeline processing blocks for molecular transformations
+"""Pipeline processing blocks with lazy imports for optional dependencies."""
 
-Includes:
-- Geometry optimization
-- Property calculations
-- Molecular filtering and scoring
-- Data format conversions
-"""
-
-from .optimize_geometry import relax_molecule
-from .filter_molecules import MolecularFilter
-from .calculate_sascore import sascore
-from .prop_calc import calc_properties
-from .propcalc_preprocess import preprocess_fhi
-from .propcalc_postprocess import prop_postprocess
-from .to_hdf5 import run_to_hdf5
-from .parserEquiDTBtoJSON import get_data as create_EquiDTB_json
-from .parserFHItoJSON import get_data as create_FHI_json
+from importlib import import_module
 
 __all__ = [
     "relax_molecule",
@@ -29,3 +13,25 @@ __all__ = [
     "create_EquiDTB_json",
     "create_FHI_json",
 ]
+
+_EXPORTS = {
+    "relax_molecule": (".optimize_geometry", "relax_molecule"),
+    "MolecularFilter": (".filter_molecules", "MolecularFilter"),
+    "sascore": (".calculate_sascore", "sascore"),
+    "calc_properties": (".prop_calc", "calc_properties"),
+    "preprocess_fhi": (".propcalc_preprocess", "preprocess_fhi"),
+    "prop_postprocess": (".propcalc_postprocess", "prop_postprocess"),
+    "run_to_hdf5": (".to_hdf5", "run_to_hdf5"),
+    "create_EquiDTB_json": (".parserEquiDTBtoJSON", "get_data"),
+    "create_FHI_json": (".parserFHItoJSON", "get_data"),
+}
+
+
+def __getattr__(name):
+    try:
+        module_name, attribute = _EXPORTS[name]
+    except KeyError as exc:
+        raise AttributeError(name) from exc
+    value = getattr(import_module(module_name, __name__), attribute)
+    globals()[name] = value
+    return value

@@ -5,7 +5,7 @@ import argparse
 from pathlib import Path
 import json
 
-from src.active_learning.constants import PROP_JSON_KEYS, get_json_value
+from src.components.dataset_labels import dataset_values, get_json_value
 
 
 
@@ -49,9 +49,9 @@ class MolecularFilter:
     Class to filter molecules based on their features.
     This class provides methods to filter molecules based on SAScore, accuracy, and QED.
     """
-    def __init__(self, trajectory):
+    def __init__(self, trajectory, dataset=None):
         self.trajectory = trajectory
-        pass   
+        self.dataset = dataset_values(dataset)
 
     
     def score_filter(self, input_path, output_path, score_name, score_file, target_indx):
@@ -96,7 +96,7 @@ class MolecularFilter:
         of the reference value from the trajectory at a given iteration.
         The molecules that meet the criteria are copied to the output directory.
         """
-        prop_dict = PROP_JSON_KEYS
+        prop_dict = self.dataset["property_json_keys"]
         get_value = get_json_value
         
         ref_value = float(self.trajectory.properties[prop][target_indx])
@@ -143,7 +143,7 @@ class MolecularFilter:
         # Get the reference value from the trajectory
         ref_value = float(self.trajectory.properties[prop][target_indx])
         # Define the property keys for extraction
-        prop_dict = PROP_JSON_KEYS
+        prop_dict = self.dataset["property_json_keys"]
         keys = prop_dict[prop]
         # Helper to extract a value of a key from given data
         get_value = get_json_value

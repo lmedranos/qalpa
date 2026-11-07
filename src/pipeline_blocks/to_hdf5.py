@@ -14,12 +14,13 @@ import h5py
 import shutil
 from contextlib import ExitStack
 
-from src.active_learning.constants import EPBE0_ATOM
-from src.active_learning.ids import canonical_id
-from src.active_learning.labels import valid_qm_result
+from src.components.dataset_labels import extract_labels
+from src.components.candidates import canonical_id
+from src.components.dataset_labels import valid_qm_result
 
 
-def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr, al_meta=None, al_props=None):
+def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop,
+                h5file_itr, itr_extra_prop, itr, al_meta=None, al_props=None, dataset=None):
     """Append molecules to the HDF5 files; the cumulative file is backed up and restored if the write fails."""
     backup = Path(str(h5file_output) + ".bak") if (appending_flag and h5file_output) else None
     if backup is not None and backup.exists():
@@ -31,7 +32,8 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
     else:
         backup = None
     try:
-        _write_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr, al_meta, al_props)
+        _write_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop,
+                    h5file_itr, itr_extra_prop, itr, al_meta, al_props, dataset)
     except BaseException:
         if backup is not None and backup.exists():
             shutil.copy2(backup, h5file_output)
@@ -40,7 +42,8 @@ def run_to_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
         backup.unlink()
 
 
-def _write_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop, h5file_itr, itr_extra_prop, itr, al_meta=None, al_props=None):
+def _write_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag, output_extra_prop,
+                h5file_itr, itr_extra_prop, itr, al_meta=None, al_props=None, dataset=None):
     """
     Function to convert filtered molecules into HDF5 format.
     It reads filtered molecules from a directory, extracts properties,
@@ -57,9 +60,6 @@ def _write_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
         - itr: Current iteration number.
     """
     ## initialize database
-    EPBE0_atom = EPBE0_ATOM
-
-    
     mode = 'a' if appending_flag else 'w'
 
     with ExitStack() as stack:
@@ -88,7 +88,7 @@ def _write_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
                         continue
                     xyz_file_path = query_dir / f"{mol_name}.xyz"       # path to the xyz file if coordinate is not in json file
                     if context_flag:
-                        ok, reason = valid_qm_result(prop_dir / f"{mol_name}.json", xyz_file_path, [])
+                        ok, reason = valid_qm_result(prop_dir / f"{mol_name}.json", xyz_file_path, [], dataset=dataset)
                         if not ok:
                             print(f"Skipping {mol_name} in {name}: {reason}")
                             continue
@@ -105,58 +105,8 @@ def _write_hdf5(query_dir, prop_dir, appending_flag, h5file_output, context_flag
                         with jf.open("r") as json_file:
                             data = json.load(json_file)
 
-                        if 'extra_prop' in name:           # collect collateral properties for the third hdf5
-                            totfor_raw = data.get("Total Forces (eV/Ang):")
-                            vdwfor_raw = data.get("van der Waals Forces (eV/Ang):")
-                            if totfor_raw is not None:
-                                totfor = np.array(totfor_raw, dtype=np.float64)
-                                molecule['totFOR'] = totfor
-                                if vdwfor_raw is not None:
-                                    vdwfor = np.array(vdwfor_raw, dtype=np.float64)
-                                    molecule['pbe0FOR'] = totfor - vdwfor
-
-                            HChar_raw = data.get("Hirshfeld Charges:")
-                            if HChar_raw is not None:
-                                molecule['hCHG'] = np.array(HChar_raw, dtype=np.float64)
-
-                            dip_raw = data.get("Total Dipole (eAng)")
-                            if dip_raw is not None:
-                                molecule['vDIP'] = np.array(dip_raw, dtype=np.float64)
-
-                            FVol_raw = data.get("Free Atom Volumes:")
-                            HVol_raw = data.get("Hirshfeld Volumes:")
-                            if FVol_raw is not None and HVol_raw is not None:
-                                FVol = np.array(FVol_raw, dtype=np.float64)
-                                HVol = np.array(HVol_raw, dtype=np.float64)
-                                molecule['hRAT'] = np.divide(HVol, FVol, out=np.zeros_like(HVol), where=FVol!=0)    # define hirshfeld ratios
-
-                        else:                               # collect main properties for the first two hdf5 files
-                            ener= np.array([data["Total energy (eV):"]], dtype=np.float64)
-                            mbd= np.array([data["SUM"]["MBD"]], dtype=np.float64)
-                            pbe0 = ener - mbd
-                            EDFTatoms = np.array([sum([ EPBE0_atom[zi] for zi in Z ])], dtype=np.float64)
-                            Eat = pbe0 - EDFTatoms
-
-                            molecule['DIP'] = np.array([data["Absolute Total Dipole (eAng):"]], dtype=np.float64)
-                            molecule['HLgap'] = np.array([data["HOMO-LUMO gap"]], dtype=np.float64)
-                            molecule['eAT'] = Eat
-                            molecule['eH'] = np.array([data["HOMO energy"]], dtype=np.float64)
-                            molecule['eL'] = np.array([data["LUMO energy"]], dtype=np.float64)
-                            molecule['eMBD'] = np.array([data["SUM"]["MBD"]], dtype=np.float64)
-                            # molecule['ePBE0'] = pbe0
-                            molecule['eTS'] = pbe0
-                            # molecule['ePBE0+MBD'] = ener
-
-                            # Optional energy components (absent for DFTB+); skip when not provided
-                            ekin_raw = data["SUM"].get("Kinetic Energy")
-                            if ekin_raw is not None:
-                                molecule['eKIN'] = np.array([ekin_raw], dtype=np.float64)
-                            exc_raw = data["SUM"].get("Total XC energy")
-                            if exc_raw is not None:
-                                molecule['eXC'] = np.array([exc_raw], dtype=np.float64)
-                            exx_raw = data["SUM"].get("Hartree-Fock Energy")
-                            if exx_raw is not None:
-                                molecule['eXX'] = np.array([exx_raw], dtype=np.float64)
+                        label_group = "extra_hdf5_labels" if "extra_prop" in name else "hdf5_labels"
+                        molecule.update(extract_labels(data, Z, dataset=dataset, group=label_group))
 
                     if al_meta is not None and 'extra_prop' not in name:
                         meta = al_meta.get(canonical_id(mol_name))

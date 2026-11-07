@@ -64,7 +64,7 @@ molecule generation. The result is written to the iteration's `targets.json`.
 ### Inputs
 
 - trajectory property rows;
-- cumulative HDF5 labels loaded by `state.load_state()`;
+- cumulative HDF5 labels loaded by `al_state.load_state()`;
 - previous requested/achieved properties and hit flags;
 - `al.density.*` weights and KDE bandwidth;
 - corridor padding and lookahead.
@@ -105,9 +105,9 @@ QM calculations.
 
 ```text
 src/scripts/backward.py
-  -> active_learning.acquire_block.run_acquire()
-  -> active_learning.surrogate.build_surrogate()
-  -> active_learning.acquisition.select_batch()
+  -> pipeline_blocks.acquire_candidates.run_acquire()
+  -> components.surrogate.build_surrogate()
+  -> pipeline_blocks.acquire_candidates.select_batch()
   -> p_hit()
 ```
 
