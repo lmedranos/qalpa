@@ -1,6 +1,4 @@
-"""
-src.utils - Utility functions for data management, trajectory handling, and parallelization
-"""
+"""Reusable QALPA components for data management, trajectories, and parallelization."""
 
 from .data_manage import DataManager
 from .trajectory import Trajectory

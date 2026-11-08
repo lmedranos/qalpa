@@ -11,6 +11,7 @@ dependencies:
   - pip
   - hydra-core
   - omegaconf
+  - pyyaml
   - numpy<2
   - conda-forge::jupyter
   - notebook
@@ -18,6 +19,8 @@ dependencies:
   - pandas
   - h5py
   - seaborn
+  - scipy
+  - scikit-learn   # active-learning surrogate
   - pytorch::pytorch=2.0.1
   - pyg::pyg=2.3.0
   - pyg::pytorch-scatter

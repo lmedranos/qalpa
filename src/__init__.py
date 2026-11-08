@@ -2,7 +2,7 @@
 QALPA - Quantum-Aware Learning for Property-Space Augmentation
 
 This package provides tools for:
-- Data management (src.utils)
+- Data management (src.components)
 - Pipeline processing (src.pipeline_blocks)
 - Workflow execution (src.scripts)
 """
@@ -10,9 +10,4 @@ This package provides tools for:
 __version__ = "0.1.0"
 __author__ = "Research Team"
 
-# Make key modules easily importable
-from . import utils
-from . import pipeline_blocks
-from . import scripts
-
-__all__ = ["utils", "pipeline_blocks", "scripts"]
+__all__ = ["components", "pipeline_blocks", "scripts"]

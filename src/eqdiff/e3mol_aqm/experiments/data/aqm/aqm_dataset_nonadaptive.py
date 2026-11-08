@@ -14,6 +14,7 @@ from rdkit import RDLogger
 from torch.utils.data import Subset
 from torch_geometric.data import DataLoader, InMemoryDataset
 from tqdm import tqdm
+from src.components.dataset_labels import load_label_dataset
 
 full_atom_encoder = {
     "H": 0,
@@ -34,41 +35,11 @@ full_atom_encoder = {
     "Bi": 15,
 }
 
-mol_properties = [
-    "DIP",
-    "HLgap",
-    "eAT",
-    "eC",
-    "eEE",
-    "eH",
-    "eKIN",
-    "eKSE",
-    "eL",
-    "eNE",
-    "eNN",
-    "eMBD",
-    "eTS",
-    "eX",
-    "eXC",
-    "eXX",
-    "mPOL",
-]
-
-atomic_energies_dict = {
-    1: -13.643321054,
-    6: -1027.610746263,
-    7: -1484.276217092,
-    8: -2039.751675679,
-    9: -3139.751675679,
-    15: -9283.015861995,
-    16: -10828.726222083,
-    17: -12516.462339357,
-}
-
+mol_properties = load_label_dataset()["training_labels"]
 
 class AQMDataset(InMemoryDataset):
     def __init__(
-        self, split, root, remove_h, transform=None, pre_transform=None, pre_filter=None
+        self, split, root, remove_h, dataset_config=None, transform=None, pre_transform=None, pre_filter=None
     ):
         assert split in ["train", "val", "test"]
         self.split = split
@@ -80,7 +51,8 @@ class AQMDataset(InMemoryDataset):
                 k: v - 1 for k, v in self.atom_encoder.items() if k != "H"
             }
 
-        self.label2idx = {k: i for i, k in enumerate(mol_properties)}
+        self.label_names = load_label_dataset(dataset_config)["training_labels"]
+        self.label2idx = {k: i for i, k in enumerate(self.label_names)}
 
         super().__init__(root, transform, pre_transform, pre_filter)
         self.data, self.slices = torch.load(self.processed_paths[0])
@@ -218,13 +190,14 @@ class AQMDataModule(AbstractDataModule):
         self.pin_memory = True
         self.cfg = cfg
 
-        self.label2idx = {k: i for i, k in enumerate(mol_properties)}
+        self.dataset_config = getattr(cfg, "dataset_config", None)
+        self.label2idx = {k: i for i, k in enumerate(load_label_dataset(self.dataset_config)["training_labels"])}
 
         train_dataset = AQMDataset(
-            split="train", root=root_path, remove_h=cfg.remove_hs
+            split="train", root=root_path, remove_h=cfg.remove_hs, dataset_config=self.dataset_config
         )
-        val_dataset = AQMDataset(split="val", root=root_path, remove_h=cfg.remove_hs)
-        test_dataset = AQMDataset(split="test", root=root_path, remove_h=cfg.remove_hs)
+        val_dataset = AQMDataset(split="val", root=root_path, remove_h=cfg.remove_hs, dataset_config=self.dataset_config)
+        test_dataset = AQMDataset(split="test", root=root_path, remove_h=cfg.remove_hs, dataset_config=self.dataset_config)
         self.remove_h = cfg.remove_hs
         self.statistics = {
             "train": train_dataset.statistics,

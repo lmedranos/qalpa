@@ -1,4 +1,5 @@
 import argparse
+import json
 import os
 import pickle
 import random
@@ -9,6 +10,7 @@ sys.path.append(parent_dir)
 print(parent_dir)
 
 import experiments.data.utils as dataset_utils
+from src.components.dataset_labels import load_label_dataset
 import h5py
 import numpy as np
 import torch
@@ -37,38 +39,55 @@ full_atom_encoder = {
     "Hg": 14,
     "Bi": 15,
 }
-mol_properties = [
-    "DIP",
-    "HLgap",
-    "eAT",
-    # "eC",
-    # "eEE",
-    "eH",
-    "eKIN",
- #   "eKSE",
-    "eL",
-    # "eNE",
-    # "eNN",group_name
-    "eMBD",
-##    "eTS",
-    # "eX",
-    "eXC",
-    "eXX",
-    # "mPOL", 
-]
-
 def get_args():
     # fmt: off
     parser = argparse.ArgumentParser(description='Data generation')
     parser.add_argument('--file-path', default=None, type=str, help='Data file path')
     parser.add_argument('--out-path', default=None, type=str, help='Processed data file path')
+    parser.add_argument('--seed', default=None, type=int, help='Seed for the shuffle (unseeded when omitted)')
+    parser.add_argument('--validation-ids', default=None, type=str,
+                        help='JSON list of "<top group>/<molecule>" keys kept as the fixed validation set')
+    parser.add_argument('--dataset-config', default=None, type=str,
+                        help='Dataset label schema YAML; QM7 is used when omitted')
     args = parser.parse_args()
     return args
 
 
-def split_data(file_path, out_path):
+def partition(data_list, keys, seed=None, validation_ids=None):
+    """Split into (train, val, test). Pure python so it can be tested without torch."""
+    shuffler = random.Random(seed) if seed is not None else random
+    fixed_val = None
+    if validation_ids and os.path.exists(validation_ids):
+        with open(validation_ids, "r") as f:
+            fixed_val = set(json.load(f))
+
+    if fixed_val:
+        # The fixed validation set never enters training or test; the remainder is split 90/10.
+        val_data = [d for d, k in zip(data_list, keys) if k in fixed_val]
+        rest = [d for d, k in zip(data_list, keys) if k not in fixed_val]
+        print(f"Fixed validation set: {len(val_data)} of {len(fixed_val)} ids found")
+        shuffler.shuffle(rest)
+        n_test = int(0.1 * len(data_list))
+        return rest[n_test:], val_data, rest[:n_test]
+
+    n_train = int(0.8 * len(data_list))
+    n_val = int(0.1 * len(data_list))
+    shuffler.shuffle(data_list)
+    return (data_list[: n_train + 2],
+            data_list[n_train + 2 : n_train + 2 + n_val],
+            data_list[n_train + n_val + 2 :])
+
+
+def split_data(file_path, out_path, seed=None, validation_ids=None, dataset_config=None):
+    dataset = load_label_dataset(dataset_config)
+    mol_properties = dataset["training_labels"]
+    optional_properties = {
+        name for name, spec in dataset.get("hdf5_labels", {}).items()
+        if spec.get("optional", False)
+    }
     data_list = []
-    for mol in tqdm(h5py.File(file_path).values(), desc="Molecules"):
+    keys = []
+    for top_name, mol in tqdm(h5py.File(file_path).items(), desc="Molecules"):
         for group_name in mol:
             group = mol[group_name]
 
@@ -77,7 +96,10 @@ def split_data(file_path, out_path):
             all_pos = torch.tensor(np.array(group["atXYZ"]), dtype=torch.float32)
             # all_dy = torch.tensor(np.array(group["totFOR"]), dtype=torch.float32)
             for prop in mol_properties:
-                tmp = torch.tensor(np.array(group[prop]), dtype=torch.float32)
+                if prop in optional_properties and prop not in group:
+                    tmp = torch.full((1,), float("nan"), dtype=torch.float32)
+                else:
+                    tmp = torch.tensor(np.array(group[prop]), dtype=torch.float32)
                 all_prop.append(tmp)
             y = torch.cat(all_prop).unsqueeze(0)
 
@@ -106,15 +128,9 @@ def split_data(file_path, out_path):
             data.y = y
             data.mol = rdkit_mol
             data_list.append(data)
+            keys.append(f"{top_name}/{group_name}")
 
-    n_train = int(0.8 * len(data_list))
-    n_val = int(0.1 * len(data_list))
-
-    random.shuffle(data_list)
-
-    train_data = data_list[: n_train + 2]
-    val_data = data_list[n_train + 2 : n_train + 2 + n_val]
-    test_data = data_list[n_train + n_val + 2 :]
+    train_data, val_data, test_data = partition(data_list, keys, seed, validation_ids)
 
     os.makedirs(os.path.join(out_path, "raw"), exist_ok=True)
 
@@ -130,4 +146,5 @@ def split_data(file_path, out_path):
 
 if __name__ == "__main__":
     args = get_args()
-    split_data(args.file_path, args.out_path)
+    split_data(args.file_path, args.out_path, seed=args.seed, validation_ids=args.validation_ids,
+               dataset_config=args.dataset_config)

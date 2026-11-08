@@ -1,0 +1,87 @@
+name: qm7
+num_atoms_property: atNUM
+property_json_keys:
+  eMBD: [SUM, MBD]
+  HLgap: [HOMO-LUMO gap]
+  DIP: ["Absolute Total Dipole (eAng):"]
+  eH: [HOMO energy]
+  eL: [LUMO energy]
+required_json_keys:
+  - ["Total energy (eV):"]
+  - [SUM, MBD]
+  - ["Absolute Total Dipole (eAng):"]
+  - [HOMO-LUMO gap]
+  - [HOMO energy]
+  - [LUMO energy]
+atomic_reference_energies:
+  1: -13.64136507
+  6: -1027.59344601
+  7: -1484.25358313
+  8: -2039.74560236
+  9: -3139.751675679
+  15: -9283.01120606
+  16: -10828.726222083
+  17: -12516.462339357
+symbol_to_atomic_number:
+  H: 1
+  C: 6
+  N: 7
+  O: 8
+  F: 9
+  P: 15
+  S: 16
+  Cl: 17
+training_labels:
+  - DIP
+  - HLgap
+  - eAT
+  - eH
+  - eKIN
+  - eL
+  - eMBD
+  - eXC
+  - eXX
+hdf5_labels:
+  DIP:
+    path: ["Absolute Total Dipole (eAng):"]
+  HLgap:
+    path: [HOMO-LUMO gap]
+  eAT:
+    derived: atomization_energy
+  eH:
+    path: [HOMO energy]
+  eKIN:
+    path: [SUM, Kinetic Energy]
+    optional: true
+  eL:
+    path: [LUMO energy]
+  eMBD:
+    path: [SUM, MBD]
+  eTS:
+    derived: pbe0_energy
+  eXC:
+    path: [SUM, Total XC energy]
+    optional: true
+  eXX:
+    path: [SUM, Hartree-Fock Energy]
+    optional: true
+extra_hdf5_labels:
+  totFOR:
+    path: ["Total Forces (eV/Ang):"]
+    optional: true
+  pbe0FOR:
+    derived: difference
+    minuend: ["Total Forces (eV/Ang):"]
+    subtrahend: ["van der Waals Forces (eV/Ang):"]
+    optional: true
+  hCHG:
+    path: ["Hirshfeld Charges:"]
+    optional: true
+  vDIP:
+    path: ["Total Dipole (eAng)"]
+    optional: true
+  hRAT:
+    derived: ratio
+    numerator: ["Hirshfeld Volumes:"]
+    denominator: ["Free Atom Volumes:"]
+    optional: true

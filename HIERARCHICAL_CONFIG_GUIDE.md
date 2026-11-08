@@ -83,6 +83,7 @@ The generated Slurm job scripts in Experiments/<exp_name>/jobs call these same e
 ### Edit Experiments/<exp_name>/configs/experiment_config.yaml when:
 
 - You set dataset, trajectory, query props/scores, loop settings, and experiment-specific overrides.
+- You tune active learning (`al.*`). Experiments created from an older template have no `al:` block and run the original loop; add the block from the template to enable it. State the loop writes (`al_state.json`, `validation_ids.json`, `metrics.csv`, `al_cache/`) lives next to the config in `Experiments/<exp_name>/`, not in the config itself. `loop.stop: true` makes both scripts exit cleanly.
 
 ## Common Override Examples
 

@@ -1,497 +1,485 @@
-# QALPA - Quantum-Aware Learning for Property-Space Augmentation
+# QALPA – Quantum-Aware Learning for Property-Space Augmentation
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 
-QALPA combines diffusion-based molecular generation with quantum-mechanical feedback through active learning to explore property space and improve generative models for molecular design. 
+QALPA combines diffusion-based molecular generation with quantum-mechanical (QM) feedback through active learning (AL). It explores property space and iteratively improves generative models for molecular design.
 
 <p align="center">
-<img width="600" alt="workflow" src="img/qalpa.png" />
+<img width="900" alt="QALPA workflow: forward job (EQDIFF generation) and backward job (EquiDTB, DFT/DFTB+, screening) around the QM property space" src="img/qalpa.png" />
 </p>
+
+<details>
+<summary><b>Reading the figure</b></summary>
+
+| # | Step | Job | Active learning |
+|:-:|------|-----|:---:|
+| 1 | **EQDIFF** – train / resume the diffusion model on the weighted concatenated dataset | Forward (GPU) | |
+| 2 | **Target planning** – KDE-map corridor over sparse, under-explored and hard regions | Forward (GPU) | AL |
+| 3 | **Acquisition** – dedupe, fingerprints, diversity/novelty and cost, at most `budget` candidates | Backward (CPU) | AL |
+| 4 | **EquiDTB** – geometry optimization | Backward (CPU) | |
+| 5 | **Property calculation** – FHI-aims (DFT) or DFTB+ | Backward (CPU) | |
+| 6 | **Data screening** – property accuracy, synthetic accessibility (SA) score | Backward (CPU) | |
+| 7 | **Evaluation** – hit rate, coverage, `metrics.csv`, optional early stop | Backward (CPU) | AL |
+| 8 | **Weighted concatenation** – initial and per-iteration labelled data, each with a weight, form the training set of the next round | Dataset | |
+
+The loop ends when `q > N_iter` or early stopping triggers; the final dataset is then written.
+
+</details>
+
+**Contents:** [Overview](#overview) · [Workflow](#workflow) · [Architecture](#architecture) · [Installation](#installation) · [Quick Start](#quick-start) · [HPC (SLURM)](#hpc-configuration-slurm) · [Requirements](#requirements) · [Troubleshooting](#troubleshooting) · [Citation](#citation)
+
+---
 
 ## Overview
 
-The QALPA framework combines diffusion models with quantum-mechanical (QM) calculations to generate novel molecules with desired properties. The system leverages active learning (AL) to iteratively improve molecular generation by incorporating quantum property data feedback, enabling efficient exploration of chemical space.
+QALPA generates novel molecules with desired properties by coupling a diffusion model with QM calculations. After every iteration, active learning feeds the new quantum property data back into the model, so chemical space is explored efficiently.
 
-**Key Features:**
-- Molecular trajectory planning in property space
-- Iterative active learning with DFT and EquiDTB feedback
-- HPC-optimized workflow orchestration
-- Comprehensive analysis and visualization tools
-- Property-guided molecular generation
-- The QM packages currently implemented are FHI-aims and DFTB+.
+| Feature | Details |
+|---------|---------|
+| Trajectory planning | Molecular trajectories in property space (HOMO-LUMO gap, many-body dispersion energy, atomic number, …) |
+| Active learning | Iterative loop: EquiDTB geometry optimization, DFT / DFTB+ property feedback |
+| Orchestration | HPC-optimized, SLURM-based forward/backward jobs |
+| Generation | Property-guided diffusion model |
+| Analysis | Notebooks for HDF5 outputs, metrics and visualization |
+| QM packages | **FHI-aims** and **DFTB+** |
 
-## WorkFlow
+---
 
-The software system is organized into a modular architecture that follows a three-phase workflow, guiding the process from molecular trajectory design to data analysis. 
+## Workflow
 
-```mermaid
-flowchart LR
-    subgraph phase1["Phase I: Trajectory Planning"]
-        A["Define Property Space<br/>(HOMO-LUMO, MBD, etc.)"]
-        B["Interactive Planner"]
-        C["Trajectory CSV"]
-        A --> B --> C
-    end
-    
-    subgraph phase2["Phase II: Active Diffusion"]
-        T["Train Model"]
-        D["Generate Molecules<br/>(Diffusion Model)"]
-        G["Geometry Optimization"]
-        R["Retrain Model"]
-        S["Scoring"]
-        F["Active Learning<br/>Selection"]
-        E["DFT Calculation"]
-        
-        T --> D --> G --> S--> E --> F --> R --> D
-    end
-    
-    subgraph phase3["Phase III:  Analysis"]
-        H["HDF5 Output"]
-        I["Accuracy Analysis"]
-        J["Iteration Analysis"]
-        K["Visualization"]
-        H --> I
-        H --> J
-        I --> K
-        J --> K
-    end
-    
-    C ==> D
-    C ==> F
-    phase2 --> H
-    
-    style phase1 fill:#FFE082,stroke:#F57C00,stroke-width: 2px
-    style phase2 fill:#81C784,stroke:#388E3C,stroke-width: 2px
-    style phase3 fill:#90CAF9,stroke:#1976D2,stroke-width: 2px
+QALPA runs in three phases: trajectory design, active diffusion execution, and output analysis.
+
+<p align="center">
+<img src="img/overview.svg" alt="QALPA three-phase workflow" width="800" />
+</p>
+
+| Phase | What happens | Tool / script |
+|-------|--------------|---------------|
+| **I – Trajectory planning** | Define a trajectory in property space and export `trajectory_*.csv` | `Navigator/design_trajectory.ipynb` |
+| **II – Active diffusion** | Iterate forward (GPU) and backward (CPU) jobs | `src/scripts/forward.py`, `src/scripts/backward.py` |
+| **III – Output analysis** | Inspect results, model performance and generated molecular properties | Notebooks in `Navigator/` |
+
+### Phase I – Trajectory planning
+
+The resulting `trajectory_*.csv` files are consumed by `forward.py`. With active learning enabled, they define the corridor from which targets are planned.
+
+<p align="center">
+<img width="400" alt="Trajectory planner" src="Navigator/example_trajectory.png" />
+</p>
+
+### Phase II – Active diffusion execution
+
+Each iteration is executed by two jobs. Submit them **alternately**, so generated molecules are available to the backward job and updated HDF5 labels are available to the next forward job.
+
+| Job | Hardware | Responsibility |
+|-----|----------|----------------|
+| **Forward** | GPU | Prepare data, train or resume the diffusion model, generate molecules |
+| **Backward** | CPU | Filter and evaluate molecules, run QM, persist labels for the next iteration |
+
+#### Forward job
+
+<p align="center">
+<img src="img/forward.svg" alt="Forward job flow" width="560" />
+</p>
+
+#### Backward job
+
+<p align="center">
+<img src="img/backward.svg" alt="Backward job flow" width="700" />
+</p>
+
+#### Active learning (`al:` block in `experiment_config.yaml`)
+
+With `al.enabled: true`, one iteration proceeds as follows:
+
+| # | Job | Step | What it does |
+|:-:|-----|------|--------------|
+| 1 | Forward | **Plan** | `plan_targets.py` loads the cumulative HDF5 state and writes `targets.json`. `kde_map` samples a padded trajectory corridor and scores sparse, under-explored and historically difficult regions. `trajectory` and `frontier` are simpler alternatives. |
+| 2 | Forward | **Split / train / generate** | The labelled HDF5 is split into a training set, the diffusion model is trained or resumed on the weighted concatenation of the labelled data, and molecules are generated per planned target. Candidate pool size is `num_samples * oversample`. |
+| 3 | Backward | **Score and acquire** | Score filters run first. `acquire_candidates.py` converts structures to canonical SMILES and Morgan fingerprints, removes invalid and duplicate candidates, and selects at most `budget` candidates by fingerprint diversity/novelty and heavy-atom cost. `random` mode is a baseline. No predictive surrogate is used. |
+| 4 | Backward | **Relax and calculate** | Selected candidates undergo geometry optimization and QM property calculation. Optional property-accuracy filtering removes candidates outside the configured tolerance. |
+| 5 | Backward | **Persist and evaluate** | Valid results are written to the cumulative HDF5 together with AL metadata (requested and achieved properties, target IDs, iteration, hit flags). Evaluation appends hit rate, coverage, selected count and acquisition-score metrics to `<experiment>/metrics.csv`. Optional early stopping sets `loop.stop`. |
+
+**Running without active learning:** set `al.enabled: false` to use the fixed trajectory row for each iteration. Target planning, candidate acquisition and AL evaluation are skipped. The forward job generates the configured number of molecules, and the backward job runs the regular score/filter, relaxation, property and HDF5 stages.
+
+**Constraints and sidecar files**
+
+| Item | Note |
+|------|------|
+| `kde_map` planner | Needs at least two trajectory rows and `hdf5.appending_flag: true` |
+| AL sidecar files | `al_state.json`, `validation_ids.json`, `metrics.csv`, `al_cache/` (fingerprint cache) |
+
+### Phase III – Output analysis
+
+Jupyter notebooks in `Navigator/` let you inspect the active diffusion results, model performance and generated molecular properties (HDF5 outputs).
+
+---
+
+## Architecture
+
+The code is organized in four layers, each depending only on the layers below it.
+
+<p align="center">
+<img src="img/architecture.svg" alt="QALPA architecture layers" width="720" />
+</p>
+
+| Layer | Location | Responsibility |
+|-------|----------|----------------|
+| **Orchestration** | `src/scripts`, `src/configs/config.py` | Experiment initialization, forward/backward loop, configuration loading and validation |
+| **Pipeline blocks** | `src/pipeline_blocks` | Planning, candidate acquisition, filtering, geometry optimization, property calculation, HDF5 preparation, evaluation |
+| **Components** | `src/components` | Trajectory and candidate persistence, dataset-label contracts, AL state, KDE planning/scoring/coverage, data management, parallelization |
+| **Contracts** | `src/base` | Interfaces that keep planning, acquisition scoring and coverage estimation replaceable |
+
+**Pipeline execution order**
+
+| Step | Job | Block | Purpose |
+|:----:|-----|-------|---------|
+| 1 | Forward | `plan_targets.py` | Plan targets |
+| 2 | Forward | dataset split | Build training data |
+| 3 | Forward | diffusion train / generate | Generate candidates |
+| 4 | Backward | `acquire_candidates.py` | Select candidates (AL only) |
+| 5 | Backward | `optimize_geometry.py` | Relax geometries |
+| 6 | Backward | `prop_calc.py` | QM properties |
+| 7 | Backward | `prepare_hdf5_labels.py`, `to_hdf5.py` | Persist labels |
+| 8 | Backward | `evaluate_active_learning.py` | Metrics (AL only) |
+
+**Contracts and their implementations**
+
+| Contract (`src/base`) | Implemented by | Used by |
+|-----------------------|----------------|---------|
+| `planner.py` – `Planner`, `PlanningRequest` | `components/kde_plan.py` | `plan_targets.py` |
+| `acquisition.py` – `AcquiScorer` | `components/kde_plan.py` | `acquire_candidates.py` |
+| `coverage.py` – `CoverageEstimator` | `components/kde_plan.py` | `evaluate_active_learning.py` |
+
+Import workflow steps from `src.pipeline_blocks` and reusable logic from `src.components`. Evaluation metrics live with the evaluation block.
+
+<details>
+<summary><b>Source tree (active-learning related)</b></summary>
+
+```text
+src/
+├── pipeline_blocks/            # Workflow steps called by forward/backward
+│   ├── acquire_candidates.py
+│   ├── prepare_hdf5_labels.py
+│   ├── plan_targets.py
+│   └── evaluate_active_learning.py
+├── components/
+│   ├── al_state.py             # AL state persistence and records
+│   ├── surrogate.py            # Optional surrogate-model components
+│   ├── candidates.py           # Candidate IDs and metadata
+│   ├── dataset_labels.py       # Dataset label extraction and QM result validation
+│   ├── trajectory.py           # Trajectory CSV handling, Target model, targets.json
+│   └── data_manage.py, parallelize.py, mol_calculate.py
+├── base/
+│   ├── planner.py              # Planner and PlanningRequest contracts
+│   ├── acquisition.py          # Acquisition scorer contract
+│   └── coverage.py             # Coverage estimator contract
+├── configs/
+│   ├── al.yaml                 # Declarative AL defaults
+│   ├── datasets/
+│   │   └── qm7.yaml            # Default dataset schema and atomic references
+│   └── config.py               # AL loading, validation, paths, workflow helpers
+└── benchmark/                  # Synthetic planner/acquisition comparisons
+    └── compare_baseline.py
 ```
 
-### Phase I – Trajectory Planning
+</details>
 
-This phase provides an interactive environment for defining molecular trajectories within a property space (e.g., HOMO-LUMO gap, many-body dispersion energy, atomic number). The resulting trajectory files (`trajectory_*.csv`) serve as input for the active learning process. 
+<details>
+<summary><b>Dataset configuration and label contract</b></summary>
 
-<img width="400" alt="trajectory_planer" src="Navigator/example_trajectory.png" />
+Dataset-specific QM JSON mappings, required fields, supported elements and atomic reference energies are defined in `src/configs/datasets/qm7.yaml`. Experiments use QM7 by default. To use another dataset, copy that file, customize it, and set `al.dataset_config` in the experiment configuration to the new YAML path.
 
-**Tools:** Interactive trajectory planner in `Navigator/design_trajectory.ipynb`
+| Key | Purpose |
+|-----|---------|
+| `hdf5_labels` | Labels written by the HDF5 conversion block |
+| `extra_hdf5_labels` | Optional force / charge / volume labels |
+| `training_labels` | Label order consumed by data splitting and augmentation |
 
-### Phase II – Active Diffusion Execution
+The shared provider in `src/components/dataset_labels.py` reads, derives and validates these labels, so AL validation, HDF5 conversion and AQM data preparation use one dataset-specific source. AL hit and target metadata assembly stays with the HDF5 preparation block because it is workflow-specific.
 
-This represents the core operational layer of the system, responsible for orchestrating the iterative molecular generation, evaluation, and feedback process. 
+Trajectory planning lives in [`trajectory.py`](src/components/trajectory.py) (trajectory CSV access, the `Target` model, `targets.json` persistence). `components/candidates.py` owns candidate IDs, names and metadata persistence.
 
-
-### Phase III – Output Analysis
-
-The final phase focuses on analyzing and visualizing the output. Jupyter notebooks in the `Navigator/` directory allow users to inspect the active diffusion results, model performance, and generated molecular properties (HDF5 outputs).
-
-
-## Active Diffusion Architecture
-
-The architectural elements are organized as follows:
-
-### Surface Layer – Experiment Orchestration Layer
-Responsible for workflow coordination, configuration management, and resource allocation across HPC environments. It defines the experiment lifecycle.
-
-### Deep Layer – Functional Core Layer 
-Contains the domain-specific components that implement the scientific and computational functionality of the diffusion process, including molecular generation and property evaluation.
-
-### Utilities Subsystem 
-Provides cross-cutting services that support both layers by handling data management, task parallelization, and trajectory synchronization.
+</details>
 
 
-```mermaid
-graph TB
-    subgraph orchestration["🔷 Orchestration Layer"]
-        hpc["HPC Resource Allocator"]
-        config["Configuration"]
-        orc["Orchestrator"]
-        Expsc["Experimentation Scripts"]
-        initsc["Initiation"]
-        forsc["Forward"]
-        bacsc["Backward"]
-        Evalsc["Benchmarking Scripts"]
-        gensc["Generate"]
-        calsc["Calculate"]
-        evalsc["Evaluate"]
-
-    end
-
-    Expsc --> initsc
-    Expsc --> forsc
-    Expsc --> bacsc
-    Evalsc --> gensc
-    Evalsc --> calsc
-    Evalsc --> evalsc
-    orc --> Expsc
-    orc --> Evalsc
-   
-
-    subgraph utilities["🟢 Utilities Subsystem"]
-        data["Data Manager"]
-        parallel["Task Parallelizer"]
-        sync["Trajectory Synchronizer"]
-    end
-    
-    subgraph functional["🔴 Functional Core Layer"]
-        Diff["Diffusion Model<br/>(Pytorch Geometry/PytorchLightning)"]
-        train["Model Trainer"]
-        gen["Molecular Generator"]
-        Pipeb["Pipeline Blocks"]
-        eval["Property Evaluator<br/>(DFT/FHI-aims)"]
-        opt["Geometry Optimizer<br/>(MLFF)"]
-        sco["Scoring Schemes Calculators<br/>(SAScore/QED)"]
-        sel["Molecular Filters"]
-        Aug["Dataset Augmentation"]
-    end
-    Diff --> train
-    Diff --> gen
-    Pipeb --> eval
-    Pipeb --> opt
-    Pipeb --> sco
-    Pipeb --> sel
-    Pipeb --> Aug
-    
-    style orchestration fill:#B3E5FC,stroke:#0277BD,stroke-width:2px,color:#000
-    style utilities fill:#C8E6C9,stroke:#2E7D32,stroke-width:2px,color:#000
-    style functional fill:#FFCCBC,stroke:#D84315,stroke-width:2px,color:#000
-    linkStyle default stroke:#424242,stroke-width:2px
-```
+---
 
 ## Installation
 
 ### Prerequisites
 
-- Python 3.10 or higher
-- Mamba or Conda package manager
-- Access to HPC cluster with SLURM
-- CUDA-capable GPU (for forward pipeline)
-- Multi-core CPU system (for backward pipeline)
+- Python 3.10+
+- Mamba or Conda
+- HPC cluster with SLURM
+- CUDA-capable GPU (forward pipeline) and a multi-core CPU system (backward pipeline)
 
-### Installation Options
+### Choose an environment strategy
 
-The project supports two environment configuration strategies:
+| | **Split** (recommended) | **Combined** |
+|---|---|---|
+| Environments | `env-qalpa-forward` + `env-qalpa-backward` | `env-activeloop` |
+| Spec files | `environment_f.yml`, `environment_b.yml` | `environment-al.yml` |
+| Best for | HPC clusters, production | Development, single-machine tests |
+| Pros | Smaller per-node installs, hardware-specific, scalable | One environment, simple |
+| Cons | Two environments to manage | Larger download, slower install |
 
-| Approach | Environments | Use Case | Pros | Cons |
-|----------|---|----------|------|------|
-| **Split** | `env-qalpa-forward` + `env-qalpa-backward` | HPC clusters, production workflows (recommended) | Smaller per-node installations, hardware-specific optimization, better scalability | Requires managing two environments |
-| **Combined** | Single `env-activeloop` | Development, single-machine testing | Simpler setup, unified environment | Larger download, slower installation |
+### Split environments (recommended)
 
-**Recommended:** Use **Split** environments for production workflows and HPC clusters. 
+1. **Clone the repository**
 
-### Installation Steps
+   ```bash
+   git clone <repository-url>
+   cd <repository-folder>
+   ```
 
-#### Default option: Split Environments (Recommended) ⭐
+2. **Create the forward (GPU) and backward (CPU) environments**
 
-For production workflows on HPC systems and general use, use separate forward (GPU) and backward (CPU) environments:
+   ```bash
+   mamba env create -f environment_f.yml -p conda_envs/env-qalpa-forward/
+   mamba env create -f environment_b.yml -p conda_envs/env-qalpa-backward/
+   ```
 
-For production workflows on HPC systems, use separate forward (GPU) and backward (CPU) environments:
+3. **Patch the backward environment's ASE DFTB calculator**
 
-1. **Clone the repository:**
+   ```bash
+   ASE_DFTB="./conda_envs/env-qalpa-backward/lib/python3.10/site-packages/ase/calculators/dftb.py"
+   cp "$ASE_DFTB" "${ASE_DFTB}.bak"
+   cp src/dftb.py "$ASE_DFTB"
+   ```
+
+4. **Export the SKfiles path** (both environments)
+
+   ```bash
+   export DFTB_PREFIX="$PWD/src/configs/SKfiles/3ob-3-1/"
+   ```
+
+5. **Point the job scripts at the split environments**
+
+   | Script | Line |
+   |--------|------|
+   | `Experiments/templates/jobs/eqmgen_forward.sh` | `conda activate $REPO_ROOT/conda_envs/env-qalpa-forward/` |
+   | `Experiments/templates/jobs/eqmgen_backward.sh` | `conda activate $REPO_ROOT/conda_envs/env-qalpa-backward/` |
+
+<details>
+<summary><b>Combined environment (development / single machine)</b></summary>
 
 ```bash
-git clone <repository-url>
-cd qapla
+mamba env create -f environment-al.yml -p conda_envs/env-activeloop/
 ```
 
-2. **Create the forward environment (GPU cluster):**
+Apply the same ASE DFTB patch and `DFTB_PREFIX` export as above, then activate `env-activeloop` in both job scripts:
 
 ```bash
-mamba env create -f environment_f.yml -p conda_envs/env-qalpa-forward/
+conda activate $REPO_ROOT/conda_envs/env-activeloop/
 ```
 
-3. **Create the backward environment (CPU cluster):**
+</details>
 
-```bash
-mamba env create -f environment_b.yml -p conda_envs/env-qalpa-backward/
-```
-
-4. **Patch the backward environment's ASE DFTB calculator:**
-
-```bash
-ASE_DFTB="./conda_envs/env-qalpa-backward/lib/python3.10/site-packages/ase/calculators/dftb.py"
-cp "$ASE_DFTB" "${ASE_DFTB}.bak"
-cp src/dftb.py "$ASE_DFTB"
-```
-
-5. **Export the SKfiles path (for both environments):**
-
-```bash
-export DFTB_PREFIX="$PWD/src/configs/SKfiles/3ob-3-1/"
-```
-
-6. **Update your job scripts to use split environments:**
-
-Edit `Experiments/templates/jobs/eqmgen_forward.sh`:
-```bash
-conda activate $REPO_ROOT/conda_envs/env-qalpa-forward/
-```
-
-Edit `Experiments/templates/jobs/eqmgen_backward.sh`:
-```bash
-conda activate $REPO_ROOT/conda_envs/env-qalpa-backward/
-```
-
-> **Note:** Three environment configurations are available:
-> - `environment-al.yml`: Single combined environment with GPU/diffusion and chemistry/DFT stacks
-> - `environment_f.yml`: GPU-optimized forward pipeline (PyTorch, PyTorch Geometric, MACE)
-> - `environment_b.yml`: CPU-optimized backward pipeline (ASE, RDKit, xTB, DFTB+)
+---
 
 ## Quick Start
 
 1. **Initialize an experiment**
 
-```bash
-python src/scripts/init_experiment.py --name my_exp --dataset-path /path/to/base_dataset.hdf5
-```
+   ```bash
+   python src/scripts/init_experiment.py --name my_exp --dataset-path /path/to/base_dataset.hdf5
+   ```
 
-This creates the experiment directory with template job scripts:
+   ```text
+   Experiments/my_exp_0/
+   ├── configs/
+   │   └── experiment_config.yaml
+   ├── jobs/
+   │   ├── eqmgen_forward.sh      # runs on the GPU cluster
+   │   └── eqmgen_backward.sh     # runs on the heavy CPU cluster
+   ├── logs/
+   └── results/
+   ```
 
-```
-Experiments/my_exp_0/
-├── configs/
-│   └── experiment_config.yaml
-├── jobs/
-│   ├── eqmgen_forward.sh      # runs on the GPU cluster
-│   └── eqmgen_backward.sh     # runs on the heavy CPU cluster
-├── logs/
-└── results/
-```
-
-2. **Edit the experiment config**
-
-Update `Experiments/my_exp_0/configs/experiment_config.yaml`.
-
-3. **Customize the SLURM job scripts for your cluster**
-
-The copied job scripts must be adapted to your cluster before submitting. See [HPC Cluster Configuration (SLURM)](#hpc-cluster-configuration-slurm) below.
-
-4. **Copy Navigator trajectory CSV files**
-
-Copy the trajectory CSV files into `Experiments/my_exp_0/configs/`.
-
+2. **Edit the config:** `Experiments/my_exp_0/configs/experiment_config.yaml`
+3. **Adapt the SLURM job scripts** to your cluster (see [HPC Configuration](#hpc-configuration-slurm))
+4. **Copy the Navigator trajectory CSV files** into `Experiments/my_exp_0/configs/`
 5. **Submit the jobs**
 
+   ```bash
+   cd Experiments/my_exp_0/jobs
+   sbatch eqmgen_forward.sh
+   sbatch eqmgen_backward.sh
+   ```
+
+6. **Monitor**
+
+   ```bash
+   squeue -u $USER
+   squeue -j <job_id>
+   ```
+
+7. **Analyze results:** iteration data and HDF5 outputs are written to `Data/my_exp_0/`
+
+---
+
+## HPC Configuration (SLURM)
+
+Job scripts are copied from `Experiments/templates/jobs/` into your experiment directory on initialization. **Adapt them to your cluster before submitting.**
+
+| Setting | Forward (GPU) | Backward (CPU) |
+|---------|---------------|----------------|
+| Script | `eqmgen_forward.sh` | `eqmgen_backward.sh` |
+| Partition | `capella` | `barnard` |
+| Nodes | 1 | 10 |
+| Tasks / CPUs | 6 CPUs per task | 32 tasks per node |
+| GPUs | 1 | – |
+| Memory | 8000 MB per CPU | 12000 MB per CPU |
+| Time limit | 20 h | 5 h |
+| Account | – | your SLURM project account |
+| Handles | Diffusion training, generation, inference | EquiDTB geometry optimization, FHI-aims DFT, DFTB+, property evaluation |
+| Modules | – | FHI-aims, Intel compiler, MPI |
+
+<details>
+<summary><b>Forward job – directives to edit</b></summary>
+
 ```bash
-cd Experiments/my_exp_0/jobs
-sbatch eqmgen_forward.sh
-sbatch eqmgen_backward.sh
+#SBATCH --partition=your_gpu_partition    # your GPU partition name
+#SBATCH --gres=gpu:X                      # number of GPUs (1, 2, 4, ...)
+#SBATCH --cpus-per-task=6                 # CPU cores
+#SBATCH --mem-per-cpu=8000                # memory per CPU (MB)
+#SBATCH --time=HH:MM:SS                   # time limit
 ```
 
-6. **Monitor job status**
+</details>
+
+<details>
+<summary><b>Backward job – directives and modules to edit</b></summary>
 
 ```bash
-squeue -u $USER
-squeue -j <job_id>          # check a specific job
-```
-
-7. **Analyze results**
-
-Generated iteration data and HDF5 outputs are written under `Data/my_exp_0/`.
-
-## HPC Cluster Configuration (SLURM)
-
-The QAPLA workflow is designed to run on HPC clusters using SLURM. It is split into two complementary job types that target different hardware. When you initialize an experiment, these scripts are copied from `Experiments/templates/jobs/` into your experiment directory — **you must customize them for your specific cluster before running experiments.**
-
-### Forward Pipeline (GPU Cluster)
-
-**Script:** `Experiments/templates/jobs/eqmgen_forward.sh`
-
-The forward pipeline runs **on GPU clusters** and handles:
-- Diffusion model training
-- Molecular generation
-- Model inference
-
-**Default SLURM Configuration:**
-- **Partition:** `capella` (GPU partition)
-- **GPU:** 1 GPU per job
-- **CPU:** 6 cores per task
-- **Memory:** 8000 MB per CPU
-- **Nodes:** 1
-- **Time:** 20 hours
-
-**Update cluster parameters before running:**
-
-Edit `Experiments/templates/jobs/eqmgen_forward.sh` to match your GPU cluster specifications:
-
-```bash
-#SBATCH --partition=your_gpu_partition    # Change to your GPU partition name
-#SBATCH --gres=gpu:X                       # Adjust number of GPUs (1, 2, 4, etc.)
-#SBATCH --cpus-per-task=6                  # Adjust CPU cores
-#SBATCH --mem-per-cpu=8000                 # Adjust memory per CPU
-#SBATCH --time=HH:MM:SS                    # Adjust time limit
-```
-
-### Backward Pipeline (Heavy CPU Cluster)
-
-**Script:** `Experiments/templates/jobs/eqmgen_backward.sh`
-
-The backward pipeline runs **on heavy CPU clusters** and handles:
-- DFT calculations (FHI-aims)
-- Geometry optimization
-- Property evaluation
-- DFTB+ calculations
-
-**Default SLURM Configuration:**
-- **Partition:** `barnard` (CPU partition)
-- **CPU:** 32 tasks per node
-- **Nodes:** 10 (distributed computing)
-- **Memory:** 12000 MB per CPU
-- **Account:** (set your SLURM project account)
-- **Time:** 5 hours
-- **Module dependencies:** FHI-aims, Intel compiler, MPI
-
-**Update cluster parameters before running:**
-
-Edit `Experiments/templates/jobs/eqmgen_backward.sh` to match your CPU cluster specifications:
-
-```bash
-#SBATCH -A your_account              # Change to your SLURM account
+#SBATCH -A your_account                   # your SLURM account
 #SBATCH --partition=your_cpu_partition
-#SBATCH --cpus-per-task=X            # Adjust CPUs per task
-#SBATCH --mem-per-cpu=XXXX           # Adjust memory per CPU
-#SBATCH --nodes=X                    # Adjust number of nodes
-#SBATCH --ntasks-per-node=X          # Adjust tasks per node
-#SBATCH --time=HH:MM:SS              # Adjust time limit
+#SBATCH --cpus-per-task=X
+#SBATCH --mem-per-cpu=XXXX
+#SBATCH --nodes=X
+#SBATCH --ntasks-per-node=X
+#SBATCH --time=HH:MM:SS
 ```
-
-Additionally, update the module load commands if your cluster has different module names:
 
 ```bash
 # Original (example):
 module load release/24.04 intel-compilers/2023.2.1 impi/2021.10.0
 module load FHI-aims/240507
 
-# Update to your cluster's available modules:
+# Replace with your cluster's modules:
 module load <release> <compiler> <mpi>
 module load <fhi-aims-module>
 ```
 
-### Switching Between Environment Strategies
+</details>
 
-By default, the job script templates use **split environments** (`env-qalpa-forward` and `env-qalpa-backward`). To switch strategies:
+<details>
+<summary><b>Switching between split and combined environments</b></summary>
 
-**To use the combined environment:**
-
-Edit both `Experiments/templates/jobs/eqmgen_forward.sh` and `Experiments/templates/jobs/eqmgen_backward.sh`:
+The templates use split environments by default. To use the combined environment, replace the two `conda activate` lines in both job scripts with:
 
 ```bash
-# Replace:
-conda activate $REPO_ROOT/conda_envs/env-qalpa-forward/
-conda activate $REPO_ROOT/conda_envs/env-qalpa-backward/
-
-# With:
 conda activate $REPO_ROOT/conda_envs/env-activeloop/
 ```
 
-**To use split environments** (default):
+</details>
 
-No changes needed. The templates already reference:
-- Forward: `$REPO_ROOT/conda_envs/env-qalpa-forward/`
-- Backward: `$REPO_ROOT/conda_envs/env-qalpa-backward/`
-
-> **Recommendation:** Use split environments for production HPC workflows to optimize hardware utilization and reduce environment sizes on each node.
+---
 
 ## Project Structure
 
-```
-qapla/
-├── Data/                            # Experiment data root (created/updated at runtime)
+```text
+<repo>/
+├── Data/                     # Experiment data root (created/updated at runtime)
+├── docs/diagrams/            # Graphviz sources (.dot) and rendered SVGs
 ├── src/
-│   ├── configs/                     # Framework configs (eqdiff_model.yaml, eqmgen_paths.yaml, SKfiles)
-│   ├── eqdiff/                      # Diffusion model code
-│   ├── pipeline_blocks/             # Geometry/props/filter/hdf5 blocks
-│   ├── scripts/                     # init_experiment.py, forward.py, backward.py
-│   └── utils/                       # Data manager, trajectory, parallelization helpers
+│   ├── configs/              # Framework configs (eqdiff_model.yaml, eqmgen_paths.yaml, SKfiles)
+│   ├── eqdiff/               # Diffusion model code
+│   ├── pipeline_blocks/      # Geometry / props / filter / HDF5 blocks
+│   ├── scripts/              # init_experiment.py, forward.py, backward.py
+│   └── components/           # Data manager, trajectory, parallelization helpers
 ├── Experiments/
-│   └── templates/                   # Template config and job scripts for initialization
-├── Navigator/                       # Interactive trajectory planner (design_trajectory.ipynb)
-├── environment-al.yml               # Combined conda environment specification
-├── environment_f.yml                # Forward (GPU) pipeline environment
-├── environment_b.yml                # Backward (CPU) pipeline environment
-├── global_config.yaml               # Root/shared config imported by experiments
+│   └── templates/            # Template config and job scripts
+├── Navigator/                # Interactive trajectory planner (design_trajectory.ipynb)
+├── environment-al.yml        # Combined conda environment
+├── environment_f.yml         # Forward (GPU) environment
+├── environment_b.yml         # Backward (CPU) environment
+├── global_config.yaml        # Root/shared config imported by experiments
 └── README.md
 ```
 
+---
+
 ## Requirements
 
-All dependencies are installed via one of the environment specification files:
+| File | Contents | Use |
+|------|----------|-----|
+| `environment-al.yml` | GPU/diffusion + chemistry/DFT stacks | Single-machine setup |
+| `environment_f.yml` | PyTorch, PyTorch Geometric, MACE | Forward pipeline (GPU) |
+| `environment_b.yml` | ASE, RDKit, xTB, DFTB+ | Backward pipeline (CPU) |
 
-**Environment Options:**
-- `environment-al.yml` – Combined environment with GPU/diffusion and chemistry/DFT stacks (recommended for single-machine setup)
-- `environment_f.yml` – Forward pipeline (GPU) – PyTorch, PyTorch Geometric, MACE
-- `environment_b.yml` – Backward pipeline (CPU) – ASE, RDKit, xTB, DFTB+
+| Area | Packages | Found in |
+|------|----------|----------|
+| Deep learning / diffusion | Python 3.10, PyTorch 2.0.1, PyTorch Geometric 2.3.0 (`pytorch-scatter`, `-sparse`, `-cluster`), PyTorch Lightning 2.0.6, `torch_ema`, TensorBoard, MACE (from source), JAX (CUDA 12) | `environment-al.yml`, `environment_f.yml` |
+| Quantum chemistry / structure | ASE, DFTB+ 24.1 (`dftbplus`, `dftbplus-tools`, `dftbplus-python`), xTB (`xtb`, `xtb-python`), RDKit 2023.03.2, Open Babel | `environment-al.yml`, `environment_b.yml` |
+| Configuration / data | Hydra / OmegaConf, NumPy (<2), Pandas, h5py, LMDB | all |
+| Visualization / analysis | Matplotlib, Seaborn, Jupyter, py3Dmol, nglview, RMSD, Biopython | all |
 
-**Core Stack Components:**
+> FHI-aims is **not** installed via conda. It is loaded as an HPC module.
+> See the environment YAML files for complete, version-pinned lists.
 
-**Deep learning / diffusion model** (in `environment-al.yml` and `environment_f.yml`)
-- Python 3.10
-- PyTorch 2.0.1
-- PyTorch Geometric 2.3.0 (with `pytorch-scatter`, `pytorch-sparse`, `pytorch-cluster`)
-- PyTorch Lightning 2.0.6
-- `torch_ema`, TensorBoard
-- MACE (machine-learning force field, from source)
-- JAX (CUDA 12)
-
-**Quantum chemistry / structure** (in `environment-al.yml` and `environment_b.yml`)
-- ASE (Atomic Simulation Environment)
-- FHI-aims (DFT, loaded as an HPC module — not via conda)
-- DFTB+ 24.1 (`dftbplus`, `dftbplus-tools`, `dftbplus-python`)
-- xTB (`xtb`, `xtb-python`)
-- RDKit 2023.03.2
-- Open Babel
-
-**Configuration / data handling** (in all environments)
-- Hydra / OmegaConf (experiment configuration)
-- NumPy (<2), Pandas, h5py, LMDB
-
-**Visualization / analysis** (in all environments)
-- Matplotlib, Seaborn
-- Jupyter / Notebook
-- py3Dmol, nglview, RMSD, Biopython
-
-See the environment YAML files for the complete, version-pinned lists.
+---
 
 ## Troubleshooting
 
-### `ModuleNotFoundError: Neither tensorboard nor tensorboardX is available`
+<details>
+<summary><code>ModuleNotFoundError: Neither tensorboard nor tensorboardX is available</code></summary>
 
-`tensorboard` is declared in the environment files but may be missing if the environment was created from an older version. Fix it with:
+`tensorboard` is declared in the environment files but may be missing if the environment was created from an older version.
 
-**For combined environment:**
 ```bash
+# Combined environment
 conda_envs/env-activeloop/bin/pip3 install tensorboard
-```
 
-**For split environments:**
-```bash
+# Split environments
 conda_envs/env-qalpa-forward/bin/pip3 install tensorboard
 conda_envs/env-qalpa-backward/bin/pip3 install tensorboard
 ```
 
 Then re-submit the job.
 
-### `ModuleNotFoundError: No module named 'pkg_resources'`
+</details>
 
-`setuptools>=70` removed `pkg_resources` as a top-level module, which breaks `pytorch-lightning` and several other packages. The environment files pin `setuptools<70` to prevent this. If your environment was created without this pin, fix it with:
+<details>
+<summary><code>ModuleNotFoundError: No module named 'pkg_resources'</code></summary>
 
-**For combined environment:**
+`setuptools>=70` removed `pkg_resources` as a top-level module, which breaks `pytorch-lightning` and other packages. The environment files pin `setuptools<70`. If your environment was created without this pin:
+
 ```bash
+# Combined environment
 conda_envs/env-activeloop/bin/python -m pip install "setuptools<70" --force-reinstall
-```
 
-**For split environments:**
-```bash
+# Split environments
 conda_envs/env-qalpa-forward/bin/python -m pip install "setuptools<70" --force-reinstall
 conda_envs/env-qalpa-backward/bin/python -m pip install "setuptools<70" --force-reinstall
 ```
 
-## Citations
-If you use parts of the code please cite
-```
+</details>
+
+---
+
+## Citation
+
+If you use parts of the code, please cite:
+
+```bibtex
 @article{qalpa,
-title={QALPA: Property-guided diffusion modeling for efficient exploration of chemical spaces of flexible molecules}, 
-author={Michael Hanna and Julian Cremer and Zekiye Erarslan and Leonardo Medrano Sandonas},
-year={2026},
-journal={arXiv preprint arXiv:2609.16527},
-url={https://arxiv.org/abs/2609.16527}, 
+  title   = {QALPA: Property-guided diffusion modeling for efficient exploration of chemical spaces of flexible molecules},
+  author  = {Michael Hanna and Julian Cremer and Zekiye Erarslan and Leonardo Medrano Sandonas},
+  year    = {2026},
+  journal = {arXiv preprint arXiv:2609.16527},
+  url     = {https://arxiv.org/abs/2609.16527}
 }
 ```
