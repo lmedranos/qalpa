@@ -6,8 +6,26 @@
 QALPA combines diffusion-based molecular generation with quantum-mechanical (QM) feedback through active learning (AL). It explores property space and iteratively improves generative models for molecular design.
 
 <p align="center">
-<img width="600" alt="QALPA workflow" src="img/qalpa.png" />
+<img width="900" alt="QALPA workflow: forward job (EQDIFF generation) and backward job (EquiDTB, DFT/DFTB+, screening) around the QM property space" src="img/qalpa.png" />
 </p>
+
+<details>
+<summary><b>Reading the figure</b></summary>
+
+| # | Step | Job | Active learning |
+|:-:|------|-----|:---:|
+| 1 | **EQDIFF** – train / resume the diffusion model on the weighted concatenated dataset | Forward (GPU) | |
+| 2 | **Target planning** – KDE-map corridor over sparse, under-explored and hard regions | Forward (GPU) | AL |
+| 3 | **Acquisition** – dedupe, fingerprints, diversity/novelty and cost, at most `budget` candidates | Backward (CPU) | AL |
+| 4 | **EquiDTB** – geometry optimization | Backward (CPU) | |
+| 5 | **Property calculation** – FHI-aims (DFT) or DFTB+ | Backward (CPU) | |
+| 6 | **Data screening** – property accuracy, synthetic accessibility (SA) score | Backward (CPU) | |
+| 7 | **Evaluation** – hit rate, coverage, `metrics.csv`, optional early stop | Backward (CPU) | AL |
+| 8 | **Weighted concatenation** – initial and per-iteration labelled data, each with a weight, form the training set of the next round | Dataset | |
+
+The loop ends when `q > N_iter` or early stopping triggers; the final dataset is then written.
+
+</details>
 
 **Contents:** [Overview](#overview) · [Workflow](#workflow) · [Architecture](#architecture) · [Installation](#installation) · [Quick Start](#quick-start) · [HPC (SLURM)](#hpc-configuration-slurm) · [Requirements](#requirements) · [Troubleshooting](#troubleshooting) · [Citation](#citation)
 
@@ -20,7 +38,7 @@ QALPA generates novel molecules with desired properties by coupling a diffusion 
 | Feature | Details |
 |---------|---------|
 | Trajectory planning | Molecular trajectories in property space (HOMO-LUMO gap, many-body dispersion energy, atomic number, …) |
-| Active learning | Iterative loop with DFT / DFTB QM feedback |
+| Active learning | Iterative loop: EquiDTB geometry optimization, DFT / DFTB+ property feedback |
 | Orchestration | HPC-optimized, SLURM-based forward/backward jobs |
 | Generation | Property-guided diffusion model |
 | Analysis | Notebooks for HDF5 outputs, metrics and visualization |
@@ -78,7 +96,7 @@ With `al.enabled: true`, one iteration proceeds as follows:
 | # | Job | Step | What it does |
 |:-:|-----|------|--------------|
 | 1 | Forward | **Plan** | `plan_targets.py` loads the cumulative HDF5 state and writes `targets.json`. `kde_map` samples a padded trajectory corridor and scores sparse, under-explored and historically difficult regions. `trajectory` and `frontier` are simpler alternatives. |
-| 2 | Forward | **Split / train / generate** | The labelled HDF5 is split into a training set, the diffusion model is trained or resumed, and molecules are generated per planned target. Candidate pool size is `num_samples * oversample`. |
+| 2 | Forward | **Split / train / generate** | The labelled HDF5 is split into a training set, the diffusion model is trained or resumed on the weighted concatenation of the labelled data, and molecules are generated per planned target. Candidate pool size is `num_samples * oversample`. |
 | 3 | Backward | **Score and acquire** | Score filters run first. `acquire_candidates.py` converts structures to canonical SMILES and Morgan fingerprints, removes invalid and duplicate candidates, and selects at most `budget` candidates by fingerprint diversity/novelty and heavy-atom cost. `random` mode is a baseline. No predictive surrogate is used. |
 | 4 | Backward | **Relax and calculate** | Selected candidates undergo geometry optimization and QM property calculation. Optional property-accuracy filtering removes candidates outside the configured tolerance. |
 | 5 | Backward | **Persist and evaluate** | Valid results are written to the cumulative HDF5 together with AL metadata (requested and achieved properties, target IDs, iteration, hit flags). Evaluation appends hit rate, coverage, selected count and acquisition-score metrics to `<experiment>/metrics.csv`. Optional early stopping sets `loop.stop`. |
@@ -334,7 +352,7 @@ Job scripts are copied from `Experiments/templates/jobs/` into your experiment d
 | Memory | 8000 MB per CPU | 12000 MB per CPU |
 | Time limit | 20 h | 5 h |
 | Account | – | your SLURM project account |
-| Handles | Diffusion training, generation, inference | FHI-aims DFT, DFTB+, geometry optimization, property evaluation |
+| Handles | Diffusion training, generation, inference | EquiDTB geometry optimization, FHI-aims DFT, DFTB+, property evaluation |
 | Modules | – | FHI-aims, Intel compiler, MPI |
 
 <details>
