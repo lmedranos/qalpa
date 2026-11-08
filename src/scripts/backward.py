@@ -48,6 +48,9 @@ def main(cfg: DictConfig):
     
     # Create directories 
     dm = DataManager(cfg.base_dataset_path, cfg.data.exp_data_path)
+    dm.hdf5_appending_flag = bool(cfg.hdf5.appending_flag)
+    dm.hdf5_iter_flag = bool(cfg.hdf5.hdf5_iter_flag)
+    dm.extra_properties_flag = bool(cfg.hdf5.extra_properties_flag)
     dm.initialize_data_directory()
     n = cfg.loop.current_iter
     if n > cfg.loop.num_iterations:
@@ -145,7 +148,17 @@ def main(cfg: DictConfig):
     # Step 8: Create HDF5
     if 'hdf5' in active_blocks:
         print("  Running Create HDF5  ")
-        run_to_hdf5(dm.query_data, prop_calc_path, cfg.hdf5.appending_flag, dm.output_hdf5, context_flag, cfg.hdf5.extra_properties_flag, cfg.hdf5.hdf5_iter_flag, dm.itr_extra_prop_path, n)
+        run_to_hdf5(
+            dm.query_data,
+            prop_calc_path,
+            cfg.hdf5.appending_flag,
+            dm.output_hdf5,
+            context_flag,
+            dm.extra_prop_hdf5 if cfg.hdf5.extra_properties_flag else None,
+            dm.itr_hdf5_path if cfg.hdf5.hdf5_iter_flag else None,
+            dm.itr_extra_prop_path if cfg.hdf5.extra_properties_flag else None,
+            n,
+        )
     
     print(f"\n Completed iteration {n} \n")
     # increment cfg.loop.current_iter and save the updated configuration to the experiment_config.yaml file

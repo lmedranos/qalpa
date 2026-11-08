@@ -32,6 +32,9 @@ vector_aggr: mean
 
 #DATA
 dataset: aqm
+concat_datasets: false
+alpha: 0.2
+beta: 0.2
 
 # DIFFUSION
 additional_feats: false

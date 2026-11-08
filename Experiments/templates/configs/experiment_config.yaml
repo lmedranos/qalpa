@@ -76,7 +76,9 @@ EQdiffParam:
   load_ckpt_from_pretrained: null
   save_dir: ${paths.experiments}/${experiment_name}/logs/ 
   dataset: aqm            # (choose from 'qm9', 'drugs', 'aqm', 'aqm_qm7x', 'pcqm4mv2', 'pepconf', 'crossdocked')
-
+  concat_datasets: true
+  alpha: 0.2
+  beta: 0.2
 
 
 # ============================================================================

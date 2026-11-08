@@ -34,13 +34,10 @@ def main(cfg: DictConfig):
 
     # Create the intial hdf5 data directory if it doesn't exist (experiment_config.yaml -> data.exp_data_path)
     dm = DataManager(cfg.base_dataset_path, cfg.data.exp_data_path)
+    dm.hdf5_appending_flag = bool(cfg.hdf5.appending_flag)
+    dm.hdf5_iter_flag = bool(cfg.hdf5.hdf5_iter_flag)
+    dm.extra_properties_flag = bool(cfg.hdf5.extra_properties_flag)
     dm.initialize_data_directory()
-
-    # HDF5 source (experiment_config.yaml -> hdf5.appending_flag, resolved inside DataManager)
-    if cfg.hdf5.appending_flag:
-        hdf5_file_path = dm.output_hdf5
-    else:
-        hdf5_file_path = dm.input_hdf5
 
     # Create exterapolating trajectory for properties and scores (experiment_config.yaml -> query.*)
     prop_names = list(cfg.query.props)
@@ -87,16 +84,32 @@ def main(cfg: DictConfig):
     # Step 1: Run data split
     if 'split' in active_blocks:
         print(" Running Data split ")
-        cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}", f"--gres=gpu:{gpus_per_task}",
-            "--exclusive", "--export=ALL",
-            "python", str(Path(cfg.EQdiff.split)),
-            "--file-path", str(hdf5_file_path),
-            "--out-path", str(cfg.EQdiffParam.dataset_root),
+        if cfg.concat_datasets:
+            source = dm.input_hdf5 if n == 0 else dm.data_directory  / f"iter_{n - 1}" / "hdf5" / "output.hdf5"
+            source_root = (Path(cfg.EQdiffParam.dataset_root) / f"dataset_{n}")
+        else:
+            source = dm.output_hdf5 if cfg.hdf5.appending_flag else dm.input_hdf5
+            source_root = Path(cfg.EQdiffParam.dataset_root)
+        if not (source_root / "raw" / "train_data.pickle").is_file():
+            source_root.mkdir(parents=True, exist_ok=True)
+            cmd = [
+                "srun",
+                "--ntasks=1",
+                f"--cpus-per-task={cpus_per_task}",
+                f"--gres=gpu:{gpus_per_task}",
+                "--exclusive",
+                "--export=ALL",
+                "python",
+                str(Path(cfg.EQdiff.split)),
+                "--file-path",
+                str(source),
+                "--out-path",
+                str(source_root),
             ]
-        result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
-        print(result.stdout)
-        print(result.stderr)
-        
+            subprocess.run(
+                cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy()
+            )
+
     # step 2: Diffusion model training
     if 'train' in active_blocks:
         print("  Running Diffusion model training ")
