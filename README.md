@@ -51,7 +51,7 @@ QALPA generates novel molecules with desired properties by coupling a diffusion 
 QALPA runs in three phases: trajectory design, active diffusion execution, and output analysis.
 
 <p align="center">
-<img src="docs/diagrams/overview.svg" alt="QALPA three-phase workflow" width="800" />
+<img src="img/overview.svg" alt="QALPA three-phase workflow" width="800" />
 </p>
 
 | Phase | What happens | Tool / script |
@@ -80,13 +80,13 @@ Each iteration is executed by two jobs. Submit them **alternately**, so generate
 #### Forward job
 
 <p align="center">
-<img src="docs/diagrams/forward.svg" alt="Forward job flow" width="560" />
+<img src="img/forward.svg" alt="Forward job flow" width="560" />
 </p>
 
 #### Backward job
 
 <p align="center">
-<img src="docs/diagrams/backward.svg" alt="Backward job flow" width="700" />
+<img src="img/backward.svg" alt="Backward job flow" width="700" />
 </p>
 
 #### Active learning (`al:` block in `experiment_config.yaml`)
@@ -121,7 +121,7 @@ Jupyter notebooks in `Navigator/` let you inspect the active diffusion results, 
 The code is organized in four layers, each depending only on the layers below it.
 
 <p align="center">
-<img src="docs/diagrams/architecture.svg" alt="QALPA architecture layers" width="720" />
+<img src="img/architecture.svg" alt="QALPA architecture layers" width="720" />
 </p>
 
 | Layer | Location | Responsibility |
@@ -203,24 +203,6 @@ Trajectory planning lives in [`trajectory.py`](src/components/trajectory.py) (tr
 
 </details>
 
-<details>
-<summary><b>Surrogate model (optional, not used for acquisition)</b></summary>
-
-`surrogate.py` contains an optional fingerprint random-forest implementation for standalone experiments and benchmark comparisons. It is **not** part of the current candidate-acquisition path: acquisition runs before trusted QM properties exist, so it uses only observable structural features.
-
-</details>
-
-<details>
-<summary><b>Editing the diagrams</b></summary>
-
-The diagrams are Graphviz sources in `docs/diagrams/*.dot`. After editing, regenerate the SVGs:
-
-```bash
-cd docs/diagrams
-for f in overview forward backward architecture; do dot -Tsvg $f.dot -o $f.svg; done
-```
-
-</details>
 
 ---
 
