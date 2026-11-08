@@ -15,6 +15,8 @@ from torch.utils.data import Subset
 from torch_geometric.data import DataLoader, InMemoryDataset
 from tqdm import tqdm
 
+from eqdiff.concat import Concatenator
+
 full_atom_encoder = {
     "H": 0,
     "B": 1,
@@ -219,20 +221,48 @@ class AQMQM7XDataModule(AbstractDataModule):
 
         self.label2idx = {k: i for i, k in enumerate(mol_properties)}
 
-        train_dataset = AQMQM7XDataset(
-            split="train", root=root_path, remove_h=cfg.remove_hs
-        )
-        val_dataset = AQMQM7XDataset(
-            split="val", root=root_path, remove_h=cfg.remove_hs
-        )
-        test_dataset = AQMQM7XDataset(
-            split="test", root=root_path, remove_h=cfg.remove_hs
-        )
+        self.concatenator = None
+        if getattr(cfg, "concat_datasets", False):
+            self.concatenator = Concatenator(
+                AQMQM7XDataset,
+                root_path,
+                {"remove_h": cfg.remove_hs},
+            )
+            train_dataset = self.concatenator.concatenate(
+                self.concatenator.datasets("train")
+            )
+            val_dataset = self.concatenator.concatenate(
+                self.concatenator.datasets("val")
+            )
+            test_dataset = self.concatenator.concatenate(
+                self.concatenator.datasets("test")
+            )
+            train_dataset.smiles = [
+                smile
+                for dataset in train_dataset.datasets
+                for smile in dataset.smiles
+            ]
+        else:
+            train_dataset = AQMQM7XDataset(
+                split="train", root=root_path, remove_h=cfg.remove_hs
+            )
+            val_dataset = AQMQM7XDataset(
+                split="val", root=root_path, remove_h=cfg.remove_hs
+            )
+            test_dataset = AQMQM7XDataset(
+                split="test", root=root_path, remove_h=cfg.remove_hs
+            )
         self.remove_h = cfg.remove_hs
         self.statistics = {
-            "train": train_dataset.statistics,
-            "val": val_dataset.statistics,
-            "test": test_dataset.statistics,
+            "train": train_dataset.datasets[0].statistics
+            if self.concatenator
+            else train_dataset.statistics,
+            "val": val_dataset.datasets[0].statistics
+            if self.concatenator
+            else val_dataset.statistics,
+            "test": test_dataset.datasets[0].statistics
+            if self.concatenator
+            else test_dataset.statistics,
         }
         if cfg.select_train_subset:
             self.idx_train = train_subset(
@@ -244,6 +274,14 @@ class AQMQM7XDataModule(AbstractDataModule):
             self.train_smiles = train_dataset.smiles
             train_dataset = Subset(train_dataset, self.idx_train)
 
+        self.train_sampler = None
+        if self.concatenator:
+            self.train_sampler = self.concatenator.sampler(
+                train_dataset,
+                alpha=getattr(cfg, "alpha", 0.2),
+                beta=getattr(cfg, "beta", 0.2),
+            )
+
         super().__init__(cfg, train_dataset, val_dataset, test_dataset)
 
     def train_dataloader(self, shuffle=True):
@@ -252,7 +290,8 @@ class AQMQM7XDataModule(AbstractDataModule):
             batch_size=self.cfg.batch_size,
             num_workers=self.cfg.num_workers,
             pin_memory=self.pin_memory,
-            shuffle=shuffle,
+            shuffle=shuffle if self.train_sampler is None else False,
+            sampler=self.train_sampler,
             persistent_workers=False,
         )
         return dataloader

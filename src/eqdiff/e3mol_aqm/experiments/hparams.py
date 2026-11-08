@@ -46,6 +46,9 @@ def add_arguments(parser):
     parser.add_argument(
         "--dataset-root", default="/hpfs/userws/cremej01/projects/data/geom"
     )
+    parser.add_argument("--concat-datasets", default=False, action="store_true")
+    parser.add_argument("--alpha", default=0.5, type=float)
+    parser.add_argument("--beta", default=0.5, type=float)
     parser.add_argument("--use-adaptive-loader", default=True, action="store_true")
     parser.add_argument("--remove-hs", default=False, action="store_true")
     parser.add_argument("--select-train-subset", default=False, action="store_true")
