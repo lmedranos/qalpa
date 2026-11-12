@@ -66,7 +66,7 @@ EQdiffParam:
   num_samples: 200
   batch_size: 40
   num_epochs: 50
-  test_interval: 40
+  test_interval: 5                    # sampling eval (1000 mols) every k epochs; best_mol_stab.ckpt is only saved here
   context_mapping: True
   properties_list: ['HLgap', 'eMBD']            # Properties to track should be edited
   num_context_features: ${len:${EQdiffParam.properties_list}}
@@ -75,10 +75,24 @@ EQdiffParam:
   test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test/
   load_ckpt_from_pretrained: null
   save_dir: ${paths.experiments}/${experiment_name}/logs/ 
-  dataset: aqm            # (choose from 'qm9', 'drugs', 'aqm', 'aqm_qm7x', 'pcqm4mv2', 'pepconf', 'crossdocked')
+  dataset: aqm_qm7x            # (choose from 'qm9', 'drugs', 'aqm', 'aqm_qm7x', 'pcqm4mv2', 'pepconf', 'crossdocked')
   concat_datasets: true
   alpha: 0.2
-  beta: 0.2
+  beta: 0.2                             # original dataset weight = beta * (weight of one middle dataset)
+  samples_per_epoch: 5000               # draws per epoch once >1 dataset (iteration 0 always uses the full dataset_0); null = len(train)
+  min_original_share: 0.1               # replay floor for dataset_0's share, taken from the newest dataset; 0 = off
+  split_seed: 42                        # seed of the per-molecule train/val/test split
+
+
+# ============================================================================
+# MLFLOW (training/evaluation curves; synced from TensorBoard logs after training)
+# ============================================================================
+# UI:  <mlflow.python dir>/mlflow ui --backend-store-uri <tracking_uri> --port 5000
+
+mlflow:
+  enabled: false                        # needs a separate env with mlflow + tensorboard (see README: MLflow)
+  python: /path/to/conda_envs/env-qalpa-mlflow/bin/python
+  tracking_uri: file://${paths.data}/mlruns     # one store for all experiments; experiment = experiment_name
 
 
 # ============================================================================

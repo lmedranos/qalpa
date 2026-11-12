@@ -49,6 +49,19 @@ def add_arguments(parser):
     parser.add_argument("--concat-datasets", default=False, action="store_true")
     parser.add_argument("--alpha", default=0.5, type=float)
     parser.add_argument("--beta", default=0.5, type=float)
+    parser.add_argument(
+        "--samples-per-epoch",
+        default=None,
+        type=int,
+        help="Draws per epoch of the weighted concat sampler once there is more "
+        "than one dataset (default: len(train)); dataset_0 alone always uses len(train)",
+    )
+    parser.add_argument(
+        "--min-original-share",
+        default=0.0,
+        type=float,
+        help="Lower bound for dataset_0's sampling share (taken from the newest dataset)",
+    )
     parser.add_argument("--use-adaptive-loader", default=True, action="store_true")
     parser.add_argument("--remove-hs", default=False, action="store_true")
     parser.add_argument("--select-train-subset", default=False, action="store_true")

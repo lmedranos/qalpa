@@ -12,6 +12,7 @@ dependencies:
   - numpy<2  
   - defaults::matplotlib        
   - conda-forge::tensorboard
+  - conda-forge::mlflow<3  # training/evaluation curves (src/scripts/sync_mlflow.py)
   - conda-forge::lmdb
   - conda-forge::jupyter
   - notebook

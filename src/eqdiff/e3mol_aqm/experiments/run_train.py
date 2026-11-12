@@ -152,18 +152,20 @@ if __name__ == "__main__":
 
     datamodule = DataModule(hparams)
 
+    if hasattr(datamodule, "sampling_summary"):
+        # dataset sizes and sampling shares of this run (read by sync_mlflow.py)
+        import json
+
+        summary = datamodule.sampling_summary()
+        print(f"Sampling: {json.dumps(summary, indent=1)}")
+        with open(os.path.join(hparams.save_dir, "sampling.json"), "w") as f:
+            json.dump(summary, f, indent=2)
+
     from experiments.data.data_info import GeneralInfos as DataInfos
 
-    if dataset == "aqm_qm7x":
-        from experiments.data.aqm.aqm_dataset_nonadaptive import (
-            AQMDataModule as DataModule,
-        )
-
-        datamodule_aqm = DataModule(hparams)
-        dataset_info = DataInfos(datamodule_aqm, hparams)
-        del datamodule_aqm
-    else:
-        dataset_info = DataInfos(datamodule, hparams)
+    # aqm_qm7x uses the same atom encoder as aqm, so its own datamodule
+    # statistics are sufficient (and work with --concat-datasets).
+    dataset_info = DataInfos(datamodule, hparams)
 
     train_smiles = (
         (
@@ -334,3 +336,15 @@ if __name__ == "__main__":
         datamodule=datamodule,
         ckpt_path=ckpt_path if hparams.load_ckpt is not None else None,
     )
+
+    # With concatenated datasets, evaluate the test loss on the full test split
+    # ("test/...") and on every dataset_<n> alone ("test_dataset_<n>/...").
+    # Uses best_mol_stab.ckpt (the checkpoint forward.py generates with) if it
+    # exists, otherwise the final in-memory (EMA) weights.
+    if hparams.concat_datasets and hasattr(model, "test_step"):
+        best_ckpt = os.path.join(hparams.save_dir, "best_mol_stab.ckpt")
+        trainer.test(
+            model=model,
+            datamodule=datamodule,
+            ckpt_path=best_ckpt if os.path.exists(best_ckpt) else None,
+        )

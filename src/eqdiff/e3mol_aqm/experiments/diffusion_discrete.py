@@ -282,8 +282,33 @@ class Trainer(pl.LightningModule):
     def training_step(self, batch, batch_idx):
         return self.step_fnc(batch=batch, batch_idx=batch_idx, stage="train")
 
-    def validation_step(self, batch, batch_idx):
-        return self.step_fnc(batch=batch, batch_idx=batch_idx, stage="val")
+    def _eval_stage(self, stage: str, dataloader_idx: int) -> str:
+        """Log prefix for a val/test dataloader.
+
+        Dataloader 0 is the full split ("val"/"test", monitored by
+        ModelCheckpoint). Datamodules that return one extra dataloader per
+        sub-dataset (e.g. --concat-datasets) expose `eval_names`, giving
+        prefixes such as "val_dataset_1".
+        """
+        datamodule = getattr(self.trainer, "datamodule", None)
+        names = getattr(datamodule, "eval_names", None)
+        if not names or dataloader_idx >= len(names):
+            return stage
+        return f"{stage}{names[dataloader_idx]}"
+
+    def validation_step(self, batch, batch_idx, dataloader_idx=0):
+        return self.step_fnc(
+            batch=batch,
+            batch_idx=batch_idx,
+            stage=self._eval_stage("val", dataloader_idx),
+        )
+
+    def test_step(self, batch, batch_idx, dataloader_idx=0):
+        return self.step_fnc(
+            batch=batch,
+            batch_idx=batch_idx,
+            stage=self._eval_stage("test", dataloader_idx),
+        )
 
     def on_validation_epoch_end(self):
         if (self.current_epoch + 1) % self.hparams.test_interval == 0:
@@ -342,7 +367,8 @@ class Trainer(pl.LightningModule):
             on_step=True,
             batch_size=batch_size,
             prog_bar=False,
-            sync_dist=self.hparams.gpus > 1 and stage == "val",
+            sync_dist=self.hparams.gpus > 1 and stage != "train",
+            add_dataloader_idx=False,
         )
 
         self.log(
@@ -351,7 +377,8 @@ class Trainer(pl.LightningModule):
             on_step=True,
             batch_size=batch_size,
             prog_bar=(stage == "train"),
-            sync_dist=self.hparams.gpus > 1 and stage == "val",
+            sync_dist=self.hparams.gpus > 1 and stage != "train",
+            add_dataloader_idx=False,
         )
 
         self.log(
@@ -360,7 +387,8 @@ class Trainer(pl.LightningModule):
             on_step=True,
             batch_size=batch_size,
             prog_bar=(stage == "train"),
-            sync_dist=self.hparams.gpus > 1 and stage == "val",
+            sync_dist=self.hparams.gpus > 1 and stage != "train",
+            add_dataloader_idx=False,
         )
 
         self.log(
@@ -369,7 +397,8 @@ class Trainer(pl.LightningModule):
             on_step=True,
             batch_size=batch_size,
             prog_bar=(stage == "train"),
-            sync_dist=self.hparams.gpus > 1 and stage == "val",
+            sync_dist=self.hparams.gpus > 1 and stage != "train",
+            add_dataloader_idx=False,
         )
 
         self.log(
@@ -378,7 +407,8 @@ class Trainer(pl.LightningModule):
             on_step=True,
             batch_size=batch_size,
             prog_bar=(stage == "train"),
-            sync_dist=self.hparams.gpus > 1 and stage == "val",
+            sync_dist=self.hparams.gpus > 1 and stage != "train",
+            add_dataloader_idx=False,
         )
 
     def step_fnc(self, batch, batch_idx, stage: str):
