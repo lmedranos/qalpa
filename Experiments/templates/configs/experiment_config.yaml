@@ -90,8 +90,8 @@ EQdiffParam:
 # UI:  <mlflow.python dir>/mlflow ui --backend-store-uri <tracking_uri> --port 5000
 
 mlflow:
-  enabled: false                        # needs a separate env with mlflow + tensorboard (see README: MLflow)
-  python: /path/to/conda_envs/env-qalpa-mlflow/bin/python
+  enabled: true                         # sync after every training; needs an env with mlflow + tensorboard + matplotlib (see README: MLflow)
+  python: /data/horse/ws/miha493e-research_project/miha493e-research_project-1785452511/topublish/EQMgen/conda_envs/env-qalpa-mlflow/bin/python
   tracking_uri: file://${paths.data}/mlruns     # one store for all experiments; experiment = experiment_name
 
 
