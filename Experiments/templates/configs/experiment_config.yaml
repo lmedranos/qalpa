@@ -77,9 +77,9 @@ EQdiffParam:
   save_dir: ${paths.experiments}/${experiment_name}/logs/ 
   dataset: aqm_qm7x            # (choose from 'qm9', 'drugs', 'aqm', 'aqm_qm7x', 'pcqm4mv2', 'pepconf', 'crossdocked')
   concat_datasets: true
-  alpha: 0.2
-  beta: 0.2                             # original dataset weight = beta * (weight of one middle dataset)
-  samples_per_epoch: 5000               # draws per epoch once >1 dataset (iteration 0 always uses the full dataset_0); null = len(train)
+  alpha: 0.6
+  beta: 0.9                             # original dataset weight = beta * (weight of one middle dataset)
+  samples_per_epoch: 1000               # draws per epoch once >1 dataset (iteration 0 always uses the full dataset_0); null = len(train)
   min_original_share: 0.1               # replay floor for dataset_0's share, taken from the newest dataset; 0 = off
   split_seed: 42                        # seed of the per-molecule train/val/test split
 
