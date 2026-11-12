@@ -450,6 +450,36 @@ All dependencies are installed via one of the environment specification files:
 
 See the environment YAML files for the complete, version-pinned lists.
 
+## Monitoring Training with MLflow
+
+Diffusion training logs to TensorBoard. `src/scripts/sync_mlflow.py` copies the logs of every iteration into an MLflow store. With `mlflow.enabled: true` in `experiment_config.yaml`, `forward.py` runs it after each training run. You can also run it by hand at any time, including while training is running:
+
+```bash
+python src/scripts/sync_mlflow.py \
+  --model-root Data/<exp_name>/diffusion_wdir/model_registry \
+  --tracking-uri file://$PWD/Data/mlruns --experiment <exp_name>
+mlflow ui --backend-store-uri file://$PWD/Data/mlruns --port 5000   # VS Code forwards the port; otherwise: ssh -L 5000:localhost:5000 <login-node>
+```
+
+- **`iter_NN` runs:** one per iteration, with every training, validation and test curve. With `concat_datasets: true`, each dataset is also evaluated alone (`val_dataset_<k>/...`, `test_dataset_<k>/...`). All sampling-evaluation metrics from `evaluation.csv` (validity, QED, SA, KL score, …) are logged as `gen/<metric>`, with step = epoch. The run also stores the training hparams and the sampling share of each dataset. Artifacts:
+  - `test/test_metrics.csv` and `.png`: the test losses (total, coords, atoms, charges, bonds) of `best_mol_stab.ckpt` on all test data (`all`) and on each dataset alone. They appear once training of the iteration has finished.
+  - `generation/evaluation.csv` and `generation_metrics.png`: all sampling evaluations of the iteration.
+- **`overview` run:** one point per iteration (step = iteration) holding the final value of each metric (`final/...`), the sampling shares (`share/dataset_<k>`), the draws per sample (`draws_per_sample_per_epoch/dataset_<k>`) and `forgetting/dataset_<k>` (test loss minus that dataset's best earlier test loss). Artifacts:
+  - `test/test_loss_matrix.png` and `.csv`: the test loss of every model (row) on every test set (column).
+  - `test/test_metrics_all_iterations.csv`: all test losses of all iterations.
+
+  How to read it:
+  - A positive `forgetting/dataset_0`, or a rising `final/val_dataset_0/loss_epoch`, means the model is forgetting the base data.
+  - A large `draws_per_sample_per_epoch` for the newest dataset means a risk of overfitting to it.
+  - The diffusion test loss is computed at random noise levels, so small changes between iterations are noise.
+
+The sync script needs only `mlflow`, `tensorboard` and `matplotlib` (installed with `mlflow`). `mlflow` is part of all three environment files. For an environment that was created earlier, use a separate env so the training env is not changed, and point `mlflow.python` in `experiment_config.yaml` to its interpreter:
+
+```bash
+conda_envs/env-qalpa-forward/bin/python -m venv conda_envs/env-qalpa-mlflow
+conda_envs/env-qalpa-mlflow/bin/python -m pip install "mlflow<3" tensorboard
+```
+
 ## Troubleshooting
 
 ### `ModuleNotFoundError: Neither tensorboard nor tensorboardX is available`

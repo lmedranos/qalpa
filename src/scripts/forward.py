@@ -21,6 +21,28 @@ OmegaConf.register_new_resolver("repo_root", lambda: _REPO_ROOT, replace=True)
 _ORIGINAL_CWD = os.getcwd()
 
 
+def sync_mlflow(cfg: DictConfig) -> None:
+    """Import the TensorBoard logs of all iterations into MLflow (optional).
+
+    Runs src/scripts/sync_mlflow.py with the separate MLflow environment
+    (mlflow.python) so the training env stays untouched. Failures only warn.
+    """
+    mlcfg = cfg.get("mlflow")
+    if not mlcfg or not mlcfg.get("enabled", False):
+        return
+    cmd = [
+        str(mlcfg.python),
+        str(Path(_REPO_ROOT) / "src" / "scripts" / "sync_mlflow.py"),
+        "--model-root", str(cfg.EQdiffParam.model_root),
+        "--tracking-uri", str(mlcfg.tracking_uri),
+        "--experiment", str(cfg.experiment_name),
+    ]
+    try:
+        subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD)
+    except (subprocess.CalledProcessError, OSError) as err:
+        print(f"WARNING: MLflow sync failed ({err}); training results are unaffected.")
+
+
 @hydra_main(version_base=None, config_path="../../configs", config_name="experiment_config")
 def main(cfg: DictConfig):
     '''
@@ -83,15 +105,22 @@ def main(cfg: DictConfig):
 
     # Step 1: Run data split
     if 'split' in active_blocks:
-        print(" Running Data split ")
-        if cfg.concat_datasets:
+        print(f" Running Data split, concatenation is: {cfg.EQdiffParam.concat_datasets} ")
+        if cfg.EQdiffParam.concat_datasets:
+            # dataset_0 <- base HDF5, dataset_n <- molecules labelled in iteration n-1
+            # (per-iteration HDF5, written only when hdf5.hdf5_iter_flag is True)
+            if n > 0 and not cfg.hdf5.hdf5_iter_flag:
+                raise ValueError("EQdiffParam.concat_datasets requires hdf5.hdf5_iter_flag: True")
             source = dm.input_hdf5 if n == 0 else dm.data_directory  / f"iter_{n - 1}" / "hdf5" / "output.hdf5"
             source_root = (Path(cfg.EQdiffParam.dataset_root) / f"dataset_{n}")
+            if not Path(source).is_file():
+                raise FileNotFoundError(f"Source HDF5 for dataset_{n} not found: {source}. Did the backward step of iteration {n - 1} finish?")
         else:
             source = dm.output_hdf5 if cfg.hdf5.appending_flag else dm.input_hdf5
             source_root = Path(cfg.EQdiffParam.dataset_root)
         if not (source_root / "raw" / "train_data.pickle").is_file():
             source_root.mkdir(parents=True, exist_ok=True)
+            print(f"  Running Data split, source: {source}, target: {source_root}")
             cmd = [
                 "srun",
                 "--ntasks=1",
@@ -105,6 +134,8 @@ def main(cfg: DictConfig):
                 str(source),
                 "--out-path",
                 str(source_root),
+                "--seed",
+                str(cfg.EQdiffParam.get("split_seed", 42)),
             ]
             subprocess.run(
                 cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy()
@@ -113,6 +144,14 @@ def main(cfg: DictConfig):
     # step 2: Diffusion model training
     if 'train' in active_blocks:
         print("  Running Diffusion model training ")
+        if cfg.EQdiffParam.concat_datasets:
+            # Training on datasets 0..n requires dataset_n (from the split block)
+            expected = Path(cfg.EQdiffParam.dataset_root) / f"dataset_{n}" / "raw" / "train_data.pickle"
+            if not expected.is_file():
+                raise FileNotFoundError(
+                    f"{expected} not found. Run the 'split' block for iteration {n} "
+                    "(pipeline.start_at: split) before training."
+                )
         cmd = ["srun", "--ntasks=1", f"--cpus-per-task={cpus_per_task}", f"--gres=gpu:{gpus_per_task}",
             "--exclusive", "--export=ALL",
             "python", str(cfg.EQdiff.train),
@@ -123,10 +162,22 @@ def main(cfg: DictConfig):
             "--gpus", str(gpus_per_task),
             "--batch-size", str(cfg.EQdiffParam.batch_size),
             "--num-epochs", str(cfg.EQdiffParam.num_epochs),
+            "--test-interval", str(cfg.EQdiffParam.test_interval),
             ]
         if load_ckpt is not None:
             cmd += ["--load-ckpt-from-pretrained", str(load_ckpt)]
+        if cfg.EQdiffParam.concat_datasets:
+            cmd += ["--concat-datasets",
+                    "--alpha", str(cfg.EQdiffParam.alpha),
+                    "--beta", str(cfg.EQdiffParam.beta)]
+            if cfg.EQdiffParam.get("samples_per_epoch") is not None:
+                cmd += ["--samples-per-epoch", str(cfg.EQdiffParam.samples_per_epoch)]
+            if cfg.EQdiffParam.get("min_original_share") is not None:
+                cmd += ["--min-original-share", str(cfg.EQdiffParam.min_original_share)]
         result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
+        sync_mlflow(cfg)
+    # Re-check after training: best_mol_stab.ckpt may only exist now
+    save_ckpt = iter_best_ckpt if iter_best_ckpt.exists() else iter_last_ckpt
     if not save_ckpt.exists():
         raise FileNotFoundError(f"Expected model checkpoint not found at {save_ckpt}. Check training logs for errors.")
 
@@ -159,8 +210,9 @@ def main(cfg: DictConfig):
         result = subprocess.run(cmd, check=True, cwd=_ORIGINAL_CWD, env=os.environ.copy())
         # clean temp .ckpt files
         # dm.clean_dir(itr_model_path / "run0", ".ckpt")
-        dm.clean_dir(dm.diffusion_data_dir / 'raw')
-        dm.clean_dir(dm.diffusion_data_dir / 'processed')
+        if not cfg.EQdiffParam.concat_datasets:
+            dm.clean_dir(dm.diffusion_data_dir / 'raw')
+            dm.clean_dir(dm.diffusion_data_dir / 'processed')
         # clean temp generated files .pickle
         shutil.copytree(generated_data_path, dm.query_data, dirs_exist_ok=True)
         # delete all files except .xyz

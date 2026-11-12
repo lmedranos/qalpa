@@ -37,6 +37,7 @@ dependencies:
   - intel-openmp
 
   - tensorboard
+  - conda-forge::mlflow<3  # training/evaluation curves (src/scripts/sync_mlflow.py)
   - lmdb
 
   # Chemistry packages

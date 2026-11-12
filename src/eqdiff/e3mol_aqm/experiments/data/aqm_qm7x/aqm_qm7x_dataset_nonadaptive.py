@@ -1,9 +1,11 @@
+import os
 from os.path import join
 
 import experiments.data.utils as dataset_utils
 import numpy as np
 import torch
 from experiments.data.abstract_dataset import AbstractDataModule
+from experiments.data.distributions import _labels
 from experiments.data.metrics import compute_all_statistics
 from experiments.data.utils import (
     load_pickle,
@@ -15,7 +17,7 @@ from torch.utils.data import Subset
 from torch_geometric.data import DataLoader, InMemoryDataset
 from tqdm import tqdm
 
-from eqdiff.concat import Concatenator
+from src.eqdiff.concat import Concatenator, weights
 
 full_atom_encoder = {
     "H": 0,
@@ -228,6 +230,11 @@ class AQMQM7XDataModule(AbstractDataModule):
                 root_path,
                 {"remove_h": cfg.remove_hs},
             )
+            # names of the dataset_<n> folders, in the same order as the
+            # children of the ConcatDatasets below
+            self.dataset_names = [
+                os.path.basename(r) for r in self.concatenator.dataset_roots()
+            ]
             train_dataset = self.concatenator.concatenate(
                 self.concatenator.datasets("train")
             )
@@ -253,17 +260,32 @@ class AQMQM7XDataModule(AbstractDataModule):
                 split="test", root=root_path, remove_h=cfg.remove_hs
             )
         self.remove_h = cfg.remove_hs
-        self.statistics = {
-            "train": train_dataset.datasets[0].statistics
-            if self.concatenator
-            else train_dataset.statistics,
-            "val": val_dataset.datasets[0].statistics
-            if self.concatenator
-            else val_dataset.statistics,
-            "test": test_dataset.datasets[0].statistics
-            if self.concatenator
-            else test_dataset.statistics,
-        }
+        self.alpha = getattr(cfg, "alpha", 0.2)
+        self.beta = getattr(cfg, "beta", 0.2)
+        self.min_original_share = getattr(cfg, "min_original_share", 0.0) or 0.0
+        # With concatenation, merge the statistics of all dataset_<n> folders
+        # instead of only using dataset_0. num_nodes histograms are summed, so
+        # new/larger molecule sizes stay in the support. The train marginals
+        # (atom/bond/charge types = diffusion prior) are weighted with the same
+        # weights as the sampler, so the prior matches what the model is
+        # trained on; val/test are weighted by dataset size.
+        if self.concatenator:
+            sampler_weights = weights(
+                train_dataset.datasets, self.alpha, self.beta, self.min_original_share
+            )
+            self.statistics = {
+                "train": Concatenator.merge_statistics(
+                    train_dataset.datasets, sampler_weights
+                ),
+                "val": Concatenator.merge_statistics(val_dataset.datasets),
+                "test": Concatenator.merge_statistics(test_dataset.datasets),
+            }
+        else:
+            self.statistics = {
+                "train": train_dataset.statistics,
+                "val": val_dataset.statistics,
+                "test": test_dataset.statistics,
+            }
         if cfg.select_train_subset:
             self.idx_train = train_subset(
                 dset_len=len(train_dataset),
@@ -275,11 +297,19 @@ class AQMQM7XDataModule(AbstractDataModule):
             train_dataset = Subset(train_dataset, self.idx_train)
 
         self.train_sampler = None
+        self.samples_per_epoch = len(train_dataset)
         if self.concatenator:
+            # samples_per_epoch only applies once there is more than one
+            # dataset; the initial training (dataset_0 only) always covers the
+            # full train split every epoch.
+            if len(self.dataset_names) > 1 and getattr(cfg, "samples_per_epoch", None):
+                self.samples_per_epoch = cfg.samples_per_epoch
             self.train_sampler = self.concatenator.sampler(
                 train_dataset,
-                alpha=getattr(cfg, "alpha", 0.2),
-                beta=getattr(cfg, "beta", 0.2),
+                alpha=self.alpha,
+                beta=self.beta,
+                num_samples=self.samples_per_epoch,
+                min_first=self.min_original_share,
             )
 
         super().__init__(cfg, train_dataset, val_dataset, test_dataset)
@@ -296,27 +326,75 @@ class AQMQM7XDataModule(AbstractDataModule):
         )
         return dataloader
 
+    def sampling_summary(self):
+        """Per-dataset sizes and sampling shares (written to sampling.json)."""
+        if not self.concatenator:
+            return {"concat_datasets": False, "samples_per_epoch": self.samples_per_epoch}
+        train = self.train_dataset
+        children = train.dataset.datasets if isinstance(train, Subset) else train.datasets
+        shares = weights(children, self.alpha, self.beta, self.min_original_share)
+        return {
+            "concat_datasets": True,
+            "alpha": self.alpha,
+            "beta": self.beta,
+            "min_original_share": self.min_original_share,
+            "samples_per_epoch": self.samples_per_epoch,
+            "datasets": [
+                {
+                    "name": name,
+                    "share": share,
+                    "n_train": len(child),
+                    "n_val": len(val),
+                    "n_test": len(test),
+                    "draws_per_epoch": share * self.samples_per_epoch,
+                    "draws_per_sample_per_epoch": share * self.samples_per_epoch / len(child),
+                }
+                for name, share, child, val, test in zip(
+                    self.dataset_names,
+                    shares,
+                    children,
+                    self.val_dataset.datasets,
+                    self.test_dataset.datasets,
+                )
+            ],
+        }
+
+    @property
+    def eval_names(self):
+        """Logging suffix per val/test dataloader.
+
+        Index 0 is always the full (concatenated) split and is logged under the
+        plain stage name (e.g. "val/loss", which ModelCheckpoint monitors).
+        With concatenation and more than one dataset, every dataset_<n> gets its
+        own dataloader, logged as e.g. "val_dataset_1/loss".
+        """
+        names = [""]
+        if self.concatenator and len(self.dataset_names) > 1:
+            names += [f"_{name}" for name in self.dataset_names]
+        return names
+
+    def _eval_dataloaders(self, dataset, shuffle=False):
+        datasets = [dataset]
+        if len(self.eval_names) > 1:
+            datasets += list(dataset.datasets)
+        loaders = [
+            DataLoader(
+                dataset=d,
+                batch_size=self.cfg.batch_size,
+                num_workers=self.cfg.num_workers,
+                pin_memory=self.pin_memory,
+                shuffle=shuffle,
+                persistent_workers=False,
+            )
+            for d in datasets
+        ]
+        return loaders[0] if len(loaders) == 1 else loaders
+
     def val_dataloader(self, shuffle=False):
-        dataloader = DataLoader(
-            dataset=self.val_dataset,
-            batch_size=self.cfg.batch_size,
-            num_workers=self.cfg.num_workers,
-            pin_memory=self.pin_memory,
-            shuffle=shuffle,
-            persistent_workers=False,
-        )
-        return dataloader
+        return self._eval_dataloaders(self.val_dataset, shuffle)
 
     def test_dataloader(self, shuffle=False):
-        dataloader = DataLoader(
-            dataset=self.test_dataset,
-            batch_size=self.cfg.batch_size,
-            num_workers=self.cfg.num_workers,
-            pin_memory=self.pin_memory,
-            shuffle=shuffle,
-            persistent_workers=False,
-        )
-        return dataloader
+        return self._eval_dataloaders(self.test_dataset, shuffle)
 
     def compute_mean_mad(self, properties_list):
         if self.hparams["dataset"] == "aqm_qm7x":
@@ -336,7 +414,8 @@ class AQMQM7XDataModule(AbstractDataModule):
         for property_key in properties_list:
             idx = self.label2idx[property_key]
 
-            values_train = dataloader.dataset.data.y[:, idx]
+            # works for InMemoryDataset, ConcatDataset and Subset
+            values_train = _labels(dataloader.dataset)[:, idx]
             mean = torch.mean(values_train)
             ma = torch.abs(values_train - mean)
             mad = torch.mean(ma)

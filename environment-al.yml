@@ -25,6 +25,7 @@ dependencies:
   - pyg::pytorch-cluster
   - conda-forge::pytorch-lightning=2.0.6
   - conda-forge::tensorboard
+  - conda-forge::mlflow<3  # training/evaluation curves (src/scripts/sync_mlflow.py)
   - conda-forge::lmdb
 
   # chemistry / structure stack — conda-forge for compiled binaries

@@ -16,7 +16,7 @@ try:
 except ImportError as e:
     print(f"Error importing sascorer: {e}")
     print("Ensure that RDKit and its SA_Score module are properly installed.")
-    sys.exit(1)
+
 
 
 def xyz_to_smiles(xyz_file):

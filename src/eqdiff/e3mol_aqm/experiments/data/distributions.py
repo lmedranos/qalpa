@@ -1,5 +1,15 @@
 import torch
 from torch.distributions.categorical import Categorical
+from torch.utils.data import ConcatDataset, Subset
+
+
+def _labels(dataset):
+    """Collated `y` of an InMemoryDataset, also through ConcatDataset/Subset."""
+    if isinstance(dataset, Subset):
+        return _labels(dataset.dataset)[torch.as_tensor(dataset.indices, dtype=torch.long)]
+    if isinstance(dataset, ConcatDataset):
+        return torch.cat([_labels(d) for d in dataset.datasets], dim=0)
+    return dataset.data.y
 
 
 def get_distributions(args, dataset_info, datamodule):
@@ -162,9 +172,9 @@ class DistributionProperty:
             #     [a for i, a in enumerate(property) if i in train_idx]
             # )
             idx = dataset.label2idx[prop]
-            prop_train = dataset.train_dataset.data.y[:, idx]
-            prop_val = dataset.val_dataset.data.y[:, idx]
-            prop_test = dataset.test_dataset.data.y[:, idx]
+            prop_train = _labels(dataset.train_dataset)[:, idx]
+            prop_val = _labels(dataset.val_dataset)[:, idx]
+            prop_test = _labels(dataset.test_dataset)[:, idx]
             properties = torch.cat([prop_train, prop_val, prop_test], dim=0)
             self._create_prob_dist(n_nodes, properties, self.distributions[prop])
 
@@ -257,6 +267,11 @@ class DistributionProperty:
         return val
 
     def calculate_n_nodes(self, dataset):
+        if isinstance(dataset, Subset):
+            n = self.calculate_n_nodes(dataset.dataset)
+            return n[torch.as_tensor(dataset.indices, dtype=torch.long)]
+        if isinstance(dataset, ConcatDataset):
+            return torch.cat([self.calculate_n_nodes(d) for d in dataset.datasets])
         n_nodes = torch.tensor(
             [
                 int(j - i)
