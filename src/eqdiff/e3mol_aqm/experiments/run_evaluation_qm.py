@@ -502,12 +502,17 @@ def get_args():
     parser.add_argument('-T', default=500, type=int, help="T for denoising diffusion")
     parser.add_argument('--relax-sampling', default=False, action="store_true", help="Relax molecules")
     parser.add_argument('--relax-steps', default=10, type=int, help="Number of relaxation steps")
+    parser.add_argument('--seed', default=None, type=int, help="Random seed for sampling (unseeded if not given)")
     args = parser.parse_args()
     return args
 
 
 if __name__ == "__main__":
     args = get_args()
+    if args.seed is not None:
+        from pytorch_lightning import seed_everything
+
+        seed_everything(args.seed)
     # Evaluate negative log-likelihood for the test partitions
     evaluate(
         model_path=args.model_path,

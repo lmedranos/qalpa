@@ -16,7 +16,7 @@ from src.pipeline_blocks.propcalc_postprocess import prop_postprocess
 from src.pipeline_blocks.propcalc_preprocess import preprocess_fhi
 from src.pipeline_blocks.to_hdf5 import run_to_hdf5
 
-# Allow experiment_config.yaml to derive values such as num_context_features from list lengths
+# Allow experiment_config.yaml to derive values from list lengths
 OmegaConf.register_new_resolver("len", len, replace=True)
 
 # Resolve the repository root based on this file's location so that paths in
@@ -38,14 +38,17 @@ def main(cfg: DictConfig):
     molecular_filter = MolecularFilter(my_trajectory)
     filteration_scheme = cfg.query.filter_scheme
               
-    # Flag to resume in the midde of the loop
+    # Flag to resume in the midde of the loop (experiment_config.yaml -> pipeline.blocks / pipeline.start_at)
+    # start_at: null runs all blocks; an unknown start_at raises instead of rerunning the whole iteration
     pipeline_blocks = list(cfg.pipeline.blocks)
     start_at = cfg.pipeline.start_at
-    if start_at in pipeline_blocks:
+    if start_at is None:
+        active_blocks = set(pipeline_blocks)
+    elif start_at in pipeline_blocks:
         active_blocks = set(pipeline_blocks[pipeline_blocks.index(start_at):])
     else:
-        active_blocks = set(pipeline_blocks)
-    
+        raise ValueError(f"pipeline.start_at '{start_at}' is not in pipeline.blocks {pipeline_blocks}")
+
     # Create directories 
     dm = DataManager(cfg.base_dataset_path, cfg.data.exp_data_path)
     dm.hdf5_appending_flag = bool(cfg.hdf5.appending_flag)
@@ -108,7 +111,7 @@ def main(cfg: DictConfig):
             print("  Running Calculate properties  ")
             print(f"  Running Calculate properties preprocessing using {prop_calc} ")
             if prop_calc == "FHI-aims":
-                [preprocess_fhi(f, prop_calc_path, Path(cfg.code_paths.configs) / "nctr1.in") for f in dm.query_data.iterdir()]
+                [preprocess_fhi(f, prop_calc_path, Path(cfg["FHI-aims"].ctrl)) for f in dm.query_data.iterdir()]
                 kfiles = node_parallelize(cfg.system.fih_aims_exc, prop_calc_path, 'aims.out', cfg.max_parallel_tasks, timeout_hours=cfg.processing_timeout_hours)
             elif prop_calc == "EquiDTB":
                 kfiles = node_parallelize(cfg.pipeline_blocks.PropCalc, dm.query_data, prop_calc_path, cfg.max_parallel_tasks, aux_arg=[str(prop_calc), str(prop_calc_model), "cpu"], timeout_hours=cfg.processing_timeout_hours)                  
@@ -161,9 +164,12 @@ def main(cfg: DictConfig):
         )
     
     print(f"\n Completed iteration {n} \n")
-    # increment cfg.loop.current_iter and save the updated configuration to the experiment_config.yaml file
-    cfg.loop.current_iter += 1
-    OmegaConf.save(cfg, Path(cfg.exp_config_path))
+    # Advance to the next iteration in experiment_config.yaml. A resume point only applies
+    # to the iteration it was set for; the next iteration starts from the first block.
+    # Only these two lines are edited, so the defaults list (imports of global_config.yaml /
+    # src/configs/*.yaml), comments and interpolations stay intact, and CLI overrides are not persisted.
+    dm.edit_config(Path(cfg.exp_config_path), "current_iter", n + 1)
+    dm.edit_config(Path(cfg.exp_config_path), "start_at", pipeline_blocks[0])
 
 
 if __name__ == "__main__":

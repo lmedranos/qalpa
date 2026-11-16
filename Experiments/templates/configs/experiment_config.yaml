@@ -52,8 +52,8 @@ loop:
   current_iter: 0
 
 pipeline:
-  start_at: split
-  blocks: [split, train, generate, score_filter, relax_geo, prop_calc, prop_filter, hdf5, compress]
+  start_at: split                       # resume point for the current iteration (null = all blocks)
+  blocks: [split, train, generate, score_filter, relax_geo, prop_calc, prop_filter, hdf5]
 
 max_parallel_tasks: 20 
 processing_timeout_hours: 2
@@ -73,7 +73,7 @@ EQdiffParam:
   num_context_features: ${len:${EQdiffParam.properties_list}}
   dataset_root: ${paths.data}/${experiment_name}/diffusion_wdir/data/
   model_root: ${paths.data}/${experiment_name}/diffusion_wdir/model_registry/
-  test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test/
+  test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test/   # per iteration: test/model_iter_<n>
   load_ckpt_from_pretrained: null
   save_dir: ${paths.experiments}/${experiment_name}/logs/ 
   dataset: aqm_qm7x            # (choose from 'qm9', 'drugs', 'aqm', 'aqm_qm7x', 'pcqm4mv2', 'pepconf', 'crossdocked')
@@ -83,6 +83,13 @@ EQdiffParam:
   samples_per_epoch: 1000               # draws per epoch once >1 dataset (iteration 0 always uses the full dataset_0); null = len(train)
   min_original_share: 0.1               # replay floor for dataset_0's share, taken from the newest dataset; 0 = off
   split_seed: 42                        # seed of the per-molecule train/val/test split
+
+# Model hyperparameters (lr, num_layers, seed, inference_batch_size, ...) default to
+# src/configs/eqdiff_model.yaml. Override any of them here as a top-level key, e.g.
+#   lr: 1.e-4
+# forward.py writes the merged values to model_iter_<n>/eqdiff_model.yaml for training.
+# The EQdiffParam values above (batch_size, num_epochs, dataset, alpha, ...) take priority.
+# seed and inference_batch_size are also used for generation.
 
 
 # ============================================================================
@@ -94,6 +101,7 @@ mlflow:
   enabled: false                         # sync after every training; needs an env with mlflow + tensorboard + matplotlib (see README: MLflow)
   python: /data/horse/ws/miha493e-research_project/miha493e-research_project-1785452511/topublish/EQMgen/conda_envs/env-qalpa-mlflow/bin/python
   tracking_uri: file://${paths.data}/mlruns     # one store for all experiments; experiment = experiment_name
+  sync_interval_minutes: 10             # MLflow is updated this often while training runs, and once at the end (null = only at the end)
 
 
 # ============================================================================

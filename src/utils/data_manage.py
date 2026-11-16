@@ -134,37 +134,39 @@ class DataManager:
 
     def edit_config(self, config_file, key, value, update=True):
         """
-        Edit the configuration file to include the model directory.
-        
+        Set (or delete) the value of a key in a YAML configuration file, editing only that line.
+        The rest of the file (defaults list, comments, interpolations) is kept as is.
+
         Parameters:
         - config_file: Path to the configuration file.
-        - model_dir: Directory of the model to be added to the config.
+        - key: Key name; the first line defining it is edited (nested keys keep their indentation).
+        - value: New value.
+        - update: True to set the value, False to delete the line.
         """
-        try:
-            with config_file.open('r') as file:
-                lines = file.readlines()
+        with config_file.open('r') as file:
+            lines = file.readlines()
 
-            # replace the value of the specified key
-            key_found = False
-            for i, line in enumerate(lines):
-                if line.strip().startswith(key + ":"):
-                    key_found = True
-                    if update:
-                        lines[i] = f"{key}: {value}\n"
-                    else:
-                        lines[i] = ""  # delete line
-                    break  # no need to continue after key is found
-                
+        # replace the value of the specified key
+        key_found = False
+        for i, line in enumerate(lines):
+            if line.strip().startswith(key + ":"):
+                key_found = True
+                if update:
+                    # keep the indentation (nested keys) and any trailing comment
+                    indent = line[: len(line) - len(line.lstrip())]
+                    comment = "  " + line[line.index("#"):].rstrip("\n") if "#" in line else ""
+                    lines[i] = f"{indent}{key}: {value}{comment}\n"
+                else:
+                    lines[i] = ""  # delete line
+                break  # no need to continue after key is found
 
-            if not key_found and update:
-                lines.append(f"{key}: {value}\n")
 
-            # Write back to file
-            with config_file.open('w') as file:
-                file.writelines(lines)
+        if not key_found and update:
+            lines.append(f"{key}: {value}\n")
 
-        except Exception as e:
-            print(f"Error updating config file: {e}")
+        # Write back to file
+        with config_file.open('w') as file:
+            file.writelines(lines)
     
     # This meyhode is going to be deprecated in favor of clean_dir
     def clean_files(self, dir_path: Path, file_type: str = ''):

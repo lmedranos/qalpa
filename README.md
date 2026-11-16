@@ -452,7 +452,7 @@ See the environment YAML files for the complete, version-pinned lists.
 
 ## Monitoring Training with MLflow
 
-Diffusion training logs to TensorBoard. `src/scripts/sync_mlflow.py` copies the logs of every iteration into an MLflow store. With `mlflow.enabled: true` in `experiment_config.yaml`, `forward.py` runs it after each training run. You can also run it by hand at any time, including while training is running:
+MLflow is the monitoring UI. Diffusion training writes its logs as TensorBoard event files, and `src/scripts/sync_mlflow.py` copies the logs of every iteration into an MLflow store; you do not need to open TensorBoard. With `mlflow.enabled: true` in `experiment_config.yaml`, `forward.py` runs the sync every `mlflow.sync_interval_minutes` (default 10) while training runs, and once more when it ends. You can also run it by hand at any time:
 
 ```bash
 python src/scripts/sync_mlflow.py \

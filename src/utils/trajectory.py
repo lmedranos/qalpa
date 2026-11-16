@@ -73,6 +73,29 @@ class Trajectory:
     def has_scores(self):
         return len(self._scores) > 0
 
+    def get_context_props(self, properties_list, context_mapping):
+        """Return the properties the diffusion model is conditioned on ([] = unconditional).
+
+        properties_list / context_mapping are EQdiffParam.properties_list / context_mapping.
+        atNUM is left out (it sets the molecule size). The rest must match the trajectory
+        properties in name and order, because get_target passes the values by position.
+        """
+        target_props = [p for p in self.prop_names if p != "atNUM"]
+        if not context_mapping:
+            if target_props:
+                print(f"WARNING: EQdiffParam.context_mapping is false, so the targets for {target_props} "
+                      "do not condition generation; they are only used for filtering.")
+            return []
+        context_props = [p for p in properties_list if p != "atNUM"]
+        if not context_props:
+            raise ValueError("EQdiffParam.context_mapping is true but EQdiffParam.properties_list has no context properties.")
+        if context_props != target_props:
+            raise ValueError(
+                f"EQdiffParam.properties_list {context_props} and query.props {target_props} must list the same "
+                "properties in the same order (atNUM aside): the generation targets are passed by position."
+            )
+        return context_props
+
     def get_target(self, index):
         """
         Returns a flattened list like:
