@@ -1,24 +1,22 @@
 #!/bin/bash -l
 #SBATCH --chdir=@@JOB_DIR@@
-#SBATCH -J active-loop-backward
+#SBATCH -J aloop-back
 #SBATCH --time=05:00:00  
 # Please ensure that the partition name is correct for your system. Adjust the partition name if necessary.
 #SBATCH --partition=barnard
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=12000                    
+#SBATCH --mem-per-cpu=6000                    
 #SBATCH --nodes=10
 #SBATCH --ntasks-per-node=32
-#SBATCH -o ../logs/backward_check-log.out
-#SBATCH -e ../logs/backward_check-log.err
-
+#SBATCH -o ../logs/bcheck-log.out
+#SBATCH -e ../logs/bcheck-log.err
+#SBATCH --mail-user=xxxx@yyyy
+#SBATCH --mail-type=ALL
 
 ulimit -s unlimited
 export OMP_NUM_THREADS=1
 
-
 echo "Running backward path active loop script ..."
-
-
 
 # Repo root (Python package location) and experiment config dir (injected by init_experiment.py)
 REPO_ROOT="@@REPO_ROOT@@"

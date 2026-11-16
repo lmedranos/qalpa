@@ -173,7 +173,7 @@ def main(cfg: DictConfig):
             "--dataset", str(cfg.EQdiffParam.dataset),
             "--dataset-root", str(Path(cfg.EQdiffParam.dataset_root)),
             "--gpus", str(gpus_per_task),
-            "--batch-size", str(cfg.EQdiffParam.batch_size),
+            "--batch-size", str(cfg.EQdiffParam.batch_size_tr),
             "--num-epochs", str(cfg.EQdiffParam.num_epochs),
             "--test-interval", str(cfg.EQdiffParam.test_interval),
             ]
@@ -183,6 +183,15 @@ def main(cfg: DictConfig):
                     "--properties-list", *context_props]
         if load_ckpt is not None:
             cmd += ["--load-ckpt-from-pretrained", str(load_ckpt)]
+        # Property conditioning (EQdiffParam.context_mapping / properties_list); without these
+        # run_train.py falls back to its defaults (context_mapping=False, properties_list=[]).
+        if cfg.EQdiffParam.get("context_mapping", False):
+            props = list(cfg.EQdiffParam.get("properties_list") or [])
+            if not props:
+                raise ValueError("EQdiffParam.context_mapping is true but EQdiffParam.properties_list is empty.")
+            cmd += ["--context-mapping",
+                    "--num-context-features", str(len(props)),
+                    "--properties-list", *map(str, props)]
         if cfg.EQdiffParam.concat_datasets:
             cmd += ["--concat-datasets",
                     "--alpha", str(cfg.EQdiffParam.alpha),

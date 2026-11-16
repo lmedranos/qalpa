@@ -1,6 +1,6 @@
 #!/bin/bash -l
 #SBATCH --chdir=@@JOB_DIR@@
-#SBATCH -J active-loop-forward
+#SBATCH -J aloop-for
 #SBATCH --time=20:00:00            
 #SBATCH --partition=capella
 #SBATCH --gres=gpu:1
@@ -8,8 +8,10 @@
 #SBATCH --mem-per-cpu=8000                       
 #SBATCH --nodes=1
 #SBATCH --ntasks-per-node=1
-#SBATCH -o ../logs/forward_check-log.out
-#SBATCH -e ../logs/forward_check-log.err
+#SBATCH -o ../logs/fcheck-log.out
+#SBATCH -e ../logs/fcheck-log.err
+#SBATCH --mail-user=xxxx@yyyy
+#SBATCH --mail-type=ALL
 
 ulimit -s unlimited
 export OMP_NUM_THREADS=1

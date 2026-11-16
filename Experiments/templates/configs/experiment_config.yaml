@@ -48,7 +48,7 @@ data:
 # ============================================================================
 
 loop:
-  num_iterations: 10
+  num_iterations: 8
   current_iter: 0
 
 pipeline:
@@ -64,12 +64,13 @@ processing_timeout_hours: 2
 
 EQdiffParam:
   num_samples: 200
-  batch_size: 40
+  batch_size: 20
+  batch_size_tr: 64
   num_epochs: 50
-  test_interval: 5                    # sampling eval (1000 mols) every k epochs; best_mol_stab.ckpt is only saved here
-  context_mapping: True                 # condition the model on properties_list (False = unconditional model)
-  properties_list: ['HLgap', 'eMBD']            # Properties to track should be edited; atNUM is a size target, not a context feature
-  n_nodes: null                         # atoms per molecule when query.props is empty: int, per-iteration list, or null = sampled
+  test_interval: 25                    # sampling eval (1000 mols) every k epochs; best_mol_stab.ckpt is only saved here
+  context_mapping: True
+  properties_list: ['HLgap', 'eMBD']            # Properties to track should be edited
+  num_context_features: ${len:${EQdiffParam.properties_list}}
   dataset_root: ${paths.data}/${experiment_name}/diffusion_wdir/data/
   model_root: ${paths.data}/${experiment_name}/diffusion_wdir/model_registry/
   test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test/   # per iteration: test/model_iter_<n>
@@ -97,7 +98,7 @@ EQdiffParam:
 # UI:  <mlflow.python dir>/mlflow ui --backend-store-uri <tracking_uri> --port 5000
 
 mlflow:
-  enabled: true                         # sync after every training; needs an env with mlflow + tensorboard + matplotlib (see README: MLflow)
+  enabled: false                         # sync after every training; needs an env with mlflow + tensorboard + matplotlib (see README: MLflow)
   python: /data/horse/ws/miha493e-research_project/miha493e-research_project-1785452511/topublish/EQMgen/conda_envs/env-qalpa-mlflow/bin/python
   tracking_uri: file://${paths.data}/mlruns     # one store for all experiments; experiment = experiment_name
   sync_interval_minutes: 10             # MLflow is updated this often while training runs, and once at the end (null = only at the end)
@@ -121,7 +122,7 @@ query:
   props: ${EQdiffParam.properties_list}              # Properties to track
   scores: ["SAScore"]                   # Scores to track
   filter_scheme: [score, accuracy]      # Filtering scheme to apply
-  filter_threshold: 0.2                 # Filteration threshold for accuracy
+  filter_threshold: 0.1                 # Filteration threshold for accuracy
 
 # ============================================================================
 # PROPERTIES CALCULATION (EXPERIMENT OVERRIDES)
