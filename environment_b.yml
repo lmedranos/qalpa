@@ -2,41 +2,49 @@ name: env-qalpa-backward
 
 channels:
   - conda-forge
-  - nvidia 
-  - defaults 
 dependencies:
   - python=3.10
   - pip
   - hydra-core
   - omegaconf
-  - numpy<2  
-  - defaults::matplotlib        
-  - conda-forge::tensorboard
-  - conda-forge::mlflow<3  # training/evaluation curves (src/scripts/sync_mlflow.py)
-  - conda-forge::lmdb
-  - conda-forge::jupyter
+  - numpy<2
+  - matplotlib
+  - tensorboard
+  - mlflow>=2.10,<3  # training/evaluation curves (src/scripts/sync_mlflow.py)
+  - lmdb
+  - jupyter
   - notebook
   - pandas
   - h5py
   - seaborn
- 
-  # chemistry / structure stack — conda-forge for compiled binaries
-  - conda-forge::ase
-  - conda-forge::rdkit=2023.03.2
-  - conda-forge::openbabel
-  - conda-forge::dftbplus=24.1=nompi*
-  - conda-forge::dftbplus-tools=24.1
-  - conda-forge::dftbplus-python=24.1
 
-  # visualization / misc — conda-forge for jupyter-integration consistency
-  - conda-forge::py3dmol
-  - conda-forge::nglview
-  - conda-forge::rmsd
-  - conda-forge::biopython
+  # CPU-only PyTorch + MACE dependencies (from conda-forge for ABI consistency)
+  - pytorch=*=cpu*
+  - e3nn=0.4.4
+  - opt_einsum
+  - torch-ema
+  - torchmetrics
+  - matscipy
+  - prettytable
+  - configargparse
+  - orjson
+
+  # chemistry / structure stack
+  - ase
+  - rdkit=2023.03.2
+  - openbabel
+  - dftbplus=24.1=nompi*
+  - dftbplus-tools=24.1
+  - dftbplus-python=24.1
+
+  # visualization / misc
+  - py3dmol
+  - nglview
+  - rmsd
+  - biopython
   - setuptools<70  # >=70 drops pkg_resources top-level module
 
-
   - pip:
-    - "numpy<2"  # to be checked
-    - "git+https://github.com/ACEsuit/mace.git"  # Mace for molecular generation and optimization
-  
+    - "numpy<2"  # stop pip upgrading numpy (breaks rdkit 2023.03 ABI)
+    - python-hostlist
+    - mace-torch==0.3.16  # last release supporting python 3.10
