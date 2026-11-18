@@ -1,0 +1,206 @@
+# Experiment Configuration - All-in-One File
+# Location: Experiments/templates/configs/experiment_config.yaml
+#
+# This single file consolidates:
+# 1. Imports from root and framework configs (via defaults)
+# 2. All experiment-specific settings and overrides
+
+defaults:
+  # Root-level defaults (global settings)
+  - /global_config
+  
+  # src-level defaults (framework-specific)
+  - /src/configs/src_paths@_global_
+  - /src/configs/eqdiff_model@_global_
+
+# ============================================================================
+# HYDRA SEARCH PATH
+# ============================================================================
+# The absolute defaults above (/global_config, /src/configs/*) are resolved
+# from the repository root. init_experiment.py injects the real path here.
+
+hydra:
+  searchpath:
+    - file://@@REPO_ROOT@@
+
+# ============================================================================
+# EXPERIMENT METADATA
+# ============================================================================
+
+experiment_name: template_experiment
+experiment:
+  name: template_experiment
+  description: "molecular generation experiment"
+ 
+exp_config_path: ${paths.experiments}/${experiment_name}/configs/experiment_config.yaml
+
+# ============================================================================
+# DATA CONFIGURATION (EXPERIMENT-SPECIFIC)
+# ============================================================================
+
+base_dataset_path: template_dataset  
+
+data:
+  exp_data_path: ${paths.data}/${experiment_name}
+
+# ============================================================================
+# LOOP CONFIGURATION (EXPERIMENT OVERRIDES)
+# ============================================================================
+
+loop:
+  num_iterations: 8
+  current_iter: 0
+
+pipeline:
+  start_at: split
+  blocks: [split, train, plan, generate, dedup, score_filter, relax_geo, prop_calc, prop_filter, hdf5, compress]
+  # Active-learning blocks (plan, dedup) run only with al.enabled; without it they are dropped.
+  # dedup runs only if al.dedup.enabled, and plan always sits right after train (before generate).
+  #   score_filter: QED/SA screening (needs 'score' in query.filter_scheme). With query.score_reference:
+  #             initial_mean, keep molecules with QED > mean QED AND SA < mean SA of the initial dataset;
+  #             rejected -> iter_<n>/score_filtered/rejected, scores -> iter_<n>/score_filtered/scores.tsv
+  #   prop_filter: keep molecules within query.filter_threshold of the target (needs 'accuracy' in
+  #             query.filter_scheme). Without AL: against the trajectory row. With AL: against the target each
+  #             molecule was generated for (anchor or additional target; tolerances in al.tolerances); hit
+  #             rates incl. the misses -> iter_<n>/prop_filter_report.json; target, computed properties, errors
+  #             and pass/fail of every molecule -> iter_<n>/prop_filter_properties.csv. Remove it to keep the misses too.
+  #   plan:     choose this iteration's targets (anchor + additional targets) -> iter_<n>/targets.json
+  #   dedup:    forward step, right after generate: drop molecules with identical connectivity or already in
+  #             the initial dataset (al.dedup); only the survivors are written to iter_<n>/query/
+  # Steps: forward = split, train, plan, generate, dedup; backward = score_filter ... hdf5.
+  # Restart: start_at: dedup re-runs dedup on generated/t<id>/ (no regeneration); start_at: generate reuses iter_<n>/targets.json; delete it and use start_at: plan to re-plan without retraining.
+
+max_parallel_tasks: 20 
+processing_timeout_hours: 2
+
+# ============================================================================
+# Generative Model CONFIGURATION (EXPERIMENT OVERRIDES)
+# ============================================================================
+
+EQdiffParam:
+  num_samples: 200
+  batch_size: 20
+  batch_size_tr: 64
+  num_epochs: 50
+  test_interval: 25                    # sampling eval (1000 mols) every k epochs; best_mol_stab.ckpt is only saved here
+  context_mapping: True
+  properties_list: ['HLgap', 'eMBD']            # Properties to track should be edited
+  num_context_features: ${len:${EQdiffParam.properties_list}}
+  dataset_root: ${paths.data}/${experiment_name}/diffusion_wdir/data/
+  model_root: ${paths.data}/${experiment_name}/diffusion_wdir/model_registry/
+  test_save_dir: ${paths.data}/${experiment_name}/diffusion_wdir/test/
+  load_ckpt_from_pretrained: null
+  save_dir: ${paths.experiments}/${experiment_name}/logs/ 
+  dataset: aqm_qm7x            # (choose from 'qm9', 'drugs', 'aqm', 'aqm_qm7x', 'pcqm4mv2', 'pepconf', 'crossdocked')
+  concat_datasets: true
+  alpha: 0.6
+  beta: 0.9                             # original dataset weight = beta * (weight of one middle dataset)
+  samples_per_epoch: 1000               # draws per epoch once >1 dataset (iteration 0 always uses the full dataset_0); null = len(train)
+  min_original_share: 0.1               # replay floor for dataset_0's share, taken from the newest dataset; 0 = off
+  split_seed: 42                        # seed of the per-molecule train/val/test split
+
+
+# ============================================================================
+# MLFLOW (training/evaluation curves; synced from TensorBoard logs after training)
+# ============================================================================
+# UI:  <mlflow.python dir>/mlflow ui --backend-store-uri <tracking_uri> --port 5000
+
+mlflow:
+  enabled: false                         # sync after every training; needs an env with mlflow + tensorboard + matplotlib (see README: MLflow)
+  python: /data/horse/ws/miha493e-research_project/miha493e-research_project-1785452511/topublish/EQMgen/conda_envs/env-qalpa-mlflow/bin/python
+  tracking_uri: file://${paths.data}/mlruns     # one store for all experiments; experiment = experiment_name
+
+
+# ============================================================================
+# GEOMETRY OPTIMIZATION (EXPERIMENT OVERRIDES)
+# ============================================================================
+ 
+geometry:
+  optimizer: EquiDTB                      # Options: FHI-aims, DFTB+, EquiDTB
+  calculate_forces: True
+  model: ${code_paths.configs}/MACE_model_swa.model                           # Model to use for geometry optimization (if applicable)
+
+# ============================================================================
+# QUERY CONFIGURATION (EXPERIMENT-SPECIFIC)
+# ============================================================================
+
+query:
+  trajectory_csv: ${paths.experiments}/${experiment_name}/configs/trajectory_*.csv
+  props: ${EQdiffParam.properties_list}              # Properties to track
+  scores: ["SAScore", "QED"]            # Scores used by score_filter (initial_mean always uses both;
+                                        #   trajectory mode needs a CSV column per score)
+  score_reference: initial_mean         # initial_mean: keep molecules with QED > mean QED AND SA < mean SA of the
+                                        #   initial dataset (computed once, cached next to the input HDF5; the
+                                        #   trajectory CSV needs no score columns). Per-molecule scores:
+                                        #   iter_<n>/score_filtered/scores.tsv
+                                        # trajectory: per-iteration thresholds from the trajectory CSV columns
+  score_relax:                          # initial_mean: shift the thresholds by a fraction of the mean
+    QED: 0.2                            #   QED threshold = mean QED x (1 - QED)      0.2 -> 0.8 x mean
+    SAScore: 0.2                        #   SA threshold  = mean SA  x (1 + SAScore)  0.2 -> 1.2 x mean
+                                        #   > 0 loosens (more molecules pass), < 0 tightens, 0 = the means.
+                                        #   Test on alloqm_0 iter 0 (1379 generated, before dedup): both filters
+                                        #   passed by 6.4% (r=0), 15.1% (0.1), 28.5% (0.2), 43.0% (0.3)
+  filter_scheme: [score, accuracy]      # score -> score_filter (QED/SA), accuracy -> prop_filter (properties)
+  filter_threshold: 0.1                 # prop_filter: allowed relative error to the target (default of al.tolerances)
+
+# ============================================================================
+# PROPERTIES CALCULATION (EXPERIMENT OVERRIDES)
+# ============================================================================
+
+properties:
+  calculator: EquiDTB                     # Options: FHI-aims, EquiDTB, DFTB+
+  model: ${code_paths.configs}/MACE_model_swa.model
+
+# ============================================================================
+# HDF5 CONFIGURATION
+# ============================================================================
+
+hdf5:
+  appending_flag: True
+  hdf5_iter_flag: True
+  extra_properties_flag: False
+
+
+# ============================================================================
+# ACTIVE LEARNING / KDE TARGET PLANNING (optional; defaults in src/configs/al.yaml)
+# ============================================================================
+# kde_map with kde_region: anchor and anchor_score: relative_pct (plans from iteration 0; needs
+# hdf5.appending_flag: True). Target 0 is the current trajectory row (anchor); anchor_n_targets additional
+# targets are chosen from anchor_n_candidates sampled in a box of +/- anchor_box around it. Only candidates with
+# |atNUM - anchor atNUM| >= anchor_min_datnum are eligible (the trajectory CSV needs an atNUM column, and
+# anchor_box * atNUM must allow that many atoms). Score per candidate:
+#   sum over conditioning props of 100*|y - anchor|/|anchor|  +  100*|p(y) - p(anchor)|/p(anchor)
+# with p the KDE of the initial dataset. The best score is picked first, then each next target is the eligible
+# candidate farthest (in relative-% space) from those already chosen. All scores: <iter>/anchor_candidates.csv.
+# Every computed molecule is labelled hit/miss against its own target. With prop_filter in pipeline.blocks the
+# misses are dropped there; without it they are kept (keep_off_target: true) and stored with al_hit = 0.
+# Keys for the corridor and frontier modes are omitted here; their defaults are in src/configs/al.yaml.
+
+al:
+  enabled: true
+  query_strategy: kde_map               # trajectory | kde_map | frontier
+  kde_region: anchor                    # kde_map: corridor | anchor (box around the current trajectory row)
+  anchor_box: 0.1                       # +/- fraction of each value of the current row
+  include_anchor: true                  # the current row itself is target 0
+  anchor_n_candidates: 200              # candidate targets sampled inside the box
+  anchor_n_targets: 2                   # additional targets selected (anchor row on top)
+  anchor_score: relative_pct            # kde | relative_pct (sum of rel. % errors + rel. % density error to the anchor)
+  anchor_min_datnum: 1                  # relative_pct: minimum |atNUM - anchor atNUM|
+  anchor_extra_fraction: 0.2            # e.g. 0.2 -> anchor gets num_samples, each additional target 0.2 x num_samples
+  keep_off_target: true                 # only without prop_filter: false = drop misses at labelling time
+  generation_budget_hours: 6
+  dedup:                                # connectivity duplicates removed in the forward step, right after generate
+    enabled: true
+    scope: all                          # all = across the anchor and all additional targets | target = within each
+    against_initial: true               # also remove molecules whose connectivity is in the initial dataset
+  min_neff: 5                           # with min_reach: drop candidates judged unreachable from past requests
+                                        # (no effect while density.min_reach is 0)
+  tolerances:                           # hit: |achieved - target| <= max(relative*|target|, absolute)
+    default:
+      relative: null                    # null = query.filter_threshold
+      absolute: 0.0
+  density:
+    bandwidth: scott                    # KDE bandwidth (initial-dataset KDE used in the score)
+    min_reach: 0.0                      # drop candidates whose estimated hit rate is below this (if min_neff evidence);
+                                        # 0 = off (reach and n_eff are still logged per target in targets.json)
+    density_percentiles: [5.0, 15.0]           # e.g. [0.5, 1.0]: density between these percentiles of the initial dataset

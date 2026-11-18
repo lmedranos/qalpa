@@ -1,0 +1,61 @@
+name: env-qalpa-forward
+
+channels:
+  - pytorch
+  - nvidia
+  - pyg
+  - conda-forge
+  # 'defaults' omitted: repo.anaconda.com is unreachable on the cluster
+
+dependencies:
+  - python=3.10
+  - pip
+
+  - hydra-core
+  - omegaconf
+  - numpy<2
+
+  - jupyter
+  - notebook
+  - matplotlib
+  - pandas
+  - h5py
+  - seaborn
+
+  # PyTorch stack
+  - pytorch=2.0.1
+  - pytorch-cuda=11.8
+  - pytorch-lightning=2.0.6
+
+  # PyG stack
+  - pyg=2.3.0
+  - pytorch-scatter
+  - pytorch-sparse
+  - pytorch-cluster
+
+  # PyTorch 2.0.1 breaks with MKL>=2024.1 (undefined symbol: iJIT_NotifyEvent)
+  - mkl<2024.1
+
+  - tensorboard
+  - conda-forge::mlflow<3  # training/evaluation curves (src/scripts/sync_mlflow.py)
+  - lmdb
+
+  # Chemistry packages
+  - rdkit=2023.03.2
+  - openbabel
+  - xtb
+  - ase
+  - py3dmol
+  - nglview
+  - rmsd
+  - biopython
+
+  # Utilities
+  - torch-ema
+  - setuptools<70
+
+  - pip:
+      - "numpy<2"
+      - torch_ema
+      # Remove CUDA12 JAX unless you really need it:
+      # - "jax[cuda12]==0.5.3"

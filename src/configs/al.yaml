@@ -1,0 +1,48 @@
+# Defaults for the optional active-learning target planner (experiment_config.yaml -> al.*).
+# Any key set under `al:` in the experiment config overrides the value here.
+enabled: false
+query_strategy: kde_map          # trajectory | kde_map | frontier
+targets_per_iter: 4              # kde_map corridor: number of targets planned per iteration
+kde_region: corridor             # kde_map: corridor (whole trajectory) | anchor (box around the current row)
+corridor_pad: 0.1                # fractional padding around the trajectory polyline
+anchor_box: 0.1                  # anchor: candidates within +/- this fraction of each value of the current row
+include_anchor: true             # anchor: the current trajectory row is always target 0
+anchor_n_candidates: 2000        # anchor: candidate targets sampled inside the box (null = density.n_candidates)
+anchor_n_targets: 3              # anchor: additional targets selected from them (the anchor row comes on top;
+                                 #         targets_per_iter is not used in anchor mode)
+anchor_score: kde                # anchor: kde = sparsity/error/exploration score with repulsion;
+                                 #   relative_pct = only candidates with |atNUM - anchor atNUM| >= anchor_min_datnum,
+                                 #   score = sum over conditioning props of 100*|y-a|/|a| + 100*|p(y)-p(a)|/p(a), p = KDE
+                                 #   of the initial dataset; best score first, then farthest-point selection in
+                                 #   relative-% space (scores of all candidates in <iter>/anchor_candidates.csv)
+anchor_min_datnum: 1             # relative_pct: minimum |atNUM difference| to the anchor
+anchor_extra_fraction: null      # anchor: molecules per additional target = round(fraction * num_samples), on top
+                                 #         of the anchor row's num_samples (total = num_samples * (1 + n * fraction)).
+                                 #         null = num_samples split by score across the anchor and the additional targets
+corridor_lookahead: null         # null = whole trajectory; k = rows up to current_iter + k
+advance_hit_rate: 0.3            # frontier: hit rate needed to move to the next trajectory row
+keep_off_target: true            # label and keep molecules that miss their target (false = drop them);
+                                 # the prop_filter block, if listed, already drops the misses
+generation_budget_hours: 12      # stop generating further targets once this wall time is used
+dedup:                           # forward step, after generate: drop molecules with identical connectivity (query/ gets the survivors)
+  enabled: false
+  scope: all                     # all = one copy across the anchor and all additional targets (anchor wins);
+                                 # target = one copy within each target
+  against_initial: true          # also drop molecules whose connectivity occurs in the initial dataset
+  cov_factor: 1.3                # bond if distance < cov_factor * (sum of covalent radii)
+min_neff: 5                      # evidence needed before a target region is judged unreachable
+tolerances:                      # hit rule: |achieved - target| <= max(relative*|target|, absolute)
+  default:
+    relative: null               # null = query.filter_threshold
+    absolute: 0.0
+density:
+  bandwidth: scott               # KDE bandwidth in standardized units ("scott" or a number)
+  n_candidates: 2000             # candidate targets sampled inside the corridor
+  w_sparse: 0.5                  # weight of -log p(y) of the labelled data (data sparsity)
+  w_err: 0.5                     # weight of the generator's past error near y
+  w_explore: 0.5                 # weight of 1/sqrt(n_eff + 1) (few past requests near y)
+  min_reach: 0.05                # drop candidates whose estimated hit rate is below this ...
+  logp_floor: -20.0              # ... and clip log-density here
+  density_percentiles: null      # e.g. [0.5, 1.0]: keep candidates whose density under a KDE of the initial
+                                 # dataset lies between these percentiles of the initial dataset's own
+                                 # (leave-one-out) density; fixed for all iterations, cached in al_state.json
