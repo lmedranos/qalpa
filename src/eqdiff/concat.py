@@ -134,8 +134,31 @@ class Concatenator:
             values = [getattr(s, name) for s in stats]
             if any(v is None or v.shape != value.shape for v in values):
                 continue  # incompatible shapes (e.g. histograms) -> keep first
+            if name == "charge_types":
+                continue  # conditional P(charge | atom) -> merged below
             avg = sum(wi * v.double() for wi, v in zip(w, values))
             setattr(merged, name, avg.to(value.dtype))
+
+        # charge_types holds P(charge | atom type): rows of atom types absent
+        # from a dataset are all zero. A plain weighted average of these rows
+        # does not sum to 1 when atom types differ between datasets, so the
+        # charge marginal no longer sums to 1. Weight each dataset's
+        # conditional by w_k * P_k(atom) instead (mixture of joints).
+        charges = [getattr(s, "charge_types", None) for s in stats]
+        atoms = [getattr(s, "atom_types", None) for s in stats]
+        if (
+            all(torch.is_tensor(c) for c in charges)
+            and all(torch.is_tensor(a) for a in atoms)
+            and len({tuple(c.shape) for c in charges}) == 1
+            and len({tuple(a.shape) for a in atoms}) == 1
+        ):
+            joint = sum(
+                wi * a.double()[:, None] * c.double()
+                for wi, a, c in zip(w, atoms, charges)
+            )
+            row = joint.sum(dim=1, keepdim=True)
+            cond = torch.where(row > 0, joint / row.clamp_min(1e-300), joint)
+            setattr(merged, "charge_types", cond.to(charges[0].dtype))
         return merged
 
     @staticmethod
