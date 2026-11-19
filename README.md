@@ -257,7 +257,7 @@ You need an initial dataset in AQM/QM7-X HDF5 format: molecule groups with `atNU
 
 ### 1. Design a trajectory
 
-Open [`Navigator/design_trajectory.ipynb`](Navigator/design_trajectory.ipynb) and set `file_path` to your initial dataset. Choose the x, y and colour properties, for example `HLgap`, `eMBD` and `atNUM`, and press **Show 3D Plot**. Left-click the waypoints from start to end (**Undo** and **Clear** correct mistakes). Each click snaps to the nearest hexagon and records its mean colour value, so with `atNUM` as the colour every waypoint also gets an atom count. **Save Plot + CSV** writes `trajectory_<x>_<y>_<colour>.csv`.
+Open [`Navigator/design_trajectory.ipynb`](Navigator/design_trajectory.ipynb) and set `file_path` to your initial dataset. Choose the x, y and colour properties, for example `HLgap`, `eMBD` and `atNUM`, and press **Show Plot**. Left-click the waypoints from start to end (**Undo** and **Clear** correct mistakes). Each click snaps to the nearest hexagon and records its mean colour value, so with `atNUM` as the colour every waypoint also gets an atom count. **Save Plot + CSV** writes `trajectory_<x>_<y>_<colour>.csv`.
 
 To try QALPA first, use the example [`Navigator/trajectory_HLgap_eMBD_atNUM.csv`](Navigator/trajectory_HLgap_eMBD_atNUM.csv):
 
