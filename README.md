@@ -18,8 +18,8 @@
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="img/qalpa-dark.png">
-    <img width="100%" alt="QALPA workflow. Forward job on a GPU: (1) fine-tune the EQDIFF diffusion model on a weighted replay of all data; (2) plan targets with KDE: around the current trajectory waypoint P^q, candidate targets are sampled in a box, kept if their density lies in a sparse band of the initial data, and spread out by farthest-point selection into KDE targets T1 and T2; (3) generate molecules at every target and remove duplicates. Backward job on CPUs: (4) screen QED and SA score against the initial dataset; (5) relax geometries with EquiDTB, DFTB+ or FHI-aims; (6) compute QM properties; (7) keep the molecules that hit their own target. The hits are added to the property space, and the loop repeats until q exceeds N_iter." src="img/qalpa.png">
+    <source media="(prefers-color-scheme: dark)" srcset="img/qalpa-workflow-dark.png">
+    <img width="100%" alt="QALPA workflow. Forward job on a GPU: (1) fine-tune the EQDIFF diffusion model on a weighted replay of all data; (2) plan targets with KDE: around the current trajectory waypoint P^q, candidate targets are sampled in a box, kept if their density lies in a sparse band of the initial data, and spread out by farthest-point selection into KDE targets T1 and T2; (3) generate molecules at every target and remove duplicates. Backward job on CPUs: (4) screen QED and SA score against the initial dataset; (5) relax geometries with EquiDTB, DFTB+ or FHI-aims; (6) compute QM properties; (7) keep the molecules that hit their own target. The hits are added to the property space, and the loop repeats until q exceeds N_iter." src="img/qalpa-workflow.png">
   </picture>
 </p>
 
