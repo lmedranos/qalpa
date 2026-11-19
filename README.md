@@ -67,7 +67,10 @@ QALPA runs in three phases.
 | **III · Analysis** | Inspect targets, hit rates, molecules and training curves | `Data/<experiment>/`, [`analysis/`](analysis/), MLflow |
 
 <p align="center">
-  <img width="440" alt="Navigator: a trajectory of red waypoints drawn on the HLgap–eMBD map of the initial dataset, coloured by atom count" src="Navigator/example_trajectory.png" /><br/>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="img/navigator-trajectory-dark.png">
+    <img width="520" alt="Navigator: the example trajectory, five orange waypoints from q = 0 to q = 4, drawn on the HLgap–eMBD map of the initial dataset; hexagons are coloured by mean atom count, light blue for small and dark blue for large molecules" src="img/navigator-trajectory.png">
+  </picture><br/>
   <sub>Phase I: waypoints drawn in the Navigator on the HLgap–eMBD map of the initial dataset, coloured by atom count.</sub>
 </p>
 
@@ -306,7 +309,28 @@ Set the partition, time limit, account, conda path and modules for your cluster,
 
 ### 5. Submit
 
-One iteration is a forward job followed by a backward job:
+One iteration is a forward job followed by a backward job. The backward job must start only after the forward job of the same iteration has finished successfully: it works on the generated molecules, and it is the backward job that advances `loop.current_iter` for the next forward job. Both jobs share state only through the experiment folders, so the GPU and CPU partitions may belong to different clusters as long as both mount the same file system.
+
+**Forward and backward on different clusters (manual).** SLURM dependencies do not work across separate clusters, so submit each job yourself and wait for it to finish:
+
+```bash
+cd Experiments/my_exp_0/jobs
+
+# on the GPU cluster
+sbatch qalpa_forward.sh
+# wait until it has finished: squeue -u $USER is empty and logs/fcheck-log.out ends with "Forward Job completed"
+
+# on the CPU cluster
+sbatch qalpa_backward.sh
+# wait until logs/bcheck-log.out ends with "Backward Job completed"; loop.current_iter has advanced
+
+# repeat both steps for the next iteration
+```
+
+> [!WARNING]
+> Never run the forward job of the next iteration while the backward job is still running. The forward job would read the old `loop.current_iter` and run the same iteration again.
+
+**Both partitions on one cluster (chained).** The forward and backward jobs of one iteration can be linked with a dependency:
 
 ```bash
 cd Experiments/my_exp_0/jobs
