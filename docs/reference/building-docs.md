@@ -31,7 +31,14 @@ Open `docs/_build/html/index.html` in a browser. Add `-W --keep-going` to treat 
 
 ## Set up the project on Read the Docs
 
-1. Sign in at [app.readthedocs.org](https://app.readthedocs.org/) with the GitHub account that can access the repository.
-2. **Add project** → choose the repository. Read the Docs finds `.readthedocs.yaml` in the repository root.
-3. Under **Settings → Versions**, activate the branches to publish (by default only `latest`, the default branch).
-4. Optional: under **Settings → Pull request builds**, turn on previews for pull requests.
+1. Sign in at [app.readthedocs.org](https://app.readthedocs.org/) with **GitHub**, using the account that owns the repository.
+2. **Add project** and search for the repository. If it is not listed, Read the Docs cannot see it yet: under your Read the Docs account settings, open **Connected services** and connect GitHub. If GitHub asks you to install the *Read the Docs* GitHub App, give it access to the repository (or to all repositories), then search again.
+3. Select the repository and confirm. Read the Docs finds `.readthedocs.yaml` in the repository root and starts the first build of the default branch.
+4. Under **Settings → Versions**, activate any other branches to publish.
+5. Optional: under **Settings → Pull request builds**, turn on previews for pull requests.
+
+If the repository still does not appear, choose **Configure manually** under **Add project** and enter a name, the repository URL (for example `https://github.com/<owner>/qalpa.git`) and the default branch (`main`). A manually added project builds only when you press **Build version**, until you add the webhook that Read the Docs shows under **Settings → Integrations** to the GitHub repository.
+
+Until the first project has been created, the docs address (`https://<project>.readthedocs.io`) and the project page show **Project not found**.
+
+File links in the docs point to the repository the project was imported from (Read the Docs passes its clone URL to the build). In a local build they point to `lmedranos/qalpa`.

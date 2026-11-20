@@ -9,9 +9,26 @@ from sphinx.util.nodes import split_explicit_title
 
 project = "QALPA"
 author = "Michael Hanna, Julian Cremer, Zekiye Erarslan, Leonardo Medrano Sandonas"
-copyright = "2026, Leonardo Medrano Sandonas"
+copyright = f"2026, {author}"
 
-REPO_URL = "https://github.com/lmedranos/qalpa"
+DEFAULT_REPO_URL = "https://github.com/lmedranos/qalpa"
+
+
+def _repo_url() -> str:
+    """GitHub page of the repository the docs are built from.
+
+    On Read the Docs, this is the repository the project was imported from (a fork, for example);
+    locally, it is the main QALPA repository.
+    """
+    url = os.environ.get("READTHEDOCS_GIT_CLONE_URL", "").strip()
+    if url.startswith("git@github.com:"):
+        url = "https://github.com/" + url[len("git@github.com:"):]
+    if not url.startswith("https://github.com/"):
+        return DEFAULT_REPO_URL
+    return url.removesuffix(".git").rstrip("/")
+
+
+REPO_URL = _repo_url()
 
 
 def _git_ref() -> str:
