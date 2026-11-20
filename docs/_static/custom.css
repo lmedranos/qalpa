@@ -1,0 +1,12 @@
+/* Wide reference tables: keep the parameter column on one line. */
+table.docutils td:first-child code {
+  white-space: nowrap;
+}
+
+/* Mermaid diagrams: centre them and give them room. */
+pre.mermaid,
+div.mermaid {
+  display: flex;
+  justify-content: center;
+  background: transparent;
+}
