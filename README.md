@@ -69,7 +69,7 @@ You need an initial dataset in AQM/QM7-X HDF5 format, with `atNUM`, `atXYZ` and 
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="img/navigator-app-dark.png">
-    <img width="80%" alt="QALPA Navigator in the browser: the left panel holds the steps (1 Experiment, 2 Map, 3 Waypoints, 4 Export, 5 Configuration, 6 Run); the Map tab shows the HLgap–eMBD map of the initial dataset as hexagons coloured by mean atom count, with a three-waypoint trajectory drawn from START to END." src="img/navigator-app.png">
+    <img width="40%" alt="QALPA Navigator in the browser: the left panel holds the steps (1 Experiment, 2 Map, 3 Waypoints, 4 Export, 5 Configuration, 6 Run); the Map tab shows the HLgap–eMBD map of the initial dataset as hexagons coloured by mean atom count, with a three-waypoint trajectory drawn from START to END." src="img/navigator-app.png">
   </picture>
 </p>
 
