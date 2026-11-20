@@ -22,10 +22,14 @@ import argparse
 import csv
 import io
 import json
+import os
 import posixpath
 import secrets
 import stat
 import sys
+import threading
+import time
+from collections import deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -128,11 +132,22 @@ class SSHFS:
         self.client = paramiko.SSHClient()
         self.client.load_system_host_keys()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.client.connect(host, port=int(port or 22), username=user or None,
-                            key_filename=str(Path(key).expanduser()) if key else None,
-                            password=password or None, look_for_keys=not (key or password), timeout=20)
-        self.client.get_transport().set_keepalive(30)    # a dropped link closes the transport, so alive() turns False
-        self.sftp = self.client.open_sftp()
+        self.opened = time.time()
+        rec = _ssh_log(f"{user + '@' if user else ''}{host}", "login (project files)")
+        SSH_PENDING.add(self.client)
+        try:
+            self.client.connect(host, port=int(port or 22), username=user or None,
+                                key_filename=str(Path(key).expanduser()) if key else None,
+                                password=password or None, look_for_keys=not (key or password), timeout=20)
+            self.client.get_transport().set_keepalive(30)    # a dropped link closes the transport: alive() turns False
+            self.sftp = self.client.open_sftp()
+        except Exception as e:
+            self.client.close()        # a failed login otherwise keeps its socket open until the host drops it
+            _ssh_done(rec, False, f"{type(e).__name__}: {e}")
+            raise
+        finally:
+            SSH_PENDING.discard(self.client)
+        _ssh_done(rec, True, "logged in")
         root = root or "~"
         if root.startswith("~"):
             root = self.sftp.normalize(".") + root[1:]
@@ -539,31 +554,41 @@ def passphrase_needed(s: dict) -> bool:
 
 
 def ask_passphrases_at_startup():
-    """Ask in the terminal for the passphrase of every encrypted SSH key, and check it by logging in,
-    so that job states and chains work from the start. Skipped when there is no terminal (the page asks then)."""
+    """Ask in the terminal for the passphrase of every encrypted SSH key. Each one is checked by opening the key
+    here, so a wrong passphrase never reaches the login node. Only when every key can be opened does the server log
+    in, once per login node. Without a terminal the page asks for the passphrases instead."""
     import getpass
-    if not sys.stdin.isatty():
+    if sys.stdin.isatty():
+        for job, s in JOB_SETTINGS.items():
+            if not passphrase_needed(s):
+                continue
+            other = next((o for o in JOB_SETTINGS.values() if o is not s and o.get("_passphrase")
+                          and o.get("key") == s.get("key")), None)
+            if other:                                     # same key file as the other job: reuse it
+                s["_passphrase"] = other["_passphrase"]
+                continue
+            for _ in range(3):
+                pw = getpass.getpass(f"  Passphrase for {s['key']} ({job} jobs on {s['host']}, empty to skip): ")
+                if not pw:
+                    break
+                try:
+                    load_private_key(s | {"_passphrase": pw})
+                except RuntimeError as err:
+                    print(f"  ✗ {err}")
+                    continue
+                s["_passphrase"] = pw
+                print(f"  ✓ passphrase opens {s['key']}")
+                break
+    missing = missing_passphrases()
+    if missing:
+        print(f"  SSH not started: no key passphrase for the {' and '.join(missing)} job yet (enter it in Job settings)")
         return
-    for job, s in JOB_SETTINGS.items():
-        if not passphrase_needed(s):
-            continue
-        other = next((o for o in JOB_SETTINGS.values() if o is not s and o.get("_passphrase")
-                      and o.get("key") == s.get("key")), None)
-        if other:                                     # same key file as the other job: reuse it
-            s["_passphrase"] = other["_passphrase"]
-            continue
-        for _ in range(3):
-            pw = getpass.getpass(f"  Passphrase for {s['key']} ({job} jobs on {s['host']}, empty to skip): ")
-            if not pw:
-                break
-            s["_passphrase"] = pw
-            try:
-                code, _ = Runner(s).run(["true"], "/")
-                print(f"  ✓ logged in to {s['host']}")
-                break
-            except Exception as err:
-                s.pop("_passphrase", None)
-                print(f"  ✗ {type(err).__name__}: {err}")
+    for key, s in {ssh_key(s): s for s in JOB_SETTINGS.values() if s.get("via") == "ssh"}.items():
+        try:
+            ssh_connection(s)
+            print(f"  ✓ logged in to {ssh_label(key)}")
+        except RuntimeError as err:
+            print(f"  ✗ {err}")
 
 
 def local_cluster_name() -> str:
@@ -602,9 +627,301 @@ def settings_for(entry: dict) -> dict:
     return s
 
 
+# ---- SSH to the other cluster's login node
+# One connection per login node, reused for every command. A login is made only when every encrypted key has its
+# passphrase, and a failed login pauses that login node: no new attempt until you press Retry in the page's SSH
+# panel or save new Job settings for it. So a wrong key or passphrase can never turn into a stream of failed logins.
+SSH_LOCK = threading.Lock()   # one login at a time
+SSH_CONNS: dict = {}          # (host, user, port, key) -> {"client", "opened", "last_used", "requests"}
+SSH_PAUSED: dict = {}         # (host, user, port, key) -> {"error", "at"} of the failed login
+SSH_PENDING: set = set()      # clients logging in right now (not left-over connections)
+SSH_LOG: deque = deque(maxlen=40)    # newest SSH requests (logins and commands) and their results
+LAST_CHECK: dict = {}         # (cluster, job id) -> time its state was last read from SLURM
+
+
+def ssh_key(s: dict) -> tuple:
+    return s.get("host", ""), s.get("user") or "", int(s.get("port") or 22), s.get("key") or ""
+
+
+def ssh_label(key: tuple) -> str:
+    return f"{key[1] + '@' if key[1] else ''}{key[0]}" + (f":{key[2]}" if key[2] != 22 else "")
+
+
+def missing_passphrases() -> list:
+    """Jobs going over SSH whose encrypted key has no passphrase yet. While any is listed, no SSH login is made."""
+    return [j for j, s in JOB_SETTINGS.items() if passphrase_needed(s)]
+
+
+def load_private_key(s: dict):
+    """Open the job's private key here with its passphrase, so a missing or wrong passphrase fails before any
+    connection to the login node. None when no key file is set (the SSH agent and default keys are used then)."""
+    if not s.get("key"):
+        return None
+    try:
+        import paramiko
+    except ImportError as e:
+        raise RuntimeError("SSH needs the paramiko package: pip install paramiko") from e
+    path = Path(s["key"]).expanduser()
+    if not path.is_file():
+        raise RuntimeError(f"key file {s['key']} not found")
+    for cls in (paramiko.Ed25519Key, paramiko.ECDSAKey, paramiko.RSAKey):
+        try:
+            return cls.from_private_key_file(str(path), password=s.get("_passphrase") or None)
+        except paramiko.PasswordRequiredException:
+            raise RuntimeError(f"{s['key']} is encrypted: enter its passphrase in Job settings") from None
+        except Exception:      # wrong passphrase, or another key type: try the next type
+            continue
+    raise RuntimeError(f"wrong passphrase for {s['key']} (or not a key paramiko can read)")
+
+
+def _alive(client) -> bool:
+    t = client.get_transport()
+    return bool(t and t.is_active())
+
+
+def _close_quietly(client):
+    try:
+        client.close()
+    except Exception:
+        pass
+
+
+def _ssh_log(host: str, what: str) -> dict:
+    rec = {"host": host, "what": what, "start": time.time(), "end": None, "ok": None, "result": "running"}
+    SSH_LOG.append(rec)
+    return rec
+
+
+def _ssh_done(rec: dict, ok: bool, result: str):
+    rec.update(end=time.time(), ok=ok, result=result)
+
+
+def ssh_connection(s: dict) -> dict:
+    """The open connection for these job settings; logs in only when none is open (a connection that dropped after
+    a good login is opened once more). Raises without contacting the login node while a passphrase is missing or
+    the node is paused; a failed login pauses it."""
+    key = ssh_key(s)
+    c = SSH_CONNS.get(key)
+    if c and _alive(c["client"]):
+        return c
+    with SSH_LOCK:
+        c = SSH_CONNS.get(key)
+        if c and _alive(c["client"]):
+            return c
+        if c:
+            SSH_CONNS.pop(key, None)
+            _close_quietly(c["client"])
+        missing = missing_passphrases()
+        if missing:
+            raise RuntimeError(f"no SSH login: enter the key passphrase for the {' and '.join(missing)} job "
+                               "in Job settings first")
+        if key in SSH_PAUSED:
+            raise RuntimeError(f"SSH to {ssh_label(key)} is paused after a failed login "
+                               f"({SSH_PAUSED[key]['error']}): press Retry under Jobs → SSH connections")
+        rec = _ssh_log(ssh_label(key), "login")
+        client = None
+        try:
+            pkey = load_private_key(s)
+            import paramiko
+            client = paramiko.SSHClient()
+            client.load_system_host_keys()
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            SSH_PENDING.add(client)
+            # with a key file, offer only that key (no agent, no ~/.ssh keys): one failed login is one attempt
+            client.connect(key[0], port=key[2], username=key[1] or None, pkey=pkey, look_for_keys=pkey is None,
+                           allow_agent=pkey is None, timeout=20, banner_timeout=20, auth_timeout=20)
+            client.get_transport().set_keepalive(60)
+        except Exception as e:
+            if client is not None:
+                _close_quietly(client)       # a failed login otherwise keeps its socket open until the node drops it
+            msg = str(e) if isinstance(e, RuntimeError) else f"{type(e).__name__}: {e}"
+            SSH_PAUSED[key] = {"error": msg, "at": time.time()}
+            _ssh_done(rec, False, msg)
+            raise RuntimeError(f"login to {ssh_label(key)} failed ({msg}); no new attempt until you press Retry "
+                               "under Jobs → SSH connections") from e
+        finally:
+            SSH_PENDING.discard(client)
+        _ssh_done(rec, True, "logged in")
+        c = SSH_CONNS[key] = {"client": client, "opened": time.time(), "last_used": time.time(), "requests": 0}
+        return c
+
+
+def ssh_retry(job: str) -> str:
+    """Retry button: un-pause the job's login node and log in once now."""
+    s = JOB_SETTINGS.get(job)
+    if not s or s.get("via") != "ssh":
+        raise ValueError(f"the {job} job does not go over SSH")
+    SSH_PAUSED.pop(ssh_key(s), None)
+    ssh_connection(s)
+    return f"logged in to {ssh_label(ssh_key(s))}"
+
+
+def ssh_forget(key: tuple):
+    """Close the connection for these settings and lift any pause (after new Job settings)."""
+    c = SSH_CONNS.pop(key, None)
+    if c:
+        _close_quietly(c["client"])
+    SSH_PAUSED.pop(key, None)
+
+
+def _transports() -> list:
+    try:
+        import paramiko
+    except ImportError:
+        return []
+    return [t for t in threading.enumerate() if isinstance(t, paramiko.Transport) and t.is_active()]
+
+
+def _known_transports() -> dict:
+    """id(transport) -> what it is, for every SSH connection this server keeps track of."""
+    known = {}
+    for c in list(SSH_CONNS.values()):
+        if c["client"].get_transport():
+            known[id(c["client"].get_transport())] = "jobs"
+    fs = Handler.fs
+    if isinstance(fs, SSHFS) and fs.client.get_transport():
+        known[id(fs.client.get_transport())] = "files"
+    for cl in list(SSH_PENDING):
+        if cl.get_transport():
+            known[id(cl.get_transport())] = "pending"
+    return known
+
+
+def _ssh_sockets(proc: Path):
+    """Established TCP connections of a process to an SSH port (22 or a job's port): its SSH logins.
+    None where /proc is not readable."""
+    ports = {f":{p:04X}" for p in {22, *(int(s.get("port") or 22) for s in JOB_SETTINGS.values())}}
+    try:
+        inodes = set()
+        for fd in (proc / "fd").iterdir():
+            try:
+                link = os.readlink(fd)
+            except OSError:
+                continue
+            if link.startswith("socket:["):
+                inodes.add(link[8:-1])
+        n = 0
+        for table in ("tcp", "tcp6"):
+            try:
+                lines = (proc / "net" / table).read_text().splitlines()[1:]
+            except OSError:
+                continue
+            for line in lines:
+                f = line.split()
+                if len(f) > 9 and f[3] == "01" and f[2][-5:] in ports and f[9] in inodes:
+                    n += 1
+        return n
+    except OSError:
+        return None
+
+
+def other_servers() -> list:
+    """Other Navigator servers of yours on this machine, e.g. left running by an earlier session. Each one checks
+    job states and logs in to the login nodes on its own until it is stopped."""
+    proc = Path("/proc")
+    if not proc.is_dir():
+        return []
+    me, uid = os.getpid(), os.getuid()
+    try:
+        btime = next(int(ln.split()[1]) for ln in Path("/proc/stat").read_text().splitlines() if ln.startswith("btime"))
+        tick = os.sysconf("SC_CLK_TCK")
+    except Exception:
+        btime = tick = None
+    out = []
+    for d in proc.iterdir():
+        if not d.name.isdigit() or int(d.name) == me:
+            continue
+        try:
+            if d.stat().st_uid != uid:
+                continue
+            argv = [a for a in (d / "cmdline").read_bytes().decode(errors="replace").split("\0") if a]
+            if not argv or "python" not in Path(argv[0]).name or not any(a.endswith("navigator_server.py") for a in argv):
+                continue
+            started = None
+            if btime:
+                started = btime + int((d / "stat").read_text().rsplit(")", 1)[1].split()[19]) / tick
+            out.append({"pid": int(d.name), "cmd": " ".join(argv), "started": started, "ssh": _ssh_sockets(d)})
+        except (OSError, ValueError, IndexError):
+            continue
+    return out
+
+
+def ssh_overview() -> dict:
+    """What the SSH panel shows: each job's login node, this server's SSH connections (also left-over ones that
+    nothing uses any more), the newest SSH requests and other Navigator servers of yours on this machine."""
+    hosts = []
+    for j, s in JOB_SETTINGS.items():
+        if s.get("via") != "ssh":
+            hosts.append({"job": j, "host": local_cluster_name(), "state": "local"})
+            continue
+        key = ssh_key(s)
+        c, p = SSH_CONNS.get(key), SSH_PAUSED.get(key)
+        need = passphrase_needed(s)
+        hosts.append({"job": j, "host": ssh_label(key),
+                      "passphrase": "missing" if need else "given" if s.get("_passphrase") else "not needed",
+                      "state": "paused" if p else "connected" if c and _alive(c["client"])
+                      else "waiting for passphrase" if missing_passphrases() else "not connected",
+                      "error": p["error"] if p else None, "since": p["at"] if p else None})
+    conns = []
+    for key, c in list(SSH_CONNS.items()):
+        jobs = [j for j, s in JOB_SETTINGS.items() if s.get("via") == "ssh" and ssh_key(s) == key]
+        conns.append({"id": f"c{id(c['client'])}", "what": " and ".join(jobs) + " jobs" if jobs else "old job settings",
+                      "host": ssh_label(key), "state": "open" if _alive(c["client"]) else "dropped",
+                      "opened": c["opened"], "last_used": c["last_used"], "requests": c["requests"]})
+    fs = Handler.fs
+    if isinstance(fs, SSHFS):
+        conns.append({"id": "files", "what": "project files (⚙ Settings)", "host": fs.label,
+                      "state": "open" if fs.alive() else "dropped", "opened": fs.opened})
+    known = _known_transports()
+    for t in _transports():
+        if known.get(id(t)) == "pending":
+            conns.append({"id": "", "what": "logging in", "host": _peer(t), "state": "logging in"})
+        elif id(t) not in known:
+            conns.append({"id": f"t{id(t)}", "what": "left over: nothing uses it", "host": _peer(t), "state": "ghost"})
+    return {"hosts": hosts, "connections": conns, "requests": list(SSH_LOG)[::-1][:20],
+            "own_sockets": _ssh_sockets(Path("/proc/self")) if Path("/proc/self").is_dir() else None,
+            "others": other_servers(), "check_every": CHECK_EVERY}
+
+
+def _peer(t) -> str:
+    try:
+        ip, port = t.getpeername()[:2]
+        user = t.get_username()
+        return f"{user + '@' if user else ''}{ip}" + (f":{port}" if port != 22 else "")
+    except Exception:
+        return "?"
+
+
+def ssh_close(cid: str) -> int:
+    """Close one SSH connection by its id from ssh_overview, or 'all': every job connection and every left-over one
+    (not the project-files connection, which ⚙ Settings opened). Returns how many were closed."""
+    n = 0
+    known = _known_transports()
+    for key, c in list(SSH_CONNS.items()):
+        if cid in ("all", f"c{id(c['client'])}"):
+            SSH_CONNS.pop(key, None)
+            _close_quietly(c["client"])
+            n += 1
+    if cid == "files" and isinstance(Handler.fs, SSHFS):
+        Handler.fs.close()
+        n += 1
+    for t in _transports():
+        if id(t) not in known and cid in ("all", f"t{id(t)}"):
+            t.close()
+            n += 1
+    return n
+
+
+def stop_other_server(pid: int) -> int:
+    if not any(o["pid"] == pid for o in other_servers()):
+        raise ValueError(f"process {pid} is not another Navigator server of yours on this machine")
+    import signal
+    os.kill(pid, signal.SIGTERM)
+    return pid
+
+
 class Runner:
     """Runs SLURM commands where a job is submitted: here, or on that cluster's login node over SSH."""
-    _clients: dict = {}
 
     def __init__(self, s: dict):
         self.s = s
@@ -615,23 +932,20 @@ class Runner:
         if self.s.get("via") != "ssh":
             p = subprocess.run(args, cwd=cwd, capture_output=True, text=True, timeout=120)
             return p.returncode, p.stdout + p.stderr
-        key = (self.s["host"], self.s.get("user"), int(self.s.get("port") or 22), self.s.get("key"))
-        client = Runner._clients.get(key)
-        if client is None or not client.get_transport() or not client.get_transport().is_active():
-            try:
-                import paramiko
-            except ImportError as e:
-                raise RuntimeError("SSH needs the paramiko package: pip install paramiko") from e
-            auth = dict(key_filename=str(Path(key[3]).expanduser()) if key[3] else None, timeout=20,
-                        passphrase=self.s.get("_passphrase") or None)
-            client = paramiko.SSHClient()
-            client.load_system_host_keys()
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-            client.connect(key[0], port=key[2], username=key[1] or None, **auth)
-            Runner._clients[key] = client
-        _, out, err = client.exec_command(f"cd {shlex.quote(cwd)} && {shlex.join(args)}", timeout=120)
-        code = out.channel.recv_exit_status()
-        return code, out.read().decode() + err.read().decode()
+        c = ssh_connection(self.s)
+        rec = _ssh_log(ssh_label(ssh_key(self.s)), shlex.join(args))
+        c["requests"] += 1
+        c["last_used"] = time.time()
+        try:
+            _, out, err = c["client"].exec_command(f"cd {shlex.quote(cwd)} && {shlex.join(args)}", timeout=120)
+            code = out.channel.recv_exit_status()
+            text = out.read().decode() + err.read().decode()
+        except Exception as e:
+            _ssh_done(rec, False, f"{type(e).__name__}: {e}")
+            raise
+        first = text.strip().splitlines()[0][:160] if text.strip() else ""
+        _ssh_done(rec, code == 0, f"exit {code}" + (f": {first}" if code and first else ""))
+        return code, text
 
 
 def sbatch_options(s: dict) -> list:
@@ -1186,8 +1500,9 @@ def write_history(fs, experiment, hist):
     fs.write_text(_history_path(experiment), json.dumps(hist, indent=1))
 
 
-import threading
 JOB_LOCK = threading.RLock()   # serialises history.json updates and chain submissions across server threads
+CHECK_EVERY = 600              # s between automatic job-state checks (page refresh and chain loop)
+STATUS_MAX_AGE = 540           # s an automatic check reuses a state read by the other one (Refresh always reads)
 
 
 def submit_job(fs, experiment: str, job: str, start_at=None) -> dict:
@@ -1241,15 +1556,18 @@ def job_state(job_entry: dict) -> str:
         raise RuntimeError(f"cannot query {job_entry['job']} job {job_entry['id']}: {type(err).__name__}: {err}") from err
 
 
-def experiment_status(fs, experiment: str) -> dict:
+def experiment_status(fs, experiment: str, max_age: float = STATUS_MAX_AGE) -> dict:
     with JOB_LOCK:
-        return _experiment_status(fs, experiment)
+        return _experiment_status(fs, experiment, max_age)
 
 
-def _experiment_status(fs, experiment: str) -> dict:
+def _experiment_status(fs, experiment: str, max_age: float) -> dict:
+    """Job states of an experiment. A job that has not ended is asked from SLURM only when its state is older
+    than max_age seconds (0: always, for the Refresh button)."""
     hist = read_history(fs, experiment)
     changed = False
     errors = []
+    checked = []
     for e in hist:
         c = e.get("cluster", "")              # older entries: "local" or the login node's full name
         if c == "local" or "." in c:
@@ -1257,20 +1575,26 @@ def _experiment_status(fs, experiment: str) -> dict:
             e["cluster"] = CLUSTERS[e["job"]][0] if c == "local" else cluster_name({"via": "ssh", "host": c})
             changed = True
         if e.get("state") not in FINAL:
-            try:
-                new = job_state(e)
-            except RuntimeError as err:
-                errors.append(str(err))
-                continue
-            if new != e.get("state"):
-                e["state"] = new
-                changed = True
+            ck = (e.get("cluster"), str(e.get("id")))
+            if time.time() - LAST_CHECK.get(ck, 0) >= max_age:
+                try:
+                    new = job_state(e)
+                except RuntimeError as err:
+                    errors.append(str(err))
+                    continue
+                LAST_CHECK[ck] = time.time()
+                if new != e.get("state"):
+                    e["state"] = new
+                    changed = True
+            if ck in LAST_CHECK:
+                checked.append(LAST_CHECK[ck])
     if changed:
         write_history(fs, experiment, hist)
     cfg = fs.read_text(config_path(experiment))
     return {"current_iter": _config_value(cfg, "current_iter"), "num_iterations": _config_value(cfg, "num_iterations"),
             "start_at": _config_value(cfg, "start_at"),
-            "jobs": hist[-30:][::-1], "chain": CHAINS.get(experiment), "errors": errors}
+            "jobs": hist[-30:][::-1], "chain": CHAINS.get(experiment), "errors": errors,
+            "checked": min(checked) if checked else None, "check_every": CHECK_EVERY}
 
 
 # ---- chain: submit the other job once the previous one has completed
@@ -1309,16 +1633,16 @@ def delete_job_record(fs, experiment: str, jobid: str) -> dict:
 CHAINS: dict = {}            # experiment -> {"active", "message"}
 
 
-def chain_step(fs, experiment: str):
+def chain_step(fs, experiment: str, max_age: float = STATUS_MAX_AGE):
     with JOB_LOCK:          # loop thread and /api/chain may call this at once: never submit twice
-        _chain_step(fs, experiment)
+        _chain_step(fs, experiment, max_age)
 
 
-def _chain_step(fs, experiment: str):
+def _chain_step(fs, experiment: str, max_age: float):
     ch = CHAINS.get(experiment)
     if not ch or not ch["active"]:
         return
-    st = experiment_status(fs, experiment)
+    st = experiment_status(fs, experiment, max_age)
     last = st["jobs"][0] if st["jobs"] else None
     if last and last["state"] not in FINAL and st["errors"]:
         ch["message"] = f"cannot check job state ({st['errors'][0]}) - enter the SSH key passphrase in Job settings"
@@ -1348,10 +1672,7 @@ def _chain_step(fs, experiment: str):
         ch.update(active=False, message=f"stopped: could not submit {nxt}: {err}")
 
 
-def chain_loop(interval=30):
-    import threading
-    import time
-
+def chain_loop(interval=CHECK_EVERY):
     def loop():
         while True:
             for exp in list(CHAINS):
@@ -1402,7 +1723,8 @@ class Handler(BaseHTTPRequestHandler):
         except Exception:
             alive = False
         return {"mode": fs.kind, "root": fs.label, "name": posixpath.basename(str(fs.root).rstrip("/")) or "/",
-                "alive": alive}
+                "alive": alive,     # failed logins, so the page can say so wherever you are
+                "ssh_paused": [{"host": ssh_label(k), "error": p["error"], "at": p["at"]} for k, p in list(SSH_PAUSED.items())]}
 
     def do_GET(self):
         url, q = urlparse(self.path), parse_qs(urlparse(self.path).query)
@@ -1438,8 +1760,11 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/api/log":
                 return self._json(read_log(Handler.fs, q.get("experiment", [""])[0], q.get("path", [""])[0],
                                            int(q.get("tail", ["200000"])[0] or 200000)))
-            if url.path == "/api/status":
-                return self._json(experiment_status(Handler.fs, q.get("experiment", [""])[0]))
+            if url.path == "/api/status":     # fresh=1 (Refresh button): ask SLURM now instead of reusing a recent state
+                return self._json(experiment_status(Handler.fs, q.get("experiment", [""])[0],
+                                                    0 if q.get("fresh", [""])[0] else STATUS_MAX_AGE))
+            if url.path == "/api/ssh":
+                return self._json(ssh_overview())
             if url.path == "/api/job_settings":
                 return self._json(public_job_settings())
             if url.path == "/api/props":
@@ -1507,14 +1832,28 @@ class Handler(BaseHTTPRequestHandler):
             if url.path == "/api/config":
                 return self._json(save_config(Handler.fs, body.get("experiment", ""), body.get("text", "")))
             if url.path == "/api/job_settings":
+                # A new passphrase is checked here by opening the key (no login): a wrong one is refused and
+                # nothing is saved, so it never reaches the login node.
                 for j in JOBS:
+                    pw = body.get(j, {}).get("passphrase")
+                    new = JOB_SETTINGS[j] | {k: v for k, v in body.get(j, {}).items() if k in JOB_FIELDS}
+                    if pw and pw != "\x00clear" and new.get("via") == "ssh":
+                        try:
+                            load_private_key(new | {"_passphrase": pw})
+                        except RuntimeError as err:
+                            return self._error(f"{j} job: {err}. Nothing was saved.")
+                for j in JOBS:
+                    before = (ssh_key(JOB_SETTINGS[j]), JOB_SETTINGS[j].get("via"), JOB_SETTINGS[j].get("_passphrase"))
                     JOB_SETTINGS[j].update({k: v for k, v in body.get(j, {}).items() if k in JOB_FIELDS})
                     pw = body.get(j, {}).get("passphrase")
                     if pw == "\x00clear":
                         JOB_SETTINGS[j].pop("_passphrase", None)
                     elif pw:  # empty keeps the passphrase already held
                         JOB_SETTINGS[j]["_passphrase"] = pw
-                Runner._clients.clear()
+                    after = (ssh_key(JOB_SETTINGS[j]), JOB_SETTINGS[j].get("via"), JOB_SETTINGS[j].get("_passphrase"))
+                    if after != before:   # new login details: close the old connection, lift a pause on either
+                        ssh_forget(before[0])
+                        ssh_forget(after[0])
                 saved = {j: {k: v for k, v in s.items() if k in JOB_FIELDS} for j, s in JOB_SETTINGS.items()}
                 SETTINGS_FILE.write_text(json.dumps(saved, indent=1))
                 return self._json(public_job_settings())
@@ -1537,11 +1876,22 @@ class Handler(BaseHTTPRequestHandler):
                     if start and start not in STAGE_JOB:
                         return self._error(f"'{start}' is not a pipeline block")
                     CHAINS[exp] = {"active": True, "message": "starting…", **({"start_at": start} if start else {})}
-                    chain_step(Handler.fs, exp)
+                    chain_step(Handler.fs, exp, 0)
                 elif exp in CHAINS:
                     CHAINS[exp].update(active=False, message="stopped by you")
                     CHAINS[exp].pop("start_at", None)
                 return self._json(CHAINS.get(exp) or {"active": False, "message": ""})
+            if url.path == "/api/ssh":
+                action = body.get("action")
+                if action == "retry":
+                    return self._json({"message": ssh_retry(body.get("job", ""))})
+                if action == "close":
+                    n = ssh_close(str(body.get("id", "")))
+                    return self._json({"message": f"closed {n} SSH connection{'s' if n != 1 else ''}"})
+                if action == "stop_server":
+                    pid = stop_other_server(int(body.get("pid") or 0))
+                    return self._json({"message": f"stopped Navigator server {pid}"})
+                return self._error("unknown SSH action")
             if url.path == "/api/save_trajectory":
                 return self._json(save_trajectory(Handler.fs, body.get("experiment", ""), body.get("name", ""),
                                                   body.get("content", ""), body.get("columns", [])))
@@ -1590,6 +1940,7 @@ def main():
         srv.serve_forever()
     except KeyboardInterrupt:
         Handler.fs.close()
+        ssh_close("all")
         print("\n  Stopped.")
 
 

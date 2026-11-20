@@ -83,11 +83,13 @@ The passphrase is kept in the server's memory only, never on disk. **You enter i
      ✓ logged in to login1.capella.hpc.tu-dresden.de
    ```
 
-   It tests the passphrase by logging in, and lets you retry up to 3 times. If both jobs use the same key, it asks once. Press Enter on an empty prompt to skip.
+   It checks each passphrase by opening the key on this machine, so a wrong passphrase never reaches the login node. You get up to 3 tries. If both jobs use the same key, it asks once. Press Enter on an empty prompt to skip. Once every passphrase is given, the server logs in to each login node once.
 2. **Remembered in the browser.** If you ticked **remember in this browser** in [Job settings](#job-settings), the page hands the passphrase to the server when you open it. You type nothing.
 3. **In the page.** If the server still has no passphrase when you open the page, the page says so and opens **Job settings** for you to enter it.
 
 If the server was started without a terminal (e.g. with `nohup`), there is no prompt: use 2 or 3.
+
+**No SSH login is made until every key passphrase is given.** A passphrase entered in the page is checked the same way: if it is wrong, **Job settings** shows the error and nothing is saved. If a login still fails (for example the key is not in `authorized_keys`), the server does not try that login node again on its own. The page shows a notice and a **⚠ SSH login failed** button in the top bar until you press **Retry** under [SSH connections](#ssh-connections), or save new login details in Job settings.
 
 > **Never type it at all?** Create a second key without a passphrase, only for the Navigator, and set it as **Private key file** in Job settings:
 >
@@ -198,10 +200,23 @@ Press **Save**. The settings are stored per user in `~/.qalpa_navigator.json`; d
   - the state of the latest forward and backward job: pending, running, completed or failed;
   - every job submitted from the app, with the cluster it ran on (`capella` or `barnard`).
 
-  It refreshes every 20 seconds. If a state cannot be checked (usually: the server has no key passphrase), the header shows a ⚠ warning, the states may be out of date, and the chain waits. The job list is kept in `Experiments/<exp>/navigator_jobs.json`.
+  Job states are read from SLURM every 10 minutes; **Refresh** reads them at once. The page and the chain share these checks, so each pending or running job costs about one `sacct` over SSH every 10 minutes. If a state cannot be checked (a missing passphrase, or a failed login), the header shows a ⚠ warning, the states may be out of date, and the chain waits. The job list is kept in `Experiments/<exp>/navigator_jobs.json`.
 - **Cancel** appears next to each pending or running job in the table. It runs `scancel` on the cluster the job was submitted to, using the same Job settings, and also stops the chain.
 - **Delete** appears next to each job that has ended (completed, failed, cancelled…). It removes only that row from the list; the job's output files stay. Running jobs cannot be deleted: cancel them first. Deleting a failed last job lets you restart the chain from the job before it.
-- **Chain** submits the next job automatically: backward after forward completes, forward after backward completes. It stops when a job fails or is cancelled, or after the last iteration. The server checks every 30 seconds, so the chain keeps going with the browser closed, as long as the server runs.
+- **Chain** submits the next job automatically: backward after forward completes, forward after backward completes. It stops when a job fails or is cancelled, or after the last iteration. The server checks every 10 minutes, so the chain keeps going with the browser closed, as long as the server runs. The next job is submitted up to 10 minutes after the previous one ends.
+
+#### SSH connections
+
+The **Jobs** tab also lists this server's SSH connections. Looking at this list makes no SSH request.
+
+- **Login nodes:** for each job, its login node, whether the key passphrase is given, and the login state:
+  - *connected*: logged in; the connection is reused for every request.
+  - *not connected*: the server logs in at the next status check, submission or cancel.
+  - *waiting for passphrase*: no login until every passphrase is given.
+  - *paused*: the last login failed, with the reason. **Retry** logs in once more.
+- **Open connections:** every SSH connection the server holds: the job connections, the project-files connection opened with **⚙ Settings**, and *ghost* connections that nothing uses any more. **Close** closes one. **Close all** closes every connection except the project-files one; job connections open again when next needed. *Dropped* connections are already closed; **Remove** clears them from the list.
+- **Recent SSH requests:** the last 20 logins and commands, with how long each took and its result.
+- **Other Navigator servers of yours on this machine**, if any, for example one left running by an earlier session. Each one checks job states and logs in on its own. **Stop** ends it.
 
 #### Restart from a block (Start at)
 
@@ -275,9 +290,10 @@ Double-click [`navigator.html`](navigator.html) to use the map, waypoints and CS
 | Message | Cause and fix |
 |---|---|
 | `SSH needs the paramiko package` | Install `paramiko` for the Python that runs the server, then restart the server. |
-| A finished job still shows *running*, and the chain does not continue | The server has no key passphrase, so it cannot ask the cluster. Enter it in **Job settings** (see [Enter the key passphrase](#enter-the-key-passphrase)); the state updates within 30 s. |
+| A finished job still shows *running*, and the chain does not continue | The server cannot ask the cluster: a key passphrase is missing, or a login failed. Enter the passphrase in **Job settings** (see [Enter the key passphrase](#enter-the-key-passphrase)) or press **Retry** under [SSH connections](#ssh-connections), then press **Refresh**. |
+| `SSH to … is paused after a failed login` | The last login to that node failed and the server will not try again on its own. Fix the cause shown, then press **Retry** under [SSH connections](#ssh-connections). |
 | **Delete** does nothing / "not found" | The server is older than the page. Restart the server. |
-| `checkints do not match`, or `private key file is encrypted` | Wrong or missing **Key passphrase**. Use the key's passphrase, not your account password. Check it with `ssh-keygen -y -f ~/.ssh/id_navigator`. |
+| `wrong passphrase for ~/.ssh/id_navigator`, or `… is encrypted: enter its passphrase` | Wrong or missing **Key passphrase**. Use the key's passphrase, not your account password. Check it with `ssh-keygen -y -f ~/.ssh/id_navigator`. |
 | `Authentication failed` | The public key is not in `~/.ssh/authorized_keys`, or the **User** is wrong. |
 | `Connection reset by peer` / `Error reading SSH protocol banner` | The login node is refusing connections for a while, usually after many failed logins. Wait about 30 minutes. |
 | `invalid partition specified` | The job was submitted on the wrong cluster. Check **Submit from** and **Login node**. |

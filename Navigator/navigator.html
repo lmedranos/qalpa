@@ -174,6 +174,10 @@
   .kpi .s { font-size: 11px; color: var(--muted); margin-top: 2px; }
   .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 9px 16px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
   .toast.show { opacity: 1; }
+  .subhead { font-weight: 600; font-size: 13px; margin: 16px 0 4px; }
+  #sshCard td, #sshCard th { text-align: left; }
+  #sshCard td.res { max-width: 420px; overflow-wrap: anywhere; }
+  .btn.alert { color: var(--red); border-color: var(--red); }
 </style>
 </head>
 <body>
@@ -182,6 +186,7 @@
   <div class="brand"><b>QALPA Navigator</b><span>Set up an experiment and design its trajectory</span></div>
   <div class="expchip" id="expchip" hidden>Experiment <b id="expname"></b></div>
   <div class="badge"><span class="dot" id="dot"></span><span id="mode">Offline (files from this computer)</span></div>
+  <button class="btn alert" id="sshWarn" hidden title="An SSH login failed. The server will not try again until you press Retry.">⚠ SSH login failed</button>
   <button class="btn" id="gear" title="Connection settings" hidden>⚙ Settings</button>
 </div>
 
@@ -378,8 +383,8 @@
     </div>
     <div class="view" id="viewJobs" hidden>
       <div class="card">
-        <div class="toolbar"><div><div class="title">Run status</div><div class="sub" id="jobsSub">refreshes every 20 s</div></div>
-          <div class="right"><button class="btn" id="jobsRefresh">Refresh</button></div></div>
+        <div class="toolbar"><div><div class="title">Run status</div><div class="sub" id="jobsSub">job states are checked every 10 min · Refresh checks now</div></div>
+          <div class="right"><button class="btn" id="jobsRefresh" title="Ask SLURM for the job states now">Refresh</button></div></div>
         <div class="kpis">
           <div class="kpi"><div class="k">Iteration</div><div class="v" id="kIter">–</div></div>
           <div class="kpi"><div class="k">Forward (GPU)</div><div class="v" id="kFwd">–</div></div>
@@ -388,6 +393,19 @@
         </div>
       </div>
       <div class="card"><table id="jobsTable"></table></div>
+      <div class="card" id="sshCard">
+        <div class="toolbar"><div><div class="title">SSH connections</div><div class="sub" id="sshSub">this server's logins to other machines</div></div>
+          <div class="right"><button class="btn" id="sshCloseAll" title="Close every SSH connection of this server except the project-files one">Close all</button><button class="btn" id="sshRefresh">Refresh</button></div></div>
+        <div class="hint" style="margin-top:0">The server logs in only when every key passphrase is given, and never tries again after a failed login until you press <b>Retry</b> (or save new login details in Job settings).</div>
+        <div class="subhead">Login nodes</div><table id="sshHosts"></table>
+        <div class="subhead">Open connections</div><table id="sshConns"></table>
+        <div class="subhead">Recent SSH requests</div><table id="sshLog"></table>
+        <div id="sshOthersWrap" hidden>
+          <div class="subhead">Other Navigator servers of yours on this machine</div>
+          <div class="hint" style="margin-top:0">Probably left running by an earlier session. Each one checks job states and logs in to the login nodes on its own until stopped.</div>
+          <table id="sshOthers"></table>
+        </div>
+      </div>
     </div>
     <div class="view" id="viewLogs" hidden>
       <div class="card editor">
@@ -458,7 +476,7 @@
 <dialog id="jobdlg" style="width:min(760px,96vw)">
   <div class="dlg-head"><b>Job settings</b><span style="color:var(--ink2);font-size:12px">passed to sbatch; empty fields keep the job script's #SBATCH values</span></div>
   <div class="dlg-body"><div class="jobcols" id="jobcols"></div></div>
-  <div class="dlg-foot"><span style="flex:1"></span><button class="btn" id="jobCancel">Cancel</button><button class="btn primary" id="jobOk">Save</button></div>
+  <div class="dlg-foot"><span class="err" id="jobErr" style="flex:1;margin:0"></span><button class="btn" id="jobCancel">Cancel</button><button class="btn primary" id="jobOk">Save</button></div>
 </dialog>
 
 <!-- dialogs -->
@@ -554,7 +572,7 @@ function ask(msg) {
     d.showModal();
   });
 }
-function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 3200); }
+function toast(t, ms = 3200) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), ms); }
 const fmtSize = (b) => (b == null ? "" : b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.ceil(b / 1e3) + " KB");
 
 // ================================================================= server, sign-in, settings
@@ -598,7 +616,7 @@ async function heartbeat() {
     else if (info.alive !== false && (!connUp || info.mode !== connInfo.mode || info.root !== connInfo.root)) {
       if (!connUp) toast("Connection to the Navigator server is back");
       showInfo(info);                                     // back, or restarted with another backend: resync the page
-    } else showConn(info);
+    } else { showConn(info); noteSsh(info); }
   } catch (e) {
     setConn(false, ...(e.name === "AbortError" ? ["Server not responding", "The Navigator server did not answer within 8 s"] : LOST));
   } finally { clearTimeout(timer); connBusy = false; }
@@ -610,7 +628,7 @@ if (SERVER) {
 }
 function showInfo(info) {
   ROOT = info.root; cwd = ""; lastFolder = ""; connInfo = info;
-  showConn(info);
+  showConn(info); noteSsh(info);
   for (const id of ["browse", "savehpc", "gear", "saveexp", "cardExp", "cardCfg", "cardJobs", "viewtabs", "kdeWrap"]) $(id).hidden = false;
   $("local").textContent = "This computer…";
   refreshExperiments();
@@ -624,11 +642,31 @@ async function restorePassphrases() {
   let s; try { s = await api("/api/job_settings"); } catch { return; }
   const body = {};
   for (const j of ["forward", "backward"]) { const pw = store.get(PASS_KEY(j)); if (pw && !s[j].passphrase_set) body[j] = { passphrase: pw }; }
-  if (Object.keys(body).length) try { await api("/api/job_settings", {}, body); toast("Key passphrase restored from this browser"); s = await api("/api/job_settings"); } catch {}
+  let restoreErr = "";
+  if (Object.keys(body).length) try { await api("/api/job_settings", {}, body); toast("Key passphrase restored from this browser"); s = await api("/api/job_settings"); }
+    catch (e) { restoreErr = `The passphrase remembered in this browser was refused: ${e.message}`; }
   // Still missing: open Job settings so the passphrase is entered before any job state is checked.
   const need = ["forward", "backward"].filter((j) => s[j]?.passphrase_needed);
-  if (need.length) { toast(`Enter the SSH key passphrase for the ${need.join(" and ")} cluster — job states and chains need it`); $("jobSet").onclick(); }
+  if (need.length) {
+    toast(`Enter the SSH key passphrase for the ${need.join(" and ")} job: no SSH login is made before every passphrase is given`, 8000);
+    await $("jobSet").onclick();
+    $("jobErr").textContent = restoreErr;
+  }
 }
+// Failed SSH logins (wrong key, user or host, node refusing): the server does not retry them on its own.
+// Say so once per failure, and keep the ⚠ button in the top bar until it is resolved.
+const sshSeen = new Set();
+function noteSsh(info) {
+  const paused = info.ssh_paused || [];
+  $("sshWarn").hidden = !paused.length;
+  for (const p of paused) {
+    const k = `${p.host}@${p.at}`;
+    if (sshSeen.has(k)) continue;
+    sshSeen.add(k);
+    toast(`SSH login to ${p.host} failed: ${p.error}. No new attempt until you press Retry (Jobs → SSH connections).`, 12000);
+  }
+}
+$("sshWarn").onclick = () => showView("Jobs");
 async function connect() {
   try { showInfo(await api("/api/info")); }
   catch (e) {
@@ -1098,7 +1136,7 @@ function showView(v) {
   document.querySelectorAll("#viewtabs button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
   if (v === "Map") resize();
   if (v === "Config" && experiment && !cfgDirty) loadConfig();
-  if (v === "Jobs") refreshStatus();
+  if (v === "Jobs") { refreshStatus(); refreshSsh(); }
   if (v === "Logs") refreshLogs(true);
   if (v === "Training") refreshTraining();
 }
@@ -2047,6 +2085,7 @@ const JOB_FIELDS = [["via", "Submit from"], ["host", "Login node (SSH)"], ["user
 const JOB_HINT = { forward: "GPU cluster, e.g. capella", backward: "CPU cluster, e.g. barnard" };
 $("jobSet").onclick = async () => {
   let s; try { s = await api("/api/job_settings"); } catch (e) { return toast(e.message); }
+  $("jobErr").textContent = "";
   $("jobcols").innerHTML = ["forward", "backward"].map((j) => `<div><h3>${j === "forward" ? "Forward job" : "Backward job"}</h3><div class="hint" style="margin-top:0">${JOB_HINT[j]}</div>` +
     JOB_FIELDS.map(([k, label]) => k === "via"
       ? `<label class="f">${label}</label><select data-j="${j}" data-k="via"><option value="local">this server's machine</option><option value="ssh">another login node over SSH</option></select>`
@@ -2075,7 +2114,13 @@ $("jobOk").onclick = async () => {
     if (!el.checked) forgetPass(j);
     else if (pw && pw !== "\u0000clear") store.set(PASS_KEY(j), pw);
   });
-  try { await api("/api/job_settings", {}, body); $("jobdlg").close(); toast("Job settings saved"); } catch (e) { toast(e.message); }
+  // A wrong passphrase is refused by the server (it opens the key, without logging in) and nothing is saved.
+  $("jobErr").textContent = "";
+  try { await api("/api/job_settings", {}, body); $("jobdlg").close(); toast("Job settings saved"); refreshSsh(); }
+  catch (e) {
+    $("jobErr").textContent = e.message;
+    for (const j of ["forward", "backward"]) if (e.message.startsWith(`${j} job:`)) forgetPass(j);   // do not restore a refused one
+  }
 };
 // "Start at": a one-off start block for the next submission only (yours, or the chain's first). It reaches that job as
 // QALPA_START_AT and takes priority over pipeline.start_at; the config is not changed, so later jobs use it again.
@@ -2122,10 +2167,12 @@ function showChain(ch) {
   $("kChain").textContent = ch?.active ? "on" : ch?.message ? "off · " + ch.message : "off";
 }
 $("openJobs").onclick = () => showView("Jobs");
-$("jobsRefresh").onclick = () => refreshStatus();
+$("jobsRefresh").onclick = () => { refreshStatus(true); refreshSsh(); };
 const stateTag = (s) => `<span class="state ${s}">${(s || "–").toLowerCase()}</span>`;
-let stBusy = false, stAgain = false;
-async function refreshStatus() {
+let stBusy = false, stAgain = false, stAgainFresh = false;
+// fresh: ask SLURM now (Refresh button, after a cancel). Otherwise the server reuses a state read in the last 9 min,
+// so the page's 10-min refresh and the chain's 10-min check together cost about one SSH query per job every 10 min.
+async function refreshStatus(fresh = false) {
   if (!experiment) {                                      // nothing to show: do not leave another experiment's jobs here
     for (const id of ["kIter", "kFwd", "kBwd"]) $(id).textContent = "–";
     showChain(null);
@@ -2133,11 +2180,11 @@ async function refreshStatus() {
     $("jobsTable").innerHTML = "";
     return;
   }
-  if (stBusy) { stAgain = true; return; }                 // one request at a time (SSH job queries can be slow); rerun once it returns
+  if (stBusy) { stAgain = true; stAgainFresh ||= fresh; return; }   // one request at a time (SSH job queries can be slow); rerun once it returns
   stBusy = true; $("jobsRefresh").disabled = true; $("jobsRefresh").textContent = "Refreshing…";
   const name = experiment.name;
   try {
-    const st = await api("/api/status", { experiment: name });
+    const st = await api("/api/status", fresh ? { experiment: name, fresh: 1 } : { experiment: name });
     if (experiment?.name !== name) return;                // experiment switched while waiting: the rerun below shows the new one
     lastStatus = st; syncStart();
     $("kIter").textContent = `${st.current_iter ?? "?"} / ${st.num_iterations ?? "?"}`;
@@ -2146,7 +2193,10 @@ async function refreshStatus() {
       $(id).innerHTML = j ? `${stateTag(j.state)} <span style="font-size:12px;color:var(--ink2)">#${j.id}</span>` : "–";
     }
     showChain(st.chain);
-    $("jobsSub").textContent = st.errors?.length ? `⚠ ${st.errors[0]} — these states may be stale; fix it in Job settings (SSH key passphrase, Submit via)` : `updated ${new Date().toLocaleTimeString()} · refreshes every 20 s`;
+    const every = `checked every ${Math.round((st.check_every || 600) / 60)} min · Refresh checks now`;
+    $("jobsSub").textContent = st.errors?.length ? `⚠ ${st.errors[0]} — these states may be stale` + (/Retry/.test(st.errors[0]) ? "" : "; fix it in Job settings (SSH key passphrase, Submit via)")
+      : st.checked ? `job states read from SLURM at ${new Date(st.checked * 1000).toLocaleTimeString()} · ${every}`
+      : `no job pending or running · ${every}`;
     $("jobsTable").innerHTML = st.jobs.length
       ? `<tr><th>Job</th><th>ID</th><th>Iteration</th><th>Cluster</th><th>Submitted</th><th>State</th><th></th></tr>` +
         st.jobs.map((j) => `<tr><td>${j.job}${j.start_at ? ` <span class="tag" title="one-off start block of this job">from ${esc(j.start_at)}</span>` : ""}</td><td>${j.id}</td><td>${j.iteration ?? ""}</td><td>${j.cluster}</td><td>${j.submitted}</td><td>${stateTag(j.state)}</td><td>${jobActive(j) ? `<button class="btn" data-cancel="${j.id}" data-job="${j.job}" style="padding:3px 10px">Cancel</button>` : `<button class="btn" data-del="${j.id}" data-job="${j.job}" title="Remove this record from the list (the job's files are kept)" style="padding:3px 10px">Delete</button>`}</td></tr>`).join("")
@@ -2156,7 +2206,8 @@ async function refreshStatus() {
     if (experiment?.name === name) $("jobsSub").textContent = `⚠ status unavailable: ${e.message}` + (lastStatus ? " — showing the last known states" : "");
   } finally {
     stBusy = false; $("jobsRefresh").disabled = false; $("jobsRefresh").textContent = "Refresh";
-    if (stAgain) { stAgain = false; refreshStatus(); }
+    if (stAgain) { const f = stAgainFresh; stAgain = stAgainFresh = false; refreshStatus(f); }
+    if (!$("viewJobs").hidden) refreshSsh();              // show the requests this refresh made
   }
 }
 $("jobsTable").onclick = async (ev) => {
@@ -2174,9 +2225,80 @@ $("jobsTable").onclick = async (ev) => {
   b.disabled = true;
   try { await api("/api/cancel", {}, { experiment: experiment.name, id: b.dataset.cancel }); toast(`Cancelled ${b.dataset.job} job ${b.dataset.cancel}`); }
   catch (e) { toast(`Could not cancel: ${e.message}`); b.disabled = false; }
-  setTimeout(refreshStatus, 1500);
+  setTimeout(() => refreshStatus(true), 1500);
 };
-setInterval(() => { if (experiment && (!$("viewJobs").hidden || $("chain").checked)) refreshStatus(); }, 20000);
+setInterval(() => { if (experiment && (!$("viewJobs").hidden || $("chain").checked)) refreshStatus(); }, 600000);
+
+// ---- SSH connections: each job's login node, this server's SSH connections (also left-over ones), the newest SSH
+// requests, and other Navigator servers of yours on this machine. Reading this panel makes no SSH request.
+const tm = (t) => (t ? new Date(t * 1000).toLocaleTimeString() : "–");
+const took = (a, b) => { const s = (b ?? Date.now() / 1000) - a; return s < 1 ? `${Math.round(s * 1000)} ms` : s < 120 ? `${s.toFixed(1)} s` : `${Math.round(s / 60)} min`; };
+const pill = (text, cls = "") => `<span class="state ${cls}">${esc(text)}</span>`;
+const HOST_CLS = { connected: "COMPLETED", paused: "FAILED", "waiting for passphrase": "PENDING" };
+const CONN_CLS = { open: "COMPLETED", ghost: "FAILED", "logging in": "RUNNING" };
+const HOST_TIP = { "not connected": "logs in at the next status check, submission or cancel", "waiting for passphrase": "no login until every key passphrase is given in Job settings",
+                   paused: "the last login failed; no new attempt until you press Retry", connected: "logged in; the connection is reused for every request" };
+let sshBusy = false;
+async function refreshSsh() {
+  if (!SERVER || !connInfo || sshBusy) return;
+  sshBusy = true;
+  try { renderSsh(await api("/api/ssh")); }
+  catch (e) { $("sshSub").textContent = `⚠ ${e.message}`; }
+  finally { sshBusy = false; }
+}
+function renderSsh(o) {
+  const n = o.connections.filter((c) => c.state !== "logging in").length;
+  $("sshSub").textContent = `${n} connection${n === 1 ? "" : "s"}` +
+    (o.own_sockets != null ? ` · this server process holds ${o.own_sockets} SSH socket${o.own_sockets === 1 ? "" : "s"}` : "") + ` · updated ${new Date().toLocaleTimeString()}`;
+  $("sshHosts").innerHTML = `<tr><th>Job</th><th>Login node</th><th>Key passphrase</th><th>Login</th><th></th></tr>` +
+    o.hosts.map((h) => h.state === "local"
+      ? `<tr><td>${h.job}</td><td>${esc(h.host)} (this machine)</td><td>–</td><td>no SSH needed</td><td></td></tr>`
+      : `<tr><td>${h.job}</td><td>${esc(h.host)}</td><td>${h.passphrase === "missing" ? pill("missing", "FAILED") : esc(h.passphrase)}</td>` +
+        `<td title="${esc(HOST_TIP[h.state] || "")}">${pill(h.state, HOST_CLS[h.state])}${h.error ? `<div class="err" style="margin-top:3px">${esc(h.error)} · ${tm(h.since)}</div>` : ""}</td>` +
+        `<td>${h.state === "paused" ? `<button class="btn" data-retry="${h.job}" style="padding:3px 10px" title="Log in once now">Retry</button>` : ""}</td></tr>`).join("");
+  $("sshConns").innerHTML = o.connections.length
+    ? `<tr><th>Used for</th><th>Host</th><th>State</th><th>Opened</th><th>Last used</th><th>Requests</th><th></th></tr>` +
+      o.connections.map((c) => `<tr><td>${esc(c.what)}</td><td>${esc(c.host)}</td><td>${pill(c.state, CONN_CLS[c.state])}</td><td>${tm(c.opened)}</td><td>${tm(c.last_used)}</td><td>${c.requests ?? "–"}</td>` +
+        `<td>${c.id ? `<button class="btn" data-close="${esc(c.id)}" style="padding:3px 10px">${c.state === "dropped" ? "Remove" : "Close"}</button>` : ""}</td></tr>`).join("")
+    : `<tr><td style="color:var(--muted)">No SSH connection open.</td></tr>`;
+  $("sshLog").innerHTML = o.requests.length
+    ? `<tr><th>Started</th><th>Host</th><th>Request</th><th>Took</th><th>Result</th></tr>` +
+      o.requests.map((r) => `<tr><td>${tm(r.start)}</td><td>${esc(r.host)}</td><td><code>${esc(r.what)}</code></td><td>${took(r.start, r.end)}${r.end ? "" : " …"}</td>` +
+        `<td class="res">${r.ok == null ? pill("running", "RUNNING") : r.ok ? pill("ok", "COMPLETED") : pill("failed", "FAILED")} ${r.ok == null ? "" : esc(r.result)}</td></tr>`).join("")
+    : `<tr><td style="color:var(--muted)">No SSH request since the server started.</td></tr>`;
+  $("sshOthersWrap").hidden = !o.others.length;
+  $("sshOthers").innerHTML = `<tr><th>PID</th><th>Started</th><th>Command</th><th>SSH connections</th><th></th></tr>` +
+    o.others.map((p) => `<tr><td>${p.pid}</td><td>${p.started ? new Date(p.started * 1000).toLocaleString() : "?"}</td><td><code>${esc(p.cmd)}</code></td><td>${p.ssh ?? "?"}</td>` +
+      `<td><button class="btn" data-stop="${p.pid}" style="padding:3px 10px">Stop</button></td></tr>`).join("");
+}
+$("sshCard").onclick = async (ev) => {
+  const r = ev.target.closest("[data-retry]"), c = ev.target.closest("[data-close]"), p = ev.target.closest("[data-stop]");
+  let body;
+  if (r) body = { action: "retry", job: r.dataset.retry };
+  else if (c) {
+    if (c.dataset.close === "files" && !(await ask("Close the SSH connection to the project files? The page cannot read or write files until you reconnect with ⚙ Settings."))) return;
+    body = { action: "close", id: c.dataset.close };
+  } else if (p) {
+    if (!(await ask(`Stop the other Navigator server (process ${p.dataset.stop})? Its SSH connections close and its chains stop; job records in the experiment folders are kept.`))) return;
+    body = { action: "stop_server", pid: Number(p.dataset.stop) };
+  } else return;
+  const btn = r || c || p;
+  btn.disabled = true;
+  if (r) btn.textContent = "Logging in…";
+  let ok = false;
+  try { toast((await api("/api/ssh", {}, body)).message, 6000); ok = true; }
+  catch (e) { toast(e.message, 12000); }
+  await refreshSsh();
+  heartbeat();                                            // updates the ⚠ button in the top bar
+  if (r && ok) refreshStatus(true);
+};
+$("sshCloseAll").onclick = async () => {
+  if (!(await ask("Close every SSH connection of this server (job connections and left-over ones)? Job connections open again at the next status check, submission or cancel. The project-files connection stays open."))) return;
+  try { toast((await api("/api/ssh", {}, { action: "close", id: "all" })).message); } catch (e) { toast(e.message); }
+  refreshSsh();
+};
+$("sshRefresh").onclick = () => refreshSsh();
+setInterval(() => { if (!$("viewJobs").hidden && !document.hidden) refreshSsh(); }, 15000);
 
 // ================================================================= start
 if (SERVER) {
