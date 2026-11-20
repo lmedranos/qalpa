@@ -79,8 +79,6 @@ python Navigator/navigator_server.py
 
 Open the link it prints. VS Code forwards the port for you; otherwise run `ssh -L 8765:localhost:8765 <login-node>` on your computer first. Then work through steps 1 to 6 in the left panel. To submit jobs on a second cluster, the server needs an SSH key: see [Navigator setup](https://qalpa.readthedocs.io/en/latest/navigator/index.html).
 
-<br clear="right">
-
 ### Option 2: Command line
 
 1. **Get a trajectory:** use the example `Navigator/trajectory_HLgap_eMBD_atNUM.csv`, or draw one in the Navigator and download it as CSV.
