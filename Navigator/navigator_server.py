@@ -1863,6 +1863,8 @@ class Handler(BaseHTTPRequestHandler):
                         ssh_forget(before[0])
                         ssh_forget(after[0])
                 saved = {j: {k: v for k, v in s.items() if k in JOB_FIELDS} for j, s in JOB_SETTINGS.items()}
+                SETTINGS_FILE.touch(mode=0o600)
+                SETTINGS_FILE.chmod(0o600)            # user, host, key path and account: readable only by you
                 SETTINGS_FILE.write_text(json.dumps(saved, indent=1))
                 return self._json(public_job_settings())
             if url.path == "/api/submit":

@@ -93,7 +93,7 @@ With exactly two datasets, the initial dataset gets `alpha`. `min_original_share
 | Parameter | Default | Explanation | Edit |
 |---|---|---|---|
 | `mlflow.enabled` | `false` | Mirror the training curves of all iterations into MLflow after every training run | Optional |
-| `mlflow.python` | Site-specific path | Interpreter with `mlflow`, `tensorboard` and `matplotlib` that runs `src/scripts/sync_mlflow.py` | **Mandatory** if enabled |
+| `mlflow.python` | `${root}/conda_envs/env-qalpa-mlflow/bin/python` | Interpreter with `mlflow`, `tensorboard` and `matplotlib` that runs `src/scripts/sync_mlflow.py`; the default is the side environment described in [MLflow](../user-guide/mlflow.md#the-mlflow-interpreter) | **Mandatory** if enabled |
 | `mlflow.tracking_uri` | `file://${paths.data}/mlruns` | MLflow store shared by all experiments; each experiment appears under its `experiment_name` | Optional |
 
 See [Monitoring training with MLflow](../user-guide/mlflow.md).

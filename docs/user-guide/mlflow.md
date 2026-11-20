@@ -30,11 +30,11 @@ For a quick look without MLflow, the Navigator's [Training](../navigator/running
 
 ## The MLflow interpreter
 
-`mlflow.python` must point to an interpreter with `mlflow`, `tensorboard` and `matplotlib`; replace the template's site-specific path. `mlflow` is part of all three environment files. If your environment was created without it, use a small side environment so the training environment stays unchanged (`matplotlib` comes with `mlflow`):
+`mlflow.python` must point to an interpreter with `mlflow`, `tensorboard` and `matplotlib`. The template default is `${root}/conda_envs/env-qalpa-mlflow/bin/python`, the side environment below; point it elsewhere if your interpreter lives elsewhere. `mlflow` is part of all three environment files. If your environment was created without it, use a small side environment so the training environment stays unchanged (`matplotlib` comes with `mlflow`):
 
 ```bash
 conda_envs/env-qalpa-forward/bin/python -m venv conda_envs/env-qalpa-mlflow
 conda_envs/env-qalpa-mlflow/bin/python -m pip install "mlflow<3" tensorboard
 ```
 
-Then set `mlflow.python` to `<repo>/conda_envs/env-qalpa-mlflow/bin/python`. All MLflow keys are listed under [MLflow settings](../configuration/experiment.md#mlflow).
+This is the path the template already uses. All MLflow keys are listed under [MLflow settings](../configuration/experiment.md#mlflow).
