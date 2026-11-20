@@ -1,0 +1,8 @@
+# Packages needed to build the documentation (Read the Docs installs these).
+# The docs do not import QALPA itself, so no scientific packages are needed.
+sphinx>=7.2,<9
+myst-parser>=3.0,<5
+furo>=2024.8.6
+sphinx-design>=0.6
+sphinx-copybutton>=0.5.2
+sphinxcontrib-mermaid>=0.9.2
