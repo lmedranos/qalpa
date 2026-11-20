@@ -149,8 +149,10 @@ def initial_reference(input_hdf5, log=print) -> dict:
     return ref
 
 
-def screen_query(query_dir, out_dir, reference: dict, relax=None, log=print) -> dict:
+def screen_query(query_dir, out_dir, reference: dict, relax=None, scores=("SAScore", "QED"), log=print) -> dict:
     """Keep molecules with QED > QED threshold and SA < SA threshold; move the others to <out_dir>/rejected.
+
+    Only the scores named in `scores` (query.scores) are checked, e.g. ["SAScore"] skips the QED test.
 
     Thresholds: the initial-dataset means, shifted by `relax` (query.score_relax, see relaxed_thresholds).
 
@@ -162,17 +164,21 @@ def screen_query(query_dir, out_dir, reference: dict, relax=None, log=print) -> 
     results = _map([f.read_text() for f in files])
     thr = relaxed_thresholds(reference, relax)
     sa_ref, qed_ref = thr["sa_max"], thr["qed_min"]
+    use_sa, use_qed = "SAScore" in scores, "QED" in scores
+    if not (use_sa or use_qed):
+        raise ValueError(f"query.scores must contain SAScore and/or QED for the initial_mean screen, got {list(scores)}")
 
     rejected = out_dir / "rejected"
     counts = {"total": len(files), "passed": 0, "unscored": 0, "qed_fail": 0, "sa_fail": 0}
     with (out_dir / "scores.tsv").open("w") as f:
         f.write("molecule\tsmiles\tSAScore\tQED\tpassed\n")
         for path, (smiles, sa, qed) in zip(files, results):
-            if sa is None or qed is None:
+            if (use_sa and sa is None) or (use_qed and qed is None):
                 ok = False
                 counts["unscored"] += 1
             else:
-                qed_ok, sa_ok = qed > qed_ref, sa < sa_ref
+                qed_ok = not use_qed or qed > qed_ref
+                sa_ok = not use_sa or sa < sa_ref
                 counts["qed_fail"] += int(not qed_ok)
                 counts["sa_fail"] += int(not sa_ok)
                 ok = qed_ok and sa_ok
@@ -183,10 +189,12 @@ def screen_query(query_dir, out_dir, reference: dict, relax=None, log=print) -> 
                 shutil.move(str(path), str(rejected / path.name))
     summary = {"reference": {"sa_mean": float(reference["sa_mean"]), "qed_mean": float(reference["qed_mean"]),
                              "n_valid": reference.get("n_valid")},
-               "relax": thr["relax"], "thresholds": {"qed_min": qed_ref, "sa_max": sa_ref}, "counts": counts}
+               "relax": thr["relax"], "scores": [n for n, u in (("SAScore", use_sa), ("QED", use_qed)) if u],
+               "thresholds": {"qed_min": qed_ref if use_qed else None, "sa_max": sa_ref if use_sa else None}, "counts": counts}
     (out_dir / "score_screen_summary.json").write_text(json.dumps(summary, indent=2))
-    log(f"  Score screening (QED > {qed_ref:.4f} = mean {float(reference['qed_mean']):.4f} x {1 - thr['relax']['QED']:g}, "
-        f"SA < {sa_ref:.4f} = mean {float(reference['sa_mean']):.4f} x {1 + thr['relax']['SAScore']:g}): "
+    rules = ([f"QED > {qed_ref:.4f} = mean {float(reference['qed_mean']):.4f} x {1 - thr['relax']['QED']:g}"] if use_qed else []) + \
+            ([f"SA < {sa_ref:.4f} = mean {float(reference['sa_mean']):.4f} x {1 + thr['relax']['SAScore']:g}"] if use_sa else [])
+    log(f"  Score screening ({', '.join(rules)}): "
         f"{counts['passed']} of {counts['total']} "
         f"passed ({counts['qed_fail']} QED too low, {counts['sa_fail']} SA too high, {counts['unscored']} unscored)")
     return summary

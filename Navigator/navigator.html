@@ -1,0 +1,2191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QALPA Navigator</title>
+<style>
+  :root {
+    --bg: #f6f7f8; --surface: #ffffff; --ink: #1f2328; --ink2: #52514e; --muted: #8e8a80; --line: #e1e0d9;
+    --blue: #2a78d6; --blue-soft: #eaf2fc; --orange: #eb6834; --aqua: #1baf7a; --red: #d03b3b;
+    --shadow: 0 1px 2px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.04);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #0d1117; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #8e8a80; --line: #2c2c2a;
+            --blue: #3987e5; --blue-soft: #16243a; --orange: #e0622f; --aqua: #199e70; --red: #e66767; --shadow: none; }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { height: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif; display: flex; flex-direction: column; }
+  code { font-size: 12px; background: var(--bg); padding: 1px 4px; border-radius: 4px; }
+
+  .topbar { display: flex; align-items: center; gap: 14px; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--line); }
+  .logo { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--blue), #0d366b); display: grid; place-items: center; color: #fff; font-weight: 700; }
+  .brand b { font-size: 16px; display: block; }
+  .brand span { color: var(--ink2); font-size: 12px; }
+  .expchip { margin-left: 18px; font-size: 12px; color: var(--ink2); }
+  .expchip b { color: var(--ink); }
+  .badge { margin-left: auto; display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--ink2); background: var(--bg); padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+  .dot.on { background: var(--aqua); }
+  .dot.off { background: var(--red); }
+  .badge.off { color: var(--red); border-color: var(--red); }
+
+  .app { flex: 1; display: grid; grid-template-columns: 330px 1fr; gap: 16px; padding: 16px 20px; min-height: 0; }
+  @media (max-width: 900px) { .app { grid-template-columns: 1fr; } }
+  .side { display: flex; flex-direction: column; gap: 12px; overflow: auto; padding-bottom: 8px; }
+  .main { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px; box-shadow: var(--shadow); }
+  .card.locked { opacity: .55; pointer-events: none; }
+  .card h2 { margin: 0 0 10px; font-size: 13px; display: flex; align-items: center; gap: 8px; }
+  .card h2 .ok { margin-left: auto; color: var(--aqua); font-size: 12px; font-weight: 600; }
+  .step { width: 20px; height: 20px; border-radius: 50%; background: var(--blue); color: #fff; font-size: 11px; display: grid; place-items: center; font-weight: 700; }
+  label.f { display: block; color: var(--ink2); font-size: 12px; margin: 8px 0 4px; }
+  select, input[type=number], input[type=text], input[type=password] { font: inherit; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; width: 100%; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .const { margin-top: 6px; }
+  .pathrow { display: flex; gap: 6px; }
+  .pathrow input { flex: 1; min-width: 0; }
+  .btn { font: inherit; font-weight: 500; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+  .btn:hover:not(:disabled) { border-color: var(--blue); }
+  .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
+  .btn:disabled { opacity: .45; cursor: default; }
+  .btns { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .tabs { display: flex; gap: 4px; background: var(--bg); padding: 3px; border-radius: 9px; margin-bottom: 4px; }
+  .tabs button { flex: 1; font: inherit; font-size: 12px; border: 0; background: none; color: var(--ink2); padding: 5px; border-radius: 7px; cursor: pointer; }
+  .tabs button.on { background: var(--surface); color: var(--ink); box-shadow: 0 1px 2px rgba(0,0,0,.1); }
+  .file { margin-top: 10px; padding: 8px 10px; border-radius: 8px; background: var(--bg); font-size: 12px; color: var(--ink2); word-break: break-all; white-space: pre-line; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 8px; }
+  .check { display: flex; gap: 8px; align-items: center; font-size: 13px; margin-top: 8px; }
+
+  .progress { margin-top: 10px; }
+  .progress .track { height: 8px; border-radius: 4px; background: var(--line); overflow: hidden; }
+  .progress .fill { height: 100%; width: 0; background: var(--blue); border-radius: 4px; transition: width .25s ease; }
+  .progress.busy .fill.indet { width: 35%; animation: slide 1.1s ease-in-out infinite; }
+  .progress.done .fill { background: var(--aqua); }
+  .progress.fail .fill { background: var(--red); }
+  .progress .ptext { display: flex; justify-content: space-between; gap: 8px; font-size: 12px; color: var(--ink2); margin-top: 4px; font-variant-numeric: tabular-nums; }
+  @keyframes slide { 0% { transform: translateX(-100%); } 100% { transform: translateX(290%); } }
+
+  .plotcard { flex: 1; display: flex; flex-direction: column; min-height: 420px; }
+  .toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .toolbar .title { font-weight: 600; }
+  .toolbar .sub { color: var(--ink2); font-size: 12px; }
+  .toolbar .right { margin-left: auto; display: flex; gap: 8px; }
+  .canvas-wrap { position: relative; flex: 1; min-height: 0; }
+  canvas { width: 100%; height: 100%; display: block; cursor: crosshair; border-radius: 8px; }
+  .empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--ink2); pointer-events: none; }
+  .empty b { display: block; font-size: 15px; color: var(--ink); margin-bottom: 4px; }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th { text-align: right; color: var(--ink2); font-weight: 500; font-size: 12px; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; }
+  td input { width: 90px; padding: 3px 6px; text-align: right; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 4px; background: var(--blue-soft); color: var(--blue); }
+
+  dialog { border: 1px solid var(--line); border-radius: 14px; padding: 0; width: min(640px, 94vw); background: var(--surface); color: var(--ink); box-shadow: 0 20px 60px rgba(0,0,0,.25); }
+  dialog::backdrop { background: rgba(13,17,23,.45); }
+  .dlg-head { padding: 14px 18px; border-bottom: 1px solid var(--line); display: flex; align-items: center; gap: 10px; }
+  .dlg-head b { font-size: 15px; }
+  .dlg-body { padding: 12px 18px; }
+  .crumbs { padding: 10px 18px; font-size: 12px; color: var(--ink2); display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--line); }
+  .crumbs a { color: var(--blue); cursor: pointer; }
+  .list { height: 340px; overflow: auto; }
+  .item { display: flex; align-items: center; gap: 10px; padding: 8px 18px; cursor: pointer; border-bottom: 1px solid var(--line); }
+  .item:hover { background: var(--blue-soft); }
+  .item.sel { background: var(--blue-soft); outline: 1px solid var(--blue); outline-offset: -1px; }
+  .item .ic { width: 18px; text-align: center; }
+  .item .sz { margin-left: auto; color: var(--muted); font-size: 12px; }
+  .dlg-foot { padding: 12px 18px; display: flex; gap: 8px; align-items: center; border-top: 1px solid var(--line); }
+  pre.log { max-height: 220px; overflow: auto; background: var(--bg); padding: 10px; border-radius: 8px; font-size: 12px; white-space: pre-wrap; margin: 0; }
+  .viewtabs { display: flex; gap: 4px; }
+  .viewtabs button { font: inherit; font-weight: 500; border: 1px solid var(--line); background: var(--surface); color: var(--ink2); padding: 6px 14px; border-radius: 8px; cursor: pointer; }
+  .viewtabs button.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+  .viewtabs button.danger { margin-left: auto; color: var(--red); border-color: var(--red); }
+  .viewtabs button.danger.on { background: var(--red); border-color: var(--red); color: #fff; }
+  #clTable td input[type=checkbox] { width: auto; padding: 0; }
+  #clTable th:nth-child(2), #clTable td:nth-child(2) { text-align: left; }
+  #clTable tr.clStage td { background: var(--blue-soft); font-weight: 600; }
+  #clTable tr.clItem td:nth-child(2) { padding-left: 24px; }
+  .view { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+  .trlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink2); margin: 2px 0 8px; }
+  .trlegend span { display: inline-flex; align-items: center; gap: 6px; }
+  .trlegend i { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
+  .trtip { position: absolute; pointer-events: none; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 8px; padding: 6px 9px; font-size: 12px; line-height: 1.45; box-shadow: var(--shadow); white-space: nowrap; z-index: 2; }
+  .logtext { flex: 1; margin: 0; overflow: auto; font: 12px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; white-space: pre-wrap; word-break: break-word; min-height: 380px; max-height: calc(100vh - 220px); }
+  .editor { flex: 1; display: flex; flex-direction: column; min-height: 420px; }
+  .cfgbar { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; }
+  .cfgbar .tabs { margin: 0; width: 180px; }
+  .cfgbar input { max-width: 260px; }
+  #cfgSections { flex: 1; overflow: auto; }
+  .cfgsec { border: 1px solid var(--line); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+  .cfgsec > summary { cursor: pointer; padding: 8px 12px; background: var(--bg); font-weight: 600; font-size: 13px; display: flex; gap: 8px; align-items: center; list-style: none; }
+  .cfgsec > summary::-webkit-details-marker { display: none; }
+  .cfgsec > summary::before { content: "▸"; color: var(--muted); font-size: 11px; transition: transform .15s; }
+  .cfgsec[open] > summary::before { transform: rotate(90deg); }
+  .cfgsec > summary .n { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .cfgsec > summary .chg { color: var(--orange); font-size: 12px; font-weight: 500; }
+  .cfgsec .desc { color: var(--muted); font-size: 12px; line-height: 1.45; padding: 8px 12px 4px; }
+  /* the global table rules right-align every cell after the first and every input inside a cell: undo that here */
+  .cfgtab { width: 100%; border-collapse: collapse; font-size: 12.5px; table-layout: fixed; }
+  .cfgtab col.ck { width: 24%; } .cfgtab col.cv { width: 26%; } .cfgtab col.ce { width: 112px; }
+  .cfgtab th, .cfgtab td { text-align: left; padding: 7px 12px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  .cfgtab th { font-weight: 500; color: var(--ink2); font-size: 11px; text-transform: uppercase; letter-spacing: .03em; padding-top: 6px; padding-bottom: 6px; }
+  .cfgtab tr:last-child td { border-bottom: 0; }
+  .cfgtab td.k { font-family: ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+  .cfgtab td.k .kn { color: var(--ink); }
+  .cfgtab td.k .kp { color: var(--muted); font-size: 11px; margin-top: 1px; }
+  .cfgtab td.v input, .cfgtab td.v select { width: 100%; text-align: left; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12.5px; padding: 4px 7px; }
+  .cfgtab td.v .ro { display: block; color: var(--ink2); font-family: ui-monospace, Menlo, Consolas, monospace; overflow-wrap: anywhere; }
+  .cfgtab td.c { color: var(--ink2); font-size: 12px; line-height: 1.45; }
+  .cfgtab td.c .cwarn { color: var(--red); margin-top: 3px; }
+  .cfgtab td.e { white-space: nowrap; }
+  .etag { display: inline-block; font-size: 10.5px; padding: 1px 7px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink2); }
+  .etag.mand { border-color: var(--orange); color: var(--orange); }
+  .cfgtab tr.changed td.v input, .cfgtab tr.changed td.v select { border-color: var(--orange); }
+  .editor textarea { flex: 1; width: 100%; resize: none; font: 12.5px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; tab-size: 2; white-space: pre; }
+  .warn { background: #fff4e5; color: #8a4a00; border: 1px solid #f6c48f; padding: 8px 10px; border-radius: 8px; font-size: 12px; margin-bottom: 8px; }
+  @media (prefers-color-scheme: dark) { .warn { background: #2e211a; color: #f6b08f; border-color: #8a4527; } }
+  .err { color: var(--red); font-size: 12px; margin-top: 6px; white-space: pre-wrap; }
+  .kpis { display: flex; gap: 12px; flex-wrap: wrap; }
+  .kpi { flex: 1; min-width: 150px; background: var(--bg); border-radius: 10px; padding: 10px 14px; }
+  .kpi .k { font-size: 12px; color: var(--ink2); }
+  .kpi .v { font-size: 22px; font-weight: 600; margin-top: 2px; }
+  .state { display: inline-block; font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--bg); color: var(--ink2); }
+  .state.RUNNING { background: var(--blue-soft); color: var(--blue); }
+  .state.PENDING { background: #fff4e5; color: #8a4a00; }
+  .state.COMPLETED { background: #e6f6ee; color: #0a6b45; }
+  .state.FAILED, .state.CANCELLED, .state.TIMEOUT, .state.OUT_OF_MEMORY, .state.NODE_FAIL { background: #fdeaea; color: var(--red); }
+  @media (prefers-color-scheme: dark) { .state.PENDING { background: #2e211a; color: #f6b08f; } .state.COMPLETED { background: #12261c; color: #4fd19a; } .state.FAILED, .state.CANCELLED, .state.TIMEOUT, .state.OUT_OF_MEMORY, .state.NODE_FAIL { background: #2e1616; } }
+  .switch { display: flex; align-items: center; gap: 8px; font-size: 13px; margin-top: 10px; cursor: pointer; }
+  .jobcols { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+  .jobcols h3 { margin: 4px 0 2px; font-size: 13px; }
+  #kmLayers label { display: inline-flex; align-items: center; gap: 5px; cursor: pointer; }
+  #mbTable tr[data-i] { cursor: pointer; }
+  #mbTable tr.sel td { background: var(--blue-soft); }
+  #mbTable td.smi { font: 11px ui-monospace, monospace; text-align: left; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .funnel { display: grid; grid-template-columns: 130px 1fr 60px; gap: 6px 10px; align-items: center; font-size: 12px; }
+  .funnel .bar { height: 14px; border-radius: 4px; background: var(--blue); min-width: 2px; }
+  .funnel .n { text-align: right; font-variant-numeric: tabular-nums; }
+  td.heat { position: relative; }
+  .kpi .s { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); background: var(--ink); color: var(--surface); padding: 9px 16px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 10; }
+  .toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="logo">Q</div>
+  <div class="brand"><b>QALPA Navigator</b><span>Set up an experiment and design its trajectory</span></div>
+  <div class="expchip" id="expchip" hidden>Experiment <b id="expname"></b></div>
+  <div class="badge"><span class="dot" id="dot"></span><span id="mode">Offline (files from this computer)</span></div>
+  <button class="btn" id="gear" title="Connection settings" hidden>⚙ Settings</button>
+</div>
+
+<div class="app">
+  <div class="side">
+    <!-- 1 experiment -->
+    <div class="card" id="cardExp" hidden>
+      <h2><span class="step">1</span>Experiment<span class="ok" id="expOk" hidden>✓ ready</span></h2>
+      <div class="tabs"><button id="tabNew" class="on">New</button><button id="tabOpen">Existing</button></div>
+      <div id="paneNew">
+        <label class="f" for="expName">Name</label>
+        <input type="text" id="expName" placeholder="e.g. hlgap_scan" spellcheck="false">
+        <label class="f" for="expData">Dataset (initial HDF5)</label>
+        <div class="pathrow"><input type="text" id="expData" placeholder="choose a file…" readonly><button class="btn" id="expBrowse">Browse…</button></div>
+        <div class="btns"><button class="btn primary" id="expCreate" disabled>Create experiment</button></div>
+        <div class="hint">Runs <code>src/scripts/init_experiment.py</code>: creates <code>Experiments/&lt;name&gt;_&lt;n&gt;/</code> with its config and job scripts.</div>
+      </div>
+      <div id="paneOpen" hidden>
+        <label class="f" for="expList">Experiment</label>
+        <select id="expList"></select>
+        <div class="btns"><button class="btn primary" id="expUse" disabled>Use this experiment</button><button class="btn" id="expRefresh">Refresh</button></div>
+      </div>
+      <div class="file" id="expStatus" hidden></div>
+    </div>
+
+    <!-- 2 map -->
+    <div class="card" id="cardMap">
+      <h2><span class="step" id="nMap">2</span>Map</h2>
+      <label class="f">Dataset</label>
+      <div class="pathrow"><input type="text" id="mapData" placeholder="choose a file…" readonly><button class="btn" id="browse" hidden>Browse…</button><button class="btn" id="local">This computer…</button></div>
+      <input id="file" type="file" accept=".hdf5,.h5,.csv" hidden>
+      <label class="f" for="px">X axis</label><select id="px"></select>
+      <div class="grid2 const" id="pxc" hidden><select title="column name"></select><input type="number" step="any" placeholder="value"></div>
+      <label class="f" for="py">Y axis</label><select id="py"></select>
+      <div class="grid2 const" id="pyc" hidden><select title="column name"></select><input type="number" step="any" placeholder="value"></div>
+      <label class="f" for="pc">Colour</label><select id="pc"></select>
+      <div class="grid2 const" id="pcc" hidden><select title="column name"></select><input type="number" step="any" placeholder="value"></div>
+      <div class="grid2">
+        <div><label class="f" for="maxmol">Molecules to read</label><input id="maxmol" type="number" value="1000" min="0" step="1000"></div>
+        <div><label class="f" for="grid">Hexagon size</label><input id="grid" type="number" value="9" min="4" max="30"></div>
+      </div>
+      <div class="hint">Axes can be <b>none</b> (left out of the CSV) or <b>constant</b>. 0 molecules reads all.</div>
+      <div class="btns"><button class="btn primary" id="plot" disabled>Show map</button></div>
+      <div class="progress" id="prog" hidden>
+        <div class="track"><div class="fill" id="progFill"></div></div>
+        <div class="ptext"><span id="progText"></span><span id="progPct"></span></div>
+      </div>
+    </div>
+
+    <!-- 3 waypoints -->
+    <div class="card">
+      <h2><span class="step" id="nWay">3</span>Waypoints</h2>
+      <div class="hint" style="margin-top:0">Click anywhere on the map to add waypoints from start to end, including empty regions. The colour value (for example the atom count) comes from the nearest populated hexagons.</div>
+      <label class="check"><input id="addsa" type="checkbox"> SAScore column</label>
+      <label class="check"><input id="addqed" type="checkbox"> QED column</label>
+      <div class="hint">Score columns are read only with <code>query.score_reference: trajectory</code>.</div>
+    </div>
+
+    <!-- 4 export -->
+    <div class="card">
+      <h2><span class="step" id="nExp">4</span>Export</h2>
+      <div class="btns" style="margin-top:0">
+        <button class="btn primary" id="saveexp" hidden disabled>Save to experiment</button>
+        <button class="btn" id="savehpc" hidden disabled>Save as…</button>
+        <button class="btn" id="csv" disabled>Download CSV</button>
+        <button class="btn" id="png" disabled>Download PNG</button>
+      </div>
+      <div class="hint" id="exportHint">Put the CSV in <code>Experiments/&lt;experiment&gt;/configs/</code>.</div>
+    </div>
+
+    <!-- 5 config -->
+    <div class="card locked" id="cardCfg" hidden>
+      <h2><span class="step">5</span>Configuration</h2>
+      <div class="hint" style="margin-top:0">Edit the experiment's <code>experiment_config.yaml</code> in the main area.</div>
+      <div class="btns"><button class="btn primary" id="openCfg">Edit config</button></div>
+    </div>
+
+    <!-- 6 jobs -->
+    <div class="card locked" id="cardJobs" hidden>
+      <h2><span class="step">6</span>Run</h2>
+      <label class="f" for="startAt">Start at</label>
+      <select id="startAt"></select>
+      <div class="hint" id="startHint"></div>
+      <div class="btns">
+        <button class="btn primary" id="subFwd">Submit forward</button>
+        <button class="btn primary" id="subBwd">Submit backward</button>
+      </div>
+      <label class="switch"><input type="checkbox" id="chain"> Chain: submit the next job when the previous one completes</label>
+      <div class="hint" id="chainMsg"></div>
+      <div class="btns"><button class="btn" id="openJobs">Status</button><button class="btn" id="jobSet">Job settings…</button></div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="viewtabs" id="viewtabs" hidden><button data-v="Map" class="on">Map</button><button data-v="Config">Config</button><button data-v="Jobs">Jobs</button><button data-v="Logs">Logs</button><button data-v="Training">Training</button><button data-v="Eval">Evaluation</button><button data-v="Clean" class="danger" title="Delete outputs of a failed iteration">Clean</button></div>
+    <div class="view" id="viewEval" hidden>
+      <div class="card">
+        <div class="toolbar">
+          <div><div class="title">Generation &amp; evaluation</div><div class="sub" id="evSub">KDE targets, sampling metrics and the pipeline of every iteration</div></div>
+          <div class="right">
+            <select id="evIter" style="min-width:150px"></select>
+            <button class="btn" id="evRefresh">Refresh</button>
+          </div>
+        </div>
+        <div class="kpis" id="evKpis"></div>
+        <div class="hint" id="evKpiHint"></div>
+      </div>
+      <div class="card plotcard" style="min-height:300px;flex:none;height:320px">
+        <div class="toolbar">
+          <div><div class="title">Across iterations</div><div class="sub">mean over targets (line) and each target (dots)</div></div>
+          <div class="right"><select id="evMetric" style="min-width:200px"></select></div>
+        </div>
+        <div class="canvas-wrap" id="evWrap">
+          <canvas id="evCanvas" style="cursor:default"></canvas>
+          <div class="trtip" id="evTip" hidden></div>
+          <div class="empty" id="evEmpty"><div><b>No generated molecules yet</b><span id="evEmptyMsg">The forward job writes them to Data/&lt;experiment&gt;/iter_&lt;n&gt;/.</span></div></div>
+        </div>
+      </div>
+      <div class="card" style="overflow:auto">
+        <div class="toolbar"><div><div class="title">Targets</div><div class="sub" id="evTgtSub">planned by the KDE; sampling metrics and deduplication per target</div></div></div>
+        <table id="evTargets"></table>
+      </div>
+      <div class="jobcols">
+        <div class="card"><div class="toolbar"><div><div class="title">Pipeline funnel</div><div class="sub">molecules left after each stage</div></div></div><div id="evFunnel"></div></div>
+        <div class="card" style="overflow:auto"><div class="toolbar"><div><div class="title">All sampling metrics</div><div class="sub">evaluation.csv of each target</div></div></div><table id="evAll"></table></div>
+      </div>
+      <div class="card plotcard" style="flex:none;height:560px">
+        <div class="toolbar">
+          <div><div class="title">KDE map</div><div class="sub" id="kmSub">reference density, candidates, targets and where the molecules landed</div></div>
+          <div class="right">
+            <select id="kmX" title="x axis"></select><select id="kmY" title="y axis"></select>
+            <button class="btn" id="kmLoad">Load density</button>
+          </div>
+        </div>
+        <div class="trlegend" id="kmLayers">
+          <label><input type="checkbox" data-l="density" checked> density percentile</label>
+          <label><input type="checkbox" data-l="band" checked> density band</label>
+          <label><input type="checkbox" data-l="cand"> scored candidates</label>
+          <label><input type="checkbox" data-l="targets" checked> targets ◆</label>
+          <label><input type="checkbox" data-l="landed" checked> computed molecules (● hit · ✕ miss)</label>
+        </div>
+        <div class="canvas-wrap">
+          <canvas id="kmCanvas" style="cursor:default"></canvas>
+          <div class="trtip" id="kmTip" hidden></div>
+          <div class="empty" id="kmEmpty"><div><b>KDE map</b><span id="kmEmptyMsg">Press “Load density” (the first load reads the reference dataset and can take a minute).</span></div></div>
+        </div>
+      </div>
+      <div class="card plotcard" style="flex:none;height:380px">
+        <div class="toolbar">
+          <div><div class="title">Candidate scoring</div><div class="sub" id="csSub">anchor_candidates.csv of the chosen iteration: density against score</div></div>
+          <div class="right"><select id="csY" title="y axis"></select></div>
+        </div>
+        <div class="trlegend"><span><i style="background:var(--orange)"></i>selected</span><span><i style="background:var(--blue)"></i>eligible</span><span><i style="background:var(--muted)"></i>not eligible</span><span>outlined = in density band</span></div>
+        <div class="canvas-wrap">
+          <canvas id="csCanvas" style="cursor:default"></canvas>
+          <div class="trtip" id="csTip" hidden></div>
+          <div class="empty" id="csEmpty"><div><b>No candidates</b>The KDE planner writes anchor_candidates.csv in anchor mode.</div></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="toolbar">
+          <div><div class="title">Molecules</div><div class="sub" id="mbSub">browse the molecules of a pipeline stage</div></div>
+          <div class="right">
+            <select id="mbStage" style="min-width:160px"></select>
+            <select id="mbTarget"><option value="">all targets</option></select>
+            <input type="text" id="mbFilter" placeholder="filter id / SMILES" style="width:170px">
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px">
+          <div style="max-height:420px;overflow:auto"><table id="mbTable"></table></div>
+          <div>
+            <div class="canvas-wrap" style="height:330px;background:var(--bg);border-radius:8px"><canvas id="mbCanvas" style="cursor:grab"></canvas>
+              <div class="empty" id="mbEmpty"><div><b>No molecule</b>Click a row to view it.</div></div></div>
+            <div class="hint" id="mbInfo" style="word-break:break-all"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="view" id="viewConfig" hidden>
+      <div class="card editor">
+        <div class="toolbar">
+          <div><div class="title" id="cfgTitle">experiment_config.yaml</div><div class="sub" id="cfgSub"></div></div>
+          <div class="right"><button class="btn" id="cfgReload">Reload</button><button class="btn primary" id="cfgSave" disabled>Save</button></div>
+        </div>
+        <div class="warn" id="cfgWarn" hidden></div>
+        <div class="cfgbar">
+          <div class="tabs" id="cfgMode"><button data-m="tables" class="on">Tables</button><button data-m="yaml">YAML</button></div>
+          <input type="text" id="cfgFilter" placeholder="Filter keys, values, explanations…">
+        </div>
+        <div id="cfgSections"></div>
+        <textarea id="cfgText" spellcheck="false" hidden></textarea>
+        <div class="err" id="cfgErr"></div>
+      </div>
+    </div>
+    <div class="view" id="viewJobs" hidden>
+      <div class="card">
+        <div class="toolbar"><div><div class="title">Run status</div><div class="sub" id="jobsSub">refreshes every 20 s</div></div>
+          <div class="right"><button class="btn" id="jobsRefresh">Refresh</button></div></div>
+        <div class="kpis">
+          <div class="kpi"><div class="k">Iteration</div><div class="v" id="kIter">–</div></div>
+          <div class="kpi"><div class="k">Forward (GPU)</div><div class="v" id="kFwd">–</div></div>
+          <div class="kpi"><div class="k">Backward (CPU)</div><div class="v" id="kBwd">–</div></div>
+          <div class="kpi"><div class="k">Chain</div><div class="v" id="kChain" style="font-size:14px">off</div></div>
+        </div>
+      </div>
+      <div class="card"><table id="jobsTable"></table></div>
+    </div>
+    <div class="view" id="viewLogs" hidden>
+      <div class="card editor">
+        <div class="toolbar">
+          <div><div class="title">Logs</div><div class="sub" id="logSub">Choose a log file</div></div>
+          <div class="right">
+            <select id="logSel" style="min-width:230px"></select>
+            <label class="hint" style="display:flex;align-items:center;gap:5px;margin:0"><input type="checkbox" id="logFollow" checked> follow</label>
+            <button class="btn" id="logRefresh">Refresh</button>
+          </div>
+        </div>
+        <pre id="logView" class="logtext"></pre>
+      </div>
+    </div>
+    <div class="view" id="viewClean" hidden>
+      <div class="card">
+        <div class="toolbar">
+          <div><div class="title">Clean iteration</div><div class="sub" id="clSub">Empty the outputs of a failed iteration so it can be re-run (folders are kept)</div></div>
+          <div class="right">
+            <select id="clIter" style="min-width:120px"></select>
+            <button class="btn" id="clRefresh">Refresh</button>
+          </div>
+        </div>
+        <div class="btns" style="margin-top:0">
+          <button class="btn" id="clAll">Select all</button>
+          <button class="btn" id="clNone">Select none</button>
+          <button class="btn primary" id="clGo" style="background:var(--red);border-color:var(--red)">Clean…</button>
+        </div>
+        <div class="err" id="clErr"></div>
+      </div>
+      <div class="card" style="overflow:auto"><table id="clTable"></table></div>
+    </div>
+    <div class="view" id="viewTraining" hidden>
+      <div class="card plotcard">
+        <div class="toolbar">
+          <div><div class="title" id="trTitle">Training curves</div><div class="sub" id="trSub">TensorBoard logs of every iteration</div></div>
+          <div class="right">
+            <select id="trMetric" style="min-width:200px"></select>
+            <label class="hint" style="display:flex;align-items:center;gap:5px;margin:0"><input type="checkbox" id="trLog"> log scale</label>
+            <button class="btn" id="trRefresh">Refresh</button>
+          </div>
+        </div>
+        <div class="trlegend" id="trLegend"></div>
+        <div class="canvas-wrap" id="trWrap">
+          <canvas id="trCanvas"></canvas>
+          <div class="trtip" id="trTip" hidden></div>
+          <div class="empty" id="trEmpty"><div><b>No training logs yet</b><span id="trEmptyMsg">The forward job writes them while it trains the model.</span></div></div>
+        </div>
+      </div>
+      <div class="card"><table id="trTable"></table></div>
+    </div>
+    <div class="view" id="viewMap">
+    <div class="card plotcard">
+      <div class="toolbar">
+        <div><div class="title" id="ptitle">Property map</div><div class="sub" id="psub">No data</div></div>
+        <div class="right"><label class="hint" id="kdeWrap" style="display:flex;align-items:center;gap:5px;margin:0" title="Targets planned by the KDE in every iteration (targets.json)" hidden><input type="checkbox" id="kdeShow"> KDE targets</label><button class="btn" id="undo" disabled>Undo</button><button class="btn" id="clear" disabled>Clear</button></div>
+      </div>
+      <div class="canvas-wrap">
+        <canvas id="map"></canvas>
+        <div class="empty" id="empty"><div><b>No map yet</b>Choose a dataset and press “Show map”.</div></div>
+      </div>
+    </div>
+    <div class="card"><table id="table"></table></div>
+    </div>
+  </div>
+</div>
+
+<dialog id="jobdlg" style="width:min(760px,96vw)">
+  <div class="dlg-head"><b>Job settings</b><span style="color:var(--ink2);font-size:12px">passed to sbatch; empty fields keep the job script's #SBATCH values</span></div>
+  <div class="dlg-body"><div class="jobcols" id="jobcols"></div></div>
+  <div class="dlg-foot"><span style="flex:1"></span><button class="btn" id="jobCancel">Cancel</button><button class="btn primary" id="jobOk">Save</button></div>
+</dialog>
+
+<!-- dialogs -->
+<dialog id="dlg">
+  <div class="dlg-head"><b id="dlgTitle">Open dataset</b><span style="color:var(--ink2);font-size:12px" id="dlgSub"></span></div>
+  <div class="crumbs" id="crumbs"></div>
+  <div class="list" id="list"></div>
+  <div class="dlg-foot">
+    <input type="text" id="fname" placeholder="file name" hidden>
+    <span style="flex:1" id="spacer"></span>
+    <button class="btn" id="dlgCancel">Cancel</button>
+    <button class="btn primary" id="dlgOk" disabled>Open</button>
+  </div>
+</dialog>
+
+<dialog id="signin">
+  <div class="dlg-head"><b>Sign in to the Navigator server</b></div>
+  <div class="dlg-body">
+    <div class="hint" style="margin-top:0">Paste the token printed in the terminal where <code>navigator_server.py</code> runs (the line starting with <code>Token:</code>). The browser remembers it.</div>
+    <label class="f" for="tokin">Token</label><input type="text" id="tokin" autocomplete="off" spellcheck="false">
+    <div class="hint" id="signinErr" style="color:var(--red)"></div>
+  </div>
+  <div class="dlg-foot"><span style="flex:1"></span><button class="btn primary" id="signinOk">Sign in</button></div>
+</dialog>
+
+<dialog id="settings">
+  <div class="dlg-head"><b>Connection settings</b></div>
+  <div class="dlg-body">
+    <label class="check"><input type="radio" name="cmode" value="local" checked> Files on the machine running the server</label>
+    <label class="check"><input type="radio" name="cmode" value="ssh"> Remote HPC over SSH</label>
+    <div id="sshFields">
+      <div class="grid2">
+        <div><label class="f" for="sHost">Host</label><input type="text" id="sHost" placeholder="login1.hpc.example.org"></div>
+        <div><label class="f" for="sUser">User</label><input type="text" id="sUser" placeholder="username"></div>
+      </div>
+      <div class="grid2">
+        <div><label class="f" for="sPort">Port</label><input type="number" id="sPort" value="22"></div>
+        <div><label class="f" for="sKey">Private key file (on this computer)</label><input type="text" id="sKey" placeholder="~/.ssh/id_ed25519"></div>
+      </div>
+      <label class="f" for="sPass">Password or key passphrase (optional, never stored)</label><input type="password" id="sPass" autocomplete="off">
+      <label class="f" for="sPy">Python on the HPC (for creating experiments)</label><input type="text" id="sPy" placeholder="python3">
+    </div>
+    <label class="f" for="sRoot">Project folder (the QALPA repository)</label><input type="text" id="sRoot" placeholder="/data/horse/ws/<you>/QAPLA2">
+    <div class="hint">Leave the key empty to use your SSH agent or default keys. Everything except the password is remembered.</div>
+    <div class="hint" id="setErr" style="color:var(--red)"></div>
+  </div>
+  <div class="dlg-foot"><span style="flex:1"></span><button class="btn" id="setCancel">Cancel</button><button class="btn primary" id="setOk">Connect</button></div>
+</dialog>
+
+<dialog id="logdlg">
+  <div class="dlg-head"><b id="logTitle">Experiment created</b></div>
+  <div class="dlg-body"><pre class="log" id="logText"></pre></div>
+  <div class="dlg-foot"><span style="flex:1"></span><button class="btn primary" id="logOk">Continue</button></div>
+</dialog>
+<dialog id="askdlg">
+  <div class="dlg-head"><b>Please confirm</b></div>
+  <div class="dlg-body" id="askText" style="max-width:440px;white-space:pre-wrap"></div>
+  <div class="dlg-foot"><span style="flex:1"></span><button class="btn" id="askNo">No</button><button class="btn primary" id="askYes">Yes</button></div>
+</dialog>
+<div class="toast" id="toast"></div>
+
+<script type="module">
+const $ = (id) => document.getElementById(id);
+const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const dark = matchMedia("(prefers-color-scheme: dark)").matches;
+const RAMP = dark ? ["#0d366b", "#1c5cab", "#3987e5", "#86b6ef", "#cde2fb"] : ["#cde2fb", "#86b6ef", "#3987e5", "#1c5cab", "#0d366b"];
+const NONE = "__none__", CONST = "__const__";
+const SERVER = location.protocol.startsWith("http");
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch { return null; } },
+                set: (k, v) => { try { localStorage.setItem(k, v); } catch {} } };
+
+// state
+let data = {}, hexes = [], view = null, points = [], dataName = "";
+let fileTotal = null;                    // molecules in the whole file (null = unknown)
+let source = null;                       // chosen map dataset: {kind: "server", path} | {kind: "local", file}
+let loadedKey = "";                      // which source + limit the current data came from
+let experiment = null;                   // {name, dataset_rel}
+let ROOT = "";
+
+const status = (t) => toast(t);
+// SLURM states after which a job is over (same list as FINAL in navigator_server.py); any other state can be cancelled.
+const FINAL_STATES = ["COMPLETED", "FAILED", "CANCELLED", "TIMEOUT", "OUT_OF_MEMORY", "NODE_FAIL", "PREEMPTED", "BOOT_FAIL", "DEADLINE"];
+function jobActive(j) { return !FINAL_STATES.includes(j.state); }
+// In-page yes/no dialog: window.confirm() is blocked in some embedded browsers (e.g. the VS Code browser).
+function ask(msg) {
+  return new Promise((resolve) => {
+    const d = $("askdlg");
+    $("askText").textContent = msg;
+    const done = (v) => { d.onclose = null; d.close(); resolve(v); };
+    $("askYes").onclick = () => done(true);
+    $("askNo").onclick = () => done(false);
+    d.onclose = () => resolve(false);
+    d.showModal();
+  });
+}
+function toast(t) { const el = $("toast"); el.textContent = t; el.classList.add("show"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove("show"), 3200); }
+const fmtSize = (b) => (b == null ? "" : b > 1e9 ? (b / 1e9).toFixed(1) + " GB" : b > 1e6 ? (b / 1e6).toFixed(1) + " MB" : Math.ceil(b / 1e3) + " KB");
+
+// ================================================================= server, sign-in, settings
+let TOKEN = new URLSearchParams(location.search).get("token") || store.get("qalpa_token") || "";
+if (new URLSearchParams(location.search).get("token")) { store.set("qalpa_token", TOKEN); history.replaceState(null, "", location.pathname); }
+
+async function api(path, params = {}, body) {
+  const url = `${path}?` + new URLSearchParams(TOKEN ? { token: TOKEN, ...params } : params);
+  let res;
+  try { res = await fetch(url, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : {}); }
+  catch { if (connInfo) setConn(false, ...LOST); throw new Error("Navigator server not reachable"); }
+  const json = await res.json().catch(() => ({ error: res.statusText }));
+  if (!res.ok && res.status !== 409) throw new Error(json.error || res.statusText);
+  return { status: res.status, ...json };
+}
+// Connection badge: green only while the server answers and its project folder (local or over SSH) is reachable.
+// Checked every 15 s, when the tab becomes visible again, and whenever a request cannot reach the server.
+const LOST = ["Disconnected · server not reachable", "The Navigator server does not answer. Is it still running (and the port still forwarded)?"];
+let connInfo = null, connUp = false, connBusy = false;
+function setConn(up, text, title = "") {
+  connUp = up;
+  $("dot").classList.toggle("on", up); $("dot").classList.toggle("off", !up);
+  $("dot").parentElement.classList.toggle("off", !up);
+  $("mode").textContent = text; $("mode").title = title;
+}
+function showConn(info) {
+  if (info.alive === false)
+    return setConn(false, info.mode === "ssh" ? `SSH connection lost · ${info.root}` : `Project folder not reachable · ${info.root}`,
+                   info.mode === "ssh" ? "Reconnect with ⚙ Settings" : "");
+  setConn(true, info.mode === "ssh" ? `SSH · ${info.root}` : `Connected · ${info.name}`, `${info.root} · checked ${new Date().toLocaleTimeString()}`);
+}
+async function heartbeat() {
+  if (!SERVER || !connInfo || connBusy) return;          // starts after the first successful connect
+  connBusy = true;
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 8000);
+  try {
+    const res = await fetch("/api/info?" + new URLSearchParams(TOKEN ? { token: TOKEN } : {}), { signal: ctl.signal, cache: "no-store" });
+    const info = await res.json().catch(() => ({}));
+    if (res.status === 403) setConn(false, "Signed out · token not accepted", "Reload the page and sign in again");
+    else if (!res.ok) setConn(false, `Server error · ${info.error || res.status}`);
+    else if (info.alive !== false && (!connUp || info.mode !== connInfo.mode || info.root !== connInfo.root)) {
+      if (!connUp) toast("Connection to the Navigator server is back");
+      showInfo(info);                                     // back, or restarted with another backend: resync the page
+    } else showConn(info);
+  } catch (e) {
+    setConn(false, ...(e.name === "AbortError" ? ["Server not responding", "The Navigator server did not answer within 8 s"] : LOST));
+  } finally { clearTimeout(timer); connBusy = false; }
+}
+if (SERVER) {
+  setInterval(heartbeat, 15000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) heartbeat(); });
+  addEventListener("online", heartbeat);
+}
+function showInfo(info) {
+  ROOT = info.root; cwd = ""; lastFolder = ""; connInfo = info;
+  showConn(info);
+  for (const id of ["browse", "savehpc", "gear", "saveexp", "cardExp", "cardCfg", "cardJobs", "viewtabs", "kdeWrap"]) $(id).hidden = false;
+  $("local").textContent = "This computer…";
+  refreshExperiments();
+  restorePassphrases();
+}
+// Key passphrases remembered in this browser (opt-in): handed to the server when it does not hold one,
+// e.g. after a server restart. They never go to the server's disk.
+const PASS_KEY = (j) => `qalpa.passphrase.${j}`;
+const forgetPass = (j) => { try { localStorage.removeItem(PASS_KEY(j)); } catch {} };
+async function restorePassphrases() {
+  let s; try { s = await api("/api/job_settings"); } catch { return; }
+  const body = {};
+  for (const j of ["forward", "backward"]) { const pw = store.get(PASS_KEY(j)); if (pw && !s[j].passphrase_set) body[j] = { passphrase: pw }; }
+  if (Object.keys(body).length) try { await api("/api/job_settings", {}, body); toast("Key passphrase restored from this browser"); s = await api("/api/job_settings"); } catch {}
+  // Still missing: open Job settings so the passphrase is entered before any job state is checked.
+  const need = ["forward", "backward"].filter((j) => s[j]?.passphrase_needed);
+  if (need.length) { toast(`Enter the SSH key passphrase for the ${need.join(" and ")} cluster — job states and chains need it`); $("jobSet").onclick(); }
+}
+async function connect() {
+  try { showInfo(await api("/api/info")); }
+  catch (e) {
+    if (/token/.test(e.message)) { $("signinErr").textContent = TOKEN ? "That token is not valid for this server." : ""; $("signin").showModal(); }
+    else setConn(false, "Server not reachable", `${e.message} · reload the page once the server runs`);
+  }
+}
+$("signinOk").onclick = () => { TOKEN = $("tokin").value.trim(); store.set("qalpa_token", TOKEN); $("signin").close(); connect(); };
+$("tokin").addEventListener("keydown", (e) => { if (e.key === "Enter") $("signinOk").click(); });
+
+const SET_KEYS = ["sHost", "sUser", "sPort", "sKey", "sRoot", "sPy"];
+function syncSsh() { $("sshFields").style.display = document.querySelector("input[name=cmode]:checked").value === "ssh" ? "" : "none"; }
+document.querySelectorAll("input[name=cmode]").forEach((r) => (r.onchange = syncSsh));
+$("gear").onclick = () => {
+  const saved = JSON.parse(store.get("qalpa_conn") || "{}");
+  for (const k of SET_KEYS) if (saved[k] != null) $(k).value = saved[k];
+  document.querySelector(`input[name=cmode][value=${saved.mode || "local"}]`).checked = true;
+  $("sPass").value = ""; $("setErr").textContent = ""; syncSsh(); $("settings").showModal();
+};
+$("setCancel").onclick = () => $("settings").close();
+$("setOk").onclick = async () => {
+  const mode = document.querySelector("input[name=cmode]:checked").value;
+  const saved = { mode }; for (const k of SET_KEYS) saved[k] = $(k).value.trim();
+  store.set("qalpa_conn", JSON.stringify(saved));
+  $("setOk").disabled = true; $("setErr").textContent = mode === "ssh" ? "Connecting…" : "";
+  try {
+    const info = await api("/api/connect", {}, { mode, host: saved.sHost, user: saved.sUser, port: saved.sPort, key: saved.sKey,
+                                                  password: $("sPass").value, root: saved.sRoot, python: saved.sPy });
+    $("sPass").value = ""; $("settings").close(); setExperiment(null); showInfo(info); toast(`Connected to ${info.root}`);
+  } catch (e) { $("setErr").textContent = e.message; }
+  finally { $("setOk").disabled = false; }
+};
+
+// ================================================================= file dialog (open dataset / save as)
+let dlgMode = "open", dlgPurpose = "map", cwd = "", selected = null, lastFolder = "";
+async function openDialog(mode, purpose = "map") {
+  dlgMode = mode; dlgPurpose = purpose; selected = null;
+  $("dlgTitle").textContent = mode === "open" ? (purpose === "exp" ? "Choose the experiment dataset" : "Open dataset") : "Save trajectory";
+  $("dlgSub").textContent = mode === "open" ? (purpose === "exp" ? ".h5 or .hdf5" : ".h5, .hdf5 or .csv") : "choose a folder";
+  $("dlgOk").textContent = mode === "open" ? "Choose" : "Save";
+  $("fname").hidden = mode === "open"; $("spacer").hidden = mode !== "open";
+  if (mode === "save") $("fname").value = stem() + ".csv";
+  $("dlg").showModal();
+  const start = mode === "save" ? (lastFolder || (experiment ? `Experiments/${experiment.name}/configs` : "Experiments")) : cwd;
+  await listDir(start);
+}
+async function listDir(path) {
+  let res;
+  try { res = await api("/api/list", { path }); } catch (e) { if (path) return listDir(""); toast(e.message); return; }
+  cwd = res.path; selected = null; updateOk();
+  const parts = cwd ? cwd.split("/") : [];
+  $("crumbs").innerHTML = `<a data-p="">${ROOT.split("/").pop() || "/"}</a>` + parts.map((p, i) => ` / <a data-p="${parts.slice(0, i + 1).join("/")}">${p}</a>`).join("");
+  $("crumbs").querySelectorAll("a").forEach((a) => (a.onclick = () => listDir(a.dataset.p)));
+  const wantExt = dlgMode === "save" ? [".csv"] : dlgPurpose === "exp" ? [".h5", ".hdf5"] : [".h5", ".hdf5", ".csv"];
+  const items = res.items.filter((it) => it.dir || wantExt.some((x) => it.name.toLowerCase().endsWith(x)));
+  const up = cwd ? `<div class="item" data-up="1"><span class="ic">↩</span>..</div>` : "";
+  $("list").innerHTML = up + (items.length ? items.map((it, i) =>
+    `<div class="item" data-i="${i}"><span class="ic">${it.dir ? "📁" : "📄"}</span>${it.name}<span class="sz">${fmtSize(it.size)}</span></div>`).join("")
+    : `<div class="item" style="cursor:default;color:var(--muted)">No matching files here</div>`);
+  $("list").querySelectorAll(".item").forEach((el) => {
+    if (el.dataset.up) { el.onclick = () => listDir(cwd.split("/").slice(0, -1).join("/")); return; }
+    const it = items[+el.dataset.i]; if (!it) return;
+    const path = (cwd ? cwd + "/" : "") + it.name;
+    el.onclick = () => {
+      if (it.dir) return listDir(path);
+      if (dlgMode === "save") { $("fname").value = it.name; updateOk(); return; }
+      $("list").querySelectorAll(".sel").forEach((s) => s.classList.remove("sel"));
+      el.classList.add("sel"); selected = path; updateOk();
+    };
+    el.ondblclick = () => { if (!it.dir && dlgMode === "open") { selected = path; confirmDialog(); } };
+  });
+}
+function updateOk() { $("dlgOk").disabled = dlgMode === "open" ? !selected : !$("fname").value.trim(); }
+$("fname").addEventListener("input", updateOk);
+$("dlgCancel").onclick = () => $("dlg").close();
+$("dlgOk").onclick = () => confirmDialog();
+async function confirmDialog() {
+  if (dlgMode === "open") {
+    $("dlg").close();
+    if (dlgPurpose === "exp") { $("expData").value = selected; syncCreate(); }
+    else chooseServerDataset(selected);
+    return;
+  }
+  let name = $("fname").value.trim(); if (!name.endsWith(".csv")) name += ".csv";
+  const body = { folder: cwd, name, content: csvText() };
+  let res = await api("/api/save", {}, body).catch((e) => ({ error: e.message }));
+  if (res.error) return toast(res.error);
+  if (res.status === 409) {
+    if (!(await ask(`${res.path} already exists. Replace it?`))) return;
+    res = await api("/api/save", {}, { ...body, overwrite: true }).catch((e) => ({ error: e.message }));
+    if (res.error) return toast(res.error);
+  }
+  lastFolder = cwd; $("dlg").close(); toast(`Saved ${res.saved}`);
+}
+
+// ================================================================= step 1: experiment
+$("tabNew").onclick = () => { $("tabNew").classList.add("on"); $("tabOpen").classList.remove("on"); $("paneNew").hidden = false; $("paneOpen").hidden = true; };
+$("tabOpen").onclick = () => { $("tabOpen").classList.add("on"); $("tabNew").classList.remove("on"); $("paneOpen").hidden = false; $("paneNew").hidden = true; refreshExperiments(); };
+const validName = (s) => /^[A-Za-z0-9_-]+$/.test(s);
+function syncCreate() { $("expCreate").disabled = !(validName($("expName").value.trim()) && $("expData").value); }
+$("expName").addEventListener("input", syncCreate);
+$("expBrowse").onclick = () => openDialog("open", "exp");
+let experiments = [];
+async function refreshExperiments() {
+  try {
+    experiments = (await api("/api/experiments")).experiments;
+    $("expList").innerHTML = experiments.length
+      ? experiments.map((e, i) => `<option value="${i}">${e.name}${e.iteration != null ? ` · iteration ${e.iteration}` : ""}</option>`).join("")
+      : `<option value="">No experiments yet</option>`;
+    $("expUse").disabled = !experiments.length;
+  } catch (e) { toast(e.message); }
+}
+$("expRefresh").onclick = refreshExperiments;
+$("expUse").onclick = () => { const e = experiments[+$("expList").value]; if (e) setExperiment(e); };
+$("expCreate").onclick = async () => {
+  $("expCreate").disabled = true; $("expCreate").textContent = "Creating…";
+  try {
+    const res = await api("/api/init", {}, { name: $("expName").value.trim(), dataset: $("expData").value });
+    $("logTitle").textContent = `Experiment ${res.name} created`; $("logText").textContent = res.log.trim(); $("logdlg").showModal();
+    await refreshExperiments();
+    setExperiment(experiments.find((e) => e.name === res.name) || { name: res.name, dataset_rel: $("expData").value });
+  } catch (e) { toast("Could not create the experiment: " + e.message); }
+  finally { $("expCreate").textContent = "Create experiment"; syncCreate(); }
+};
+$("logOk").onclick = () => $("logdlg").close();
+async function setExperiment(e) {
+  if (cfgDirty && !(await ask("The config has unsaved changes. Switch experiment and discard them?"))) return;
+  experiment = e; cfgDirty = false; lastStatus = null; evData = null; kmData = null; mbKey = ""; mbMol = null; mbList = [];
+  $("startAt").value = ""; syncStart();             // a one-off start never carries over to another experiment
+  $("expchip").hidden = !e; $("expOk").hidden = !e; $("expStatus").hidden = !e;
+  $("cardCfg").classList.toggle("locked", !e); $("cardJobs").classList.toggle("locked", !e);
+  if (!e) { refreshStatus(); syncExport(); return; }       // clears the Run status view
+  loadConfig(); refreshStatus();
+  $("expname").textContent = e.name;
+  $("expStatus").textContent = `${e.name}\ndataset: ${e.dataset_rel || e.dataset || "?"}` + (e.trajectories?.length ? `\ntrajectory: ${e.trajectories.join(", ")}` : "");
+  $("exportHint").innerHTML = `“Save to experiment” writes the CSV into <code>Experiments/${e.name}/configs/</code> and sets <code>properties_list</code> in its config.`;
+  if (e.dataset_rel) chooseServerDataset(e.dataset_rel);          // the map starts on the experiment's dataset
+  syncExport();
+}
+
+// ================================================================= step 2: map dataset + loading on demand
+$("browse").onclick = () => openDialog("open", "map");
+$("local").onclick = () => $("file").click();
+$("file").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; if (!f) return;
+  source = { kind: "local", file: f }; $("mapData").value = f.name + " (this computer)";
+  try { setProps(await localProps(f)); } catch (err) { toast("Could not read the file: " + err.message); }
+  e.target.value = "";
+});
+async function chooseServerDataset(path) {
+  source = { kind: "server", path }; $("mapData").value = path;
+  try { setProps((await api("/api/props", { path })).props); } catch (e) { toast("Could not read the file: " + e.message); }
+}
+// the axis menus are filled from the property names; molecules load only on "Show map"
+function setProps(props) {
+  const keep = ["px", "py", "pc"].map((id) => $(id).value);
+  const extra = `<option value="${NONE}">— none —</option><option value="${CONST}">Constant…</option>`;
+  const def = { px: "HLgap", py: "eMBD", pc: "atNUM" };
+  ["px", "py", "pc"].forEach((id, i) => {
+    $(id).innerHTML = extra + props.map((p) => `<option>${p}</option>`).join("");
+    const want = props.includes(keep[i]) || keep[i] === NONE || keep[i] === CONST ? keep[i] : def[id];
+    $(id).value = props.includes(want) || want === NONE || want === CONST ? want : props[i] ?? NONE;
+    const sel = $(id + "c").querySelector("select");
+    sel.innerHTML = props.map((p) => `<option>${p}</option>`).join("");
+    sel.value = props.includes(def[id]) ? def[id] : props[0];
+  });
+  syncConst();
+  $("plot").disabled = !props.length;
+  points = []; view = null; hexes = []; render();
+}
+async function localProps(f) {
+  if (f.name.toLowerCase().endsWith(".csv")) return (await f.slice(0, 65536).text()).split(/\r?\n/)[0].split(",").map((s) => s.trim()).filter(Boolean);
+  const h5 = await openLocalH5(f);
+  for (const top of h5.keys()) {
+    const g = h5.get(top); if (g?.type !== "Group") continue;
+    for (const name of g.keys()) {
+      const mol = g.get(name); if (mol?.type !== "Group") continue;
+      return mol.keys().filter((k) => { const d = mol.get(k); return d?.type === "Dataset" && (k === "atNUM" || d.shape.reduce((a, b) => a * b, 1) === 1); }).sort();
+    }
+  }
+  return [];
+}
+let h5lib = null, h5file = null, h5name = "";
+async function openLocalH5(f) {
+  if (h5file && h5name === f.name + f.size) return h5file;
+  if (f.size > 2e9 && !(await ask(`${f.name} is ${(f.size / 1e9).toFixed(1)} GB and must fit in browser memory. Continue?`))) throw new Error("cancelled");
+  progress("busy", 0, 0, "Loading the HDF5 reader…");
+  h5lib ??= (await import("https://cdn.jsdelivr.net/npm/h5wasm@0.7.8/dist/esm/hdf5_hl.js")).default;
+  const { FS } = await h5lib.ready;
+  if (h5file) { h5file.close(); FS.unlink("/data.h5"); }
+  progress("busy", 0, 0, `Opening ${f.name}…`);
+  FS.writeFile("/data.h5", new Uint8Array(await f.arrayBuffer()));
+  h5file = new h5lib.File("/data.h5", "r"); h5name = f.name + f.size;
+  $("prog").hidden = true;
+  return h5file;
+}
+
+const maxMol = () => { const v = Math.floor(+$("maxmol").value); return v > 0 ? v : 0; };   // 0 = all
+const loaded = () => { const k = Object.keys(data)[0]; return k ? data[k].length : 0; };
+const countText = () => fileTotal == null ? `${loaded().toLocaleString()} molecules`
+  : `${loaded().toLocaleString()} of ${fileTotal.toLocaleString()} molecules` + (loaded() >= fileTotal ? " (all)" : "");
+function progress(state, done = 0, total = 0, text = "") {
+  const box = $("prog"), fill = $("progFill"), known = total > 0;
+  box.hidden = false; box.className = "progress " + state;
+  fill.classList.toggle("indet", state === "busy" && !known);
+  fill.style.width = state === "busy" ? (known ? `${Math.min(100, (100 * done) / total)}%` : "") : "100%";
+  $("progText").textContent = text || (known ? `${done.toLocaleString()} / ${total.toLocaleString()} molecules` : "Reading…");
+  $("progPct").textContent = state === "busy" ? (known ? `${Math.floor((100 * done) / total)} %` : "") : state === "done" ? "✓ loaded" : "✗ failed";
+}
+
+async function ensureLoaded() {
+  const key = source ? (source.kind === "server" ? "s:" + source.path : "l:" + source.file.name + source.file.size) + ":" + maxMol() : "";
+  if (key && key === loadedKey) return true;
+  data = {}; fileTotal = null; loadedKey = "";
+  try {
+    if (source.kind === "server") {
+      progress("busy");
+      const poll = setInterval(async () => { try { const p = await api("/api/progress"); if (p.active) progress("busy", p.done, p.total); } catch {} }, 400);
+      try {
+        const res = await api("/api/load", { path: source.path, max: maxMol() });
+        fileTotal = res.file_total ?? null;
+        for (const [k, v] of Object.entries(res.columns)) data[k] = Float64Array.from(v, (x) => (x == null ? NaN : x));
+        dataName = source.path;
+      } finally { clearInterval(poll); }
+    } else {
+      dataName = source.file.name;
+      if (source.file.name.toLowerCase().endsWith(".csv")) loadCSV(await source.file.text());
+      else await loadLocalH5(source.file);
+    }
+    loadedKey = key;
+    progress("done", 0, 0, countText());
+    return true;
+  } catch (e) { progress("fail", 0, 0, e.message); return false; }
+}
+function loadCSV(text) {
+  const all = text.trim().split(/\r?\n/); fileTotal = all.length - 1;
+  const lines = all.slice(0, (maxMol() || Infinity) + 1), head = lines[0].split(",").map((s) => s.trim()), cols = head.map(() => []);
+  for (const line of lines.slice(1)) line.split(",").forEach((v, i) => cols[i]?.push(parseFloat(v)));
+  head.forEach((h, i) => { if (cols[i].some(Number.isFinite)) data[h] = Float64Array.from(cols[i]); });
+}
+async function loadLocalH5(f) {
+  const h5 = await openLocalH5(f), max = maxMol() || Infinity, cols = {};
+  let n = 0, total = 0;
+  for (const top of h5.keys()) { const g = h5.get(top); if (g?.type === "Group") total += g.keys().length; }
+  fileTotal = total; total = Math.min(total, max);
+  progress("busy", 0, total);
+  outer: for (const top of h5.keys()) {
+    const grp = h5.get(top); if (!grp || grp.type !== "Group") continue;
+    for (const name of grp.keys()) {
+      const mol = grp.get(name); if (!mol || mol.type !== "Group") continue;
+      for (const key of mol.keys()) {
+        const ds = mol.get(key); if (!ds || ds.type !== "Dataset") continue;
+        let v;
+        if (key === "atNUM") v = ds.shape[0];
+        else if (ds.shape.reduce((a, b) => a * b, 1) === 1) v = Number(ds.value?.[0] ?? ds.value);
+        else continue;
+        (cols[key] ??= new Array(n).fill(NaN)).push(v);
+      }
+      n++; for (const k in cols) if (cols[k].length < n) cols[k].push(NaN);
+      if (n % 2000 === 0) { progress("busy", n, total); await new Promise(requestAnimationFrame); }
+      if (n >= max) break outer;
+    }
+  }
+  for (const k in cols) data[k] = Float64Array.from(cols[k]);
+}
+
+$("plot").onclick = async () => {
+  if (!source) return;
+  $("plot").disabled = true;
+  const ok = await ensureLoaded();
+  $("plot").disabled = false;
+  if (!ok) return;
+  points = []; build(); render();
+};
+for (const id of ["px", "py", "pc", "grid"]) $(id).addEventListener("change", () => {
+  syncConst();
+  if (view) { points = []; build(); render(); toast("Map redrawn; waypoints cleared."); }
+});
+$("maxmol").addEventListener("change", () => { if (view) toast("Press “Show map” to read the new number of molecules."); });
+
+// ================================================================= axis specs
+function spec(id) {
+  const v = $(id).value, nm = $(id + "c").querySelector("select"), val = $(id + "c").querySelector("input");
+  if (v === NONE) return { kind: "none", name: "" };
+  if (v === CONST) return { kind: "const", name: nm.value || { px: "x", py: "y", pc: "value" }[id], value: parseFloat(val.value) || 0 };
+  return { kind: "prop", name: v };
+}
+function syncConst() { for (const id of ["px", "py", "pc"]) $(id + "c").hidden = $(id).value !== CONST; }
+document.querySelectorAll(".const input, .const select").forEach((el) => el.addEventListener(el.tagName === "SELECT" ? "change" : "input", () => render()));
+let JIT = null;
+function jitter(n) { if (!JIT || JIT.length !== n) { let s = 7; JIT = Float64Array.from({ length: n }, () => ((s = (s * 16807) % 2147483647) / 2147483647)); } return JIT; }
+
+// ================================================================= map drawing
+const cv = $("map"), ctx = cv.getContext("2d");
+const M = { l: 72, r: 110, t: 18, b: 52 };
+function color(t) {
+  t = Math.max(0, Math.min(1, t)) * (RAMP.length - 1);
+  const i = Math.min(Math.floor(t), RAMP.length - 2), f = t - i;
+  const a = RAMP[i].match(/\w\w/g).map((h) => parseInt(h, 16)), b = RAMP[i + 1].match(/\w\w/g).map((h) => parseInt(h, 16));
+  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(",")})`;
+}
+function resize() {
+  const r = cv.parentElement.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  cv.width = Math.max(300, r.width) * dpr; cv.height = Math.max(300, r.height) * dpr; ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  if (view) { const pts = points; build(); points = pts; } render();
+}
+new ResizeObserver(resize).observe(cv.parentElement);
+
+function build() {
+  const sx = spec("px"), sy = spec("py"), sc = spec("pc");
+  if (sx.kind !== "prop" && sy.kind !== "prop") { view = null; render(); toast("Choose a property for X or Y."); return; }
+  if (!data[(sx.kind === "prop" ? sx : sy).name]) { view = null; return; }
+  const n = data[(sx.kind === "prop" ? sx : sy).name].length;
+  const X = sx.kind === "prop" ? data[sx.name] : jitter(n), Y = sy.kind === "prop" ? data[sy.name] : jitter(n);
+  const byCount = sc.kind !== "prop" || !data[sc.name], C = byCount ? null : data[sc.name];
+  const ok = [];
+  for (let i = 0; i < n; i++) if (Number.isFinite(X[i]) && Number.isFinite(Y[i]) && (byCount || Number.isFinite(C[i]))) ok.push(i);
+  if (!ok.length) { view = null; toast("No molecule has these properties."); return; }
+  const ext = (A) => { let lo = Infinity, hi = -Infinity; for (const i of ok) { if (A[i] < lo) lo = A[i]; if (A[i] > hi) hi = A[i]; } const p = (hi - lo) * 0.04 || 1; return [lo - p, hi + p]; };
+  const [x0, x1] = ext(X), [y0, y1] = ext(Y);
+  const dpr = devicePixelRatio || 1, W = cv.width / dpr - M.l - M.r, H = cv.height / dpr - M.t - M.b;
+  view = { x0, x1, y0, y1, W, H, n: ok.length, sx, sy, sc, byCount,
+    px: (x) => M.l + ((x - x0) / (x1 - x0)) * W, py: (y) => M.t + H - ((y - y0) / (y1 - y0)) * H,
+    ix: (p) => x0 + ((p - M.l) / W) * (x1 - x0), iy: (p) => y0 + ((M.t + H - p) / H) * (y1 - y0) };
+  const r = +$("grid").value || 9, s3 = Math.sqrt(3), bins = new Map();
+  for (const i of ok) {
+    const x = view.px(X[i]), y = view.py(Y[i]);
+    const q = ((s3 / 3) * x - y / 3) / r, rr = ((2 / 3) * y) / r, cz = -q - rr;
+    let rq = Math.round(q), rs = Math.round(rr); const rc = Math.round(cz);
+    const dq = Math.abs(rq - q), ds = Math.abs(rs - rr), dc = Math.abs(rc - cz);
+    if (dq > ds && dq > dc) rq = -rs - rc; else if (ds > dc) rs = -rq - rc;
+    const key = rq + "," + rs, b = bins.get(key) || { q: rq, s: rs, n: 0, c: 0 };
+    b.n++; b.c += byCount ? 0 : C[i]; bins.set(key, b);
+  }
+  hexes = [...bins.values()].map((b) => { const cx = r * s3 * (b.q + b.s / 2), cy = r * 1.5 * b.s; return { cx, cy, c: byCount ? b.n : b.c / b.n, r }; });
+  view.c0 = Infinity; view.c1 = -Infinity; for (const h of hexes) { view.c0 = Math.min(view.c0, h.c); view.c1 = Math.max(view.c1, h.c); }
+  for (const id of ["csv", "png"]) $(id).disabled = false;
+  syncExport();
+}
+
+function render() {
+  const dpr = devicePixelRatio || 1, Wc = cv.width / dpr, Hc = cv.height / dpr;
+  const ink = css("--ink"), ink2 = css("--ink2"), line = css("--line"), orange = css("--orange"), surf = css("--surface");
+  ctx.fillStyle = surf; ctx.fillRect(0, 0, Wc, Hc);
+  $("empty").hidden = !!view; $("undo").disabled = $("clear").disabled = !points.length;
+  if (!view) { $("ptitle").textContent = "Property map"; $("psub").textContent = source ? "Press “Show map” to read the molecules" : "No data"; renderTable(); return; }
+  const { W, H } = view;
+  const lab = (s) => (s.kind === "prop" ? s.name : s.kind === "const" ? `${s.name} = ${s.value} (constant)` : "— none —");
+  const sx = spec("px"), sy = spec("py"), sc = spec("pc");
+  const cLabel = view.byCount ? "molecules per hexagon" : "mean " + sc.name;
+  $("ptitle").textContent = [sx, sy].filter((s) => s.kind === "prop").map((s) => s.name).join(" vs ");
+  $("psub").textContent = `${dataName} · ${countText()} · colour: ${cLabel}`;
+  ctx.lineWidth = 1; ctx.font = "12px system-ui";
+  for (const [axis, lo, hi] of [["x", view.x0, view.x1], ["y", view.y0, view.y1]]) for (const v of (axis === "x" ? sx : sy).kind === "prop" ? ticks(lo, hi) : []) {
+    ctx.strokeStyle = line; ctx.fillStyle = ink2; ctx.beginPath();
+    if (axis === "x") { const p = view.px(v); ctx.moveTo(p, M.t); ctx.lineTo(p, M.t + H); ctx.textAlign = "center"; ctx.fillText(fmt(v), p, M.t + H + 17); }
+    else { const p = view.py(v); ctx.moveTo(M.l, p); ctx.lineTo(M.l + W, p); ctx.textAlign = "right"; ctx.fillText(fmt(v), M.l - 8, p + 4); }
+    ctx.stroke();
+  }
+  ctx.save(); ctx.beginPath(); ctx.rect(M.l, M.t, W, H); ctx.clip();
+  for (const h of hexes) {
+    ctx.beginPath();
+    for (let k = 0; k < 6; k++) { const a = (Math.PI / 180) * (60 * k - 30); ctx.lineTo(h.cx + h.r * Math.cos(a), h.cy + h.r * Math.sin(a)); }
+    ctx.closePath(); ctx.fillStyle = color((h.c - view.c0) / (view.c1 - view.c0 || 1)); ctx.fill();
+    ctx.strokeStyle = surf; ctx.lineWidth = 0.5; ctx.stroke();
+  }
+  ctx.restore();
+  ctx.fillStyle = ink2; ctx.font = "14px system-ui"; ctx.textAlign = "center";
+  ctx.fillText(lab(sx), M.l + W / 2, Hc - 12);
+  ctx.save(); ctx.translate(18, M.t + H / 2); ctx.rotate(-Math.PI / 2); ctx.fillText(lab(sy), 0, 0); ctx.restore();
+  const bx = M.l + W + 24, bw = 14;
+  for (let k = 0; k < H; k++) { ctx.fillStyle = color(1 - k / H); ctx.fillRect(bx, M.t + k, bw, 1.5); }
+  ctx.fillStyle = ink2; ctx.textAlign = "left"; ctx.font = "12px system-ui";
+  ctx.fillText(fmt(view.c1), bx + bw + 6, M.t + 10); ctx.fillText(fmt(view.c0), bx + bw + 6, M.t + H);
+  ctx.save(); ctx.translate(bx + bw + 50, M.t + H / 2); ctx.rotate(-Math.PI / 2); ctx.textAlign = "center"; ctx.fillText(cLabel, 0, 0); ctx.restore();
+  if (points.length) {
+    ctx.strokeStyle = orange; ctx.lineWidth = 3; ctx.lineJoin = "round"; ctx.beginPath();
+    points.forEach((p, i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, view.px(p.x), view.py(p.y))); ctx.stroke();
+    points.forEach((p, i) => {
+      const x = view.px(p.x), y = view.py(p.y);
+      ctx.beginPath(); ctx.arc(x, y, 7, 0, 2 * Math.PI); ctx.fillStyle = orange; ctx.fill(); ctx.lineWidth = 2.5; ctx.strokeStyle = surf; ctx.stroke();
+      const label = i === 0 ? "START" : i === points.length - 1 ? "END" : "q=" + i;
+      ctx.font = "bold 12px system-ui"; ctx.textAlign = "left";
+      const w = ctx.measureText(label).width;
+      ctx.fillStyle = surf; ctx.globalAlpha = 0.85; ctx.fillRect(x + 9, y - 22, w + 8, 17); ctx.globalAlpha = 1;
+      ctx.fillStyle = ink; ctx.fillText(label, x + 13, y - 9);
+    });
+  }
+  drawKdeTargets(sx, sy);
+  renderTable();
+}
+function ticks(lo, hi) {
+  const step = Math.pow(10, Math.floor(Math.log10((hi - lo) / 5))), m = [1, 2, 5, 10].find((k) => (hi - lo) / (step * k) <= 7) * step;
+  const out = []; for (let v = Math.ceil(lo / m) * m; v <= hi; v += m) out.push(+v.toFixed(10)); return out;
+}
+const fmt = (v) => (Math.abs(v) >= 100 ? v.toFixed(0) : +v.toFixed(2)).toString();
+
+// ================================================================= step 3: waypoints
+cv.addEventListener("click", (e) => {
+  if (!view || !hexes.length) return;
+  const rect = cv.getBoundingClientRect(), mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  if (mx < M.l || mx > M.l + view.W || my < M.t || my > M.t + view.H) return;
+  const near = hexes.map((h) => [(h.cx - mx) ** 2 + (h.cy - my) ** 2, h.c]).sort((a, b) => a[0] - b[0]).slice(0, 6);
+  let c;
+  if (near[0][0] < 1e-6) c = near[0][1];
+  else { let w = 0, s = 0; for (const [d2, v] of near) { const wi = 1 / d2; w += wi; s += wi * v; } c = s / w; }
+  points.push({ x: view.ix(mx), y: view.iy(my), c, sa: 0, qed: 0 }); render(); syncExport();
+});
+$("undo").onclick = () => { points.pop(); render(); syncExport(); };
+$("clear").onclick = () => { points = []; render(); syncExport(); };
+$("addsa").onchange = $("addqed").onchange = () => render();
+
+const roundIf = (name, v) => (name === "atNUM" ? Math.round(v) : +(+v).toFixed(6));
+function columns() {
+  const out = [];
+  for (const [id, key] of [["px", "x"], ["py", "y"], ["pc", "c"]]) {
+    const s = spec(id);
+    if (s.kind === "prop" && !(id === "pc" && view?.byCount)) out.push([s.name, (p) => roundIf(s.name, p[key])]);
+    else if (s.kind === "const") out.push([s.name, () => roundIf(s.name, s.value)]);
+  }
+  return out;
+}
+function renderTable() {
+  const sa = $("addsa").checked, qed = $("addqed").checked;
+  if (!points.length) { $("table").innerHTML = `<tr><td style="color:var(--muted);text-align:left">No waypoints yet — click the map.</td></tr>`; return; }
+  const cols = columns();
+  const head = ["Waypoint", ...cols.map((c) => c[0])].concat(sa ? ["SAScore"] : [], qed ? ["QED"] : []);
+  $("table").innerHTML = `<tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>` + points.map((p, i) =>
+    `<tr><td><span class="tag">${i === 0 ? "START" : i === points.length - 1 ? "END" : "q=" + i}</span></td>${cols.map((c) => `<td>${c[1](p)}</td>`).join("")}` +
+    (sa ? `<td><input type="number" step="0.1" data-i="${i}" data-k="sa" value="${p.sa}"></td>` : "") +
+    (qed ? `<td><input type="number" step="0.01" data-i="${i}" data-k="qed" value="${p.qed}"></td>` : "") + "</tr>").join("");
+  $("table").querySelectorAll("input").forEach((el) => el.addEventListener("input", () => { points[el.dataset.i][el.dataset.k] = parseFloat(el.value) || 0; }));
+}
+
+// ================================================================= step 4: export
+const stem = () => "trajectory_" + (columns().map((c) => c[0]).join("_") || "points");
+function csvText() {
+  const sa = $("addsa").checked, qed = $("addqed").checked, cols = columns();
+  const rows = [cols.map((c) => c[0]).concat(sa ? ["SAScore"] : [], qed ? ["QED"] : []).join(",")];
+  for (const p of points) rows.push(cols.map((c) => c[1](p)).concat(sa ? [p.sa] : [], qed ? [p.qed] : []).join(","));
+  return rows.join("\n") + "\n";
+}
+function syncExport() { $("saveexp").disabled = !(experiment && points.length); $("savehpc").disabled = !view; }
+function download(name, blob) { const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name; a.click(); URL.revokeObjectURL(a.href); }
+const needPoints = () => { if (!points.length) { toast("Click at least one waypoint first."); return false; } return true; };
+$("csv").onclick = () => { if (needPoints()) { download(stem() + ".csv", new Blob([csvText()], { type: "text/csv" })); toast(`Downloaded ${stem()}.csv`); } };
+$("png").onclick = () => cv.toBlob((b) => download(stem() + ".png", b));
+$("savehpc").onclick = () => { if (needPoints()) openDialog("save"); };
+$("saveexp").onclick = async () => {
+  if (!needPoints() || !experiment) return;
+  const cols = columns().map((c) => c[0]);
+  try {
+    const res = await api("/api/save_trajectory", {}, { experiment: experiment.name, name: stem() + ".csv", content: csvText(), columns: cols });
+    let msg = `Saved ${res.saved}`;
+    if (res.properties_list) msg += ` · properties_list = [${res.properties_list.join(", ")}]`;
+    if (res.backed_up.length) msg += ` · older trajectory renamed to .bak`;
+    toast(msg);
+    $("expStatus").textContent = `${experiment.name}\ndataset: ${experiment.dataset_rel || experiment.dataset || "?"}\ntrajectory: ${res.saved.split("/").pop()}`;
+  } catch (e) { toast("Could not save: " + e.message); }
+};
+
+// ================================================================= views (Map | Config | Jobs)
+function showView(v) {
+  for (const name of ["Map", "Config", "Jobs", "Logs", "Clean", "Training", "Eval"]) $("view" + name).hidden = name !== v;
+  if (v === "Clean") refreshClean();
+  if (v === "Eval") refreshEval();
+  document.querySelectorAll("#viewtabs button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));
+  if (v === "Map") resize();
+  if (v === "Config" && experiment && !cfgDirty) loadConfig();
+  if (v === "Jobs") refreshStatus();
+  if (v === "Logs") refreshLogs(true);
+  if (v === "Training") refreshTraining();
+}
+
+// ================================================================= clean a failed iteration
+let clData = null;
+const escH = (t) => String(t).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+async function refreshClean(iter) {
+  $("clErr").textContent = "";
+  if (!experiment) { $("clTable").innerHTML = ""; $("clSub").textContent = "Open an experiment first"; return; }
+  $("clSub").textContent = "Reading folder sizes…";
+  try {
+    clData = await api("/api/clean", { experiment: experiment.name, iteration: iter ?? $("clIter").value ?? "" });
+  } catch (e) { $("clErr").textContent = e.message; return; }
+  $("clIter").innerHTML = clData.iterations.map((i) => `<option value="${i}"${i === clData.iteration ? " selected" : ""}>iter_${i}</option>`).join("");
+  if (clData.iteration == null) { $("clTable").innerHTML = ""; $("clSub").textContent = "No iteration folders in Data/" + experiment.name; return; }
+  const tot = clData.entries.reduce((a, e) => a + (e.size || 0), 0);
+  $("clSub").textContent = `Data/${experiment.name}/iter_${clData.iteration} · ${clData.entries.length} entries · ${fmtSize(tot)}`;
+  // entries arrive in pipeline order: one header row per stage (its checkbox selects the whole stage)
+  const groups = [];
+  clData.entries.forEach((e, i) => {
+    const label = e.job ? `${e.job[0].toUpperCase() + e.job.slice(1)} · ${e.block}` : e.block ? e.block[0].toUpperCase() + e.block.slice(1) : "Other";
+    if (!groups.length || groups[groups.length - 1].label !== label) groups.push({ label, items: [] });
+    groups[groups.length - 1].items.push([e, i]);
+  });
+  let html = "<tr><th></th><th>Stage / name</th><th>Type</th><th>Files</th><th>Size</th></tr>";
+  groups.forEach((g, gi) => {
+    const files = g.items.reduce((a, [e]) => a + (e.files ?? (e.dir ? 0 : 1)), 0), size = g.items.reduce((a, [e]) => a + (e.size || 0), 0);
+    html += `<tr class="clStage"><td><input type="checkbox" class="clGrp" data-g="${gi}"></td><td colspan="2">${escH(g.label)}</td><td>${files}</td><td>${fmtSize(size)}</td></tr>`;
+    html += g.items.map(([e, i]) => `<tr class="clItem"><td><input type="checkbox" class="clChk" data-i="${i}" data-g="${gi}"></td>` +
+      `<td>${escH(e.name)}${e.dir ? "/" : ""}</td><td>${e.dir ? "folder" : "file"}</td><td>${e.files ?? ""}</td><td>${fmtSize(e.size)}</td></tr>`).join("");
+  });
+  $("clTable").innerHTML = html;
+  syncClean();
+}
+function syncClean() {
+  document.querySelectorAll(".clGrp").forEach((g) => {
+    const items = [...document.querySelectorAll(`.clChk[data-g="${g.dataset.g}"]`)], on = items.filter((c) => c.checked).length;
+    g.checked = on > 0 && on === items.length; g.indeterminate = on > 0 && on < items.length;
+  });
+  $("clGo").disabled = !clData || clData.iteration == null || !document.querySelector(".clChk:checked");
+}
+$("clTable").addEventListener("change", (ev) => {
+  if (ev.target.classList.contains("clGrp"))
+    document.querySelectorAll(`.clChk[data-g="${ev.target.dataset.g}"]`).forEach((c) => (c.checked = ev.target.checked));
+  syncClean();
+});
+$("clIter").onchange = () => refreshClean($("clIter").value);
+$("clRefresh").onclick = () => refreshClean();
+$("clAll").onclick = () => { document.querySelectorAll(".clChk").forEach((c) => (c.checked = true)); syncClean(); };
+$("clNone").onclick = () => { document.querySelectorAll(".clChk").forEach((c) => (c.checked = false)); syncClean(); };
+$("clGo").onclick = async () => {
+  const it = clData.iteration;
+  const picked = [...document.querySelectorAll(".clChk:checked")].map((c) => clData.entries[+c.dataset.i]);
+  const dirs = picked.filter((e) => e.dir).map((e) => e.name + "/"), files = picked.filter((e) => !e.dir).map((e) => e.name);
+  let msg = `Clean Data/${experiment.name}/iter_${it}?\n`;
+  if (dirs.length) msg += `\nEmpty ${dirs.length} folder(s) — everything inside is deleted, the folders stay:\n  ${dirs.join(", ")}\n`;
+  if (files.length) msg += `\nDelete ${files.length} file(s):\n  ${files.join(", ")}\n`;
+  if (!(await ask(msg + "\nThis cannot be undone."))) return;
+  try {
+    const r = await api("/api/clean", {}, { experiment: experiment.name, iteration: it, names: picked.map((e) => e.name), confirm: true });
+    toast(`Emptied ${r.emptied.length} folder(s), deleted ${r.removed.length} file(s).`);
+    refreshClean(it);
+  } catch (e) { $("clErr").textContent = e.message; }
+};
+
+// ================================================================= training curves (TensorBoard event files)
+let trData = null, trHover = null;
+const trCv = $("trCanvas");
+const trColor = (k, n) => {                     // older iterations light, newest dark (sequential blue ramp)
+  if (n <= 1) return RAMP[3];
+  const x = 1 + 3 * k / (n - 1), i = Math.min(3, Math.floor(x)), f = x - i;
+  const h = (c) => [1, 3, 5].map((j) => parseInt(c.slice(j, j + 2), 16));
+  const a = h(RAMP[i]), b = h(RAMP[i + 1]);
+  return "#" + a.map((v, j) => Math.round(v + (b[j] - v) * f).toString(16).padStart(2, "0")).join("");
+};
+const fmtNum = (v) => v == null || !isFinite(v) ? "–" : Math.abs(v) >= 1e4 || (Math.abs(v) < 1e-3 && v !== 0) ? v.toExponential(3) : +v.toPrecision(5) + "";
+async function refreshTraining() {
+  if (!experiment) return;
+  let r; try { r = await api("/api/training", { experiment: experiment.name }); } catch (e) { return toast(e.message); }
+  trData = r;
+  const tags = [...new Set(r.iterations.flatMap((it) => Object.keys(it.scalars)))].sort();
+  const sel = $("trMetric"), prev = sel.value;
+  const groups = {};
+  for (const tg of tags) (groups[tg.includes("/") ? tg.split("/")[0] : "other"] ??= []).push(tg);
+  sel.innerHTML = Object.entries(groups).map(([g, ts]) => `<optgroup label="${g}">` + ts.map((tg) => `<option>${tg}</option>`).join("") + "</optgroup>").join("");
+  sel.value = tags.includes(prev) ? prev : ["val/loss", "train/loss"].find((x) => tags.includes(x)) || tags[0] || "";
+  $("trEmpty").hidden = tags.length > 0;
+  $("trEmptyMsg").textContent = r.iterations.length ? "The event files contain no scalars yet." :
+    `The forward job writes them to ${r.root}/model_iter_<q>/ while it trains the model.`;
+  $("trSub").textContent = r.iterations.length ? `${r.iterations.length} iteration${r.iterations.length > 1 ? "s" : ""} · ${r.root} · updated ${new Date().toLocaleTimeString()}` : r.root;
+  drawTraining();
+}
+function trSeries() {
+  const tag = $("trMetric").value, n = trData?.iterations.length || 0;
+  return (trData?.iterations || []).map((it, k) => ({ it: it.iteration, color: trColor(k, n), last: k === n - 1, pts: it.scalars[tag] || [] })).filter((s) => s.pts.length);
+}
+function drawTraining() {
+  const wrap = $("trWrap"), r = wrap.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  if (!r.width) return;
+  trCv.width = r.width * dpr; trCv.height = r.height * dpr; trCv.style.width = r.width + "px"; trCv.style.height = r.height + "px";
+  const g = trCv.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, r.width, r.height);
+  const S = trSeries(), logY = $("trLog").checked, tag = $("trMetric").value;
+  $("trTitle").textContent = tag ? `Training curves · ${tag}` : "Training curves";
+  $("trLegend").innerHTML = S.map((s) => `<span><i style="background:${s.color};height:${s.last ? 4 : 3}px"></i>iteration ${s.it}</span>`).join("");
+  const rows = S.map((s) => { const v = s.pts.map((p) => p[1]); return `<tr><td><i style="display:inline-block;width:12px;height:3px;background:${s.color};vertical-align:middle;margin-right:6px"></i>${s.it}</td><td>${s.pts.length}</td><td>${s.pts[s.pts.length - 1][0]}</td><td>${fmtNum(v[v.length - 1])}</td><td>${fmtNum(Math.min(...v))}</td><td>${fmtNum(Math.max(...v))}</td></tr>`; });
+  $("trTable").innerHTML = rows.length ? `<tr><th>Iteration</th><th>Points</th><th>Last step</th><th>Last value</th><th>Min</th><th>Max</th></tr>` + rows.join("") : "";
+  if (!S.length) return;
+  const ty = (v) => (logY ? Math.log10(Math.max(v, 1e-12)) : v);
+  let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+  for (const s of S) for (const [x, y] of s.pts) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); if (!logY || y > 0) { y0 = Math.min(y0, ty(y)); y1 = Math.max(y1, ty(y)); } }
+  if (x1 === x0) x1 = x0 + 1; if (y1 === y0) { y1 += 0.5; y0 -= 0.5; }
+  const pad = (y1 - y0) * 0.06; y0 -= pad; y1 += pad;
+  const M = { l: 64, r: 16, t: 10, b: 36 }, W = r.width - M.l - M.r, H = r.height - M.t - M.b;
+  const X = (x) => M.l + (x - x0) / (x1 - x0) * W, Y = (y) => M.t + (1 - (ty(y) - y0) / (y1 - y0)) * H;
+  g.font = "11.5px system-ui, sans-serif"; g.lineWidth = 1;
+  const ink2 = css("--ink2") || "#666", line = css("--line") || "#ddd";
+  const ticks = (a, b, n) => { const st = Math.pow(10, Math.floor(Math.log10((b - a) / n))), m = [1, 2, 5, 10].find((k) => (b - a) / (st * k) <= n) * st; const out = []; for (let v = Math.ceil(a / m) * m; v <= b + 1e-9; v += m) out.push(+v.toPrecision(12)); return out; };
+  g.fillStyle = ink2; g.strokeStyle = line;
+  g.textAlign = "right"; g.textBaseline = "middle";
+  for (const v of ticks(y0, y1, 6)) { const yy = M.t + (1 - (v - y0) / (y1 - y0)) * H; g.beginPath(); g.moveTo(M.l, yy); g.lineTo(M.l + W, yy); g.stroke(); g.fillText(logY ? fmtNum(10 ** v) : fmtNum(v), M.l - 8, yy); }
+  g.textAlign = "center"; g.textBaseline = "top";
+  for (const v of ticks(x0, x1, 8)) { const xx = X(v); g.fillText(fmtNum(v), xx, M.t + H + 8); }
+  g.fillText("step", M.l + W / 2, M.t + H + 22);
+  for (const s of S) {
+    g.strokeStyle = s.color; g.lineWidth = s.last ? 2.2 : 1.5; g.lineJoin = "round"; g.beginPath();
+    let started = false;
+    for (const [x, y] of s.pts) { if (logY && y <= 0) continue; started ? g.lineTo(X(x), Y(y)) : g.moveTo(X(x), Y(y)); started = true; }
+    g.stroke();
+    if (s.pts.length === 1) { g.fillStyle = s.color; g.beginPath(); g.arc(X(s.pts[0][0]), Y(s.pts[0][1]), 3.5, 0, 7); g.fill(); }
+  }
+  trCv._map = { X, Y, M, W, H, S, x0, x1 };
+  if (trHover) {
+    const { xs, hits } = trHover;
+    g.strokeStyle = ink2; g.lineWidth = 1; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(xs), M.t); g.lineTo(X(xs), M.t + H); g.stroke(); g.setLineDash([]);
+    for (const h of hits) { g.fillStyle = h.color; g.strokeStyle = css("--surface") || "#fff"; g.lineWidth = 2; g.beginPath(); g.arc(X(h.x), Y(h.y), 4, 0, 7); g.fill(); g.stroke(); }
+  }
+}
+trCv.onmousemove = (ev) => {
+  const m = trCv._map; if (!m) return;
+  const r = trCv.getBoundingClientRect(), px = ev.clientX - r.left;
+  if (px < m.M.l || px > m.M.l + m.W) { trCv.onmouseleave(); return; }
+  const xs = m.x0 + (px - m.M.l) / m.W * (m.x1 - m.x0);
+  const hits = m.S.map((s) => { let best = s.pts[0]; for (const p of s.pts) if (Math.abs(p[0] - xs) < Math.abs(best[0] - xs)) best = p; return { it: s.it, color: s.color, x: best[0], y: best[1] }; });
+  trHover = { xs, hits }; drawTraining();
+  const tip = $("trTip"); tip.hidden = false;
+  tip.innerHTML = `<b>step ≈ ${Math.round(xs)}</b><br>` + hits.map((h) => `<span style="color:${h.color}">●</span> iteration ${h.it}: ${fmtNum(h.y)} <span style="color:var(--muted)">(step ${h.x})</span>`).join("<br>");
+  const left = px + 14 + tip.offsetWidth > r.width ? px - 14 - tip.offsetWidth : px + 14;
+  tip.style.left = left + "px"; tip.style.top = Math.max(4, ev.clientY - r.top - tip.offsetHeight / 2) + "px";
+};
+trCv.onmouseleave = () => { trHover = null; $("trTip").hidden = true; drawTraining(); };
+$("trMetric").onchange = () => { trHover = null; drawTraining(); };
+$("trLog").onchange = () => drawTraining();
+$("trRefresh").onclick = () => refreshTraining();
+addEventListener("resize", () => { if (!$("viewTraining").hidden) drawTraining(); });
+setInterval(() => { if (experiment && !$("viewTraining").hidden && !document.hidden) refreshTraining(); }, 60000);
+
+// ================================================================= generation, KDE targets and evaluation
+let evData = null, evHover = null;
+const EV_KPIS = [["validity", "Validity"], ["novelty", "Novelty"], ["uniqueness", "Uniqueness"], ["mol_stable", "Molecule stability"],
+  ["hit_rate", "Hit rate (on target)"], ["coverage", "Corridor coverage"]];
+const EV_COLS = [["ngraphs", "Sampled"], ["validity", "Valid"], ["novelty", "Novel"], ["uniqueness", "Unique"], ["mol_stable", "Mol. stable"],
+  ["atm_stable", "Atom stable"], ["connected_components", "Connected %"], ["QED", "QED"], ["SA", "SA"], ["Diversity", "Diversity"]];
+const FRACTION = new Set(["validity", "sanitize_validity", "novelty", "uniqueness", "mol_stable", "atm_stable", "hit_rate", "coverage", "QED", "SA", "Diversity", "bulk_diversity", "bulk_similarity", "kl_score", "Lipinski_frac"]);
+const pct = (v) => v == null || typeof v !== "number" ? "–" : (100 * v).toFixed(1) + " %";
+const fmtM = (k, v) => typeof v !== "number" ? (v ?? "–") : FRACTION.has(k) && v >= 0 && v <= 1 ? pct(v) : fmtNum(v);
+// shade 0–1 metrics: low is red-ish, high is green-ish (light tint, text stays readable)
+const heat = (k, v) => typeof v === "number" && FRACTION.has(k) && v >= 0 && v <= 1 && !["SA", "bulk_similarity"].includes(k)
+  ? ` style="background:color-mix(in srgb, ${v >= 0.5 ? "var(--aqua)" : "var(--red)"} ${Math.round(Math.abs(v - 0.5) * 40)}%, transparent)"` : "";
+
+function hitByTarget(it, alRow) {        // {target id: hit rate} from prop_filter_report.json, else al_metrics.csv
+  const out = {};
+  if (it.prop_filter?.per_target) for (const [t, v] of Object.entries(it.prop_filter.per_target)) out[t] = v.hit_rate;
+  else if (typeof alRow?.hit_rate_by_target === "string") for (const p of alRow.hit_rate_by_target.split(";")) { const [t, v] = p.split(":"); if (t !== "") out[t] = +v; }
+  return out;
+}
+function evPerIteration() {              // one row per iteration: sample-weighted means of every evaluation.csv metric + AL metrics
+  return (evData?.iterations || []).map((it) => {
+    const ev = Object.values(it.evaluation), al = evData.al_metrics.find((r) => r.iteration === it.iteration) || {};
+    const keys = [...new Set(ev.flatMap((e) => Object.keys(e)))], mean = {};
+    for (const k of keys) {
+      let w = 0, s = 0;
+      for (const e of ev) if (typeof e[k] === "number") { const wi = e.ngraphs || 1; w += wi; s += wi * e[k]; }
+      if (w) mean[k] = k === "ngraphs" ? ev.reduce((a, e) => a + (e.ngraphs || 0), 0) : s / w;
+    }
+    if (typeof al.hit_rate === "number") mean.hit_rate = al.hit_rate;
+    else if (typeof it.prop_filter?.hit_rate === "number") mean.hit_rate = it.prop_filter.hit_rate;
+    if (typeof al.coverage === "number") mean.coverage = al.coverage;
+    const hits = hitByTarget(it, al);
+    const perTarget = Object.entries(it.evaluation).map(([t, e]) => ({ t, e: { ...e, hit_rate: hits[t.replace(/^t/, "")] } }));
+    return { it: it.iteration, mean, perTarget, raw: it, al };
+  });
+}
+async function refreshEval() {
+  if (!experiment) return;
+  try { evData = await api("/api/generation", { experiment: experiment.name }); } catch (e) { return toast(e.message); }
+  const its = evData.iterations, sel = $("evIter"), prev = sel.value;
+  sel.innerHTML = its.length ? its.map((it) => `<option value="${it.iteration}">iteration ${it.iteration}</option>`).reverse().join("") : `<option value="">no iterations yet</option>`;
+  if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+  const rows = evPerIteration(), keys = [...new Set(rows.flatMap((r) => Object.keys(r.mean)))].filter((k) => k !== "ngraphs").sort();
+  const ms = $("evMetric"), pm = ms.value;
+  ms.innerHTML = keys.map((k) => `<option>${k}</option>`).join("");
+  ms.value = keys.includes(pm) ? pm : keys.includes("validity") ? "validity" : keys[0] || "";
+  $("evSub").textContent = `${evData.root} · ${its.length} iteration${its.length === 1 ? "" : "s"} · updated ${new Date().toLocaleTimeString()}`;
+  renderEval();
+  if ($("kdeShow").checked) render();
+  if (!kmData) loadKde(); else { renderKde(); renderCand(); }
+  refreshMolecules(false);
+}
+function renderEval() {
+  const rows = evPerIteration(), n = +$("evIter").value, cur = rows.find((r) => r.it === n), prevRow = rows.find((r) => r.it === n - 1);
+  $("evEmpty").hidden = rows.some((r) => Object.keys(r.mean).length);
+  // KPIs: selected iteration, with the change from the one before
+  $("evKpis").innerHTML = EV_KPIS.map(([k, label]) => {
+    const v = cur?.mean[k], p = prevRow?.mean[k];
+    const d = typeof v === "number" && typeof p === "number" ? v - p : null;
+    return `<div class="kpi"><div class="k">${label}</div><div class="v">${pct(v)}</div><div class="s">${d == null ? "&nbsp;" : `${d >= 0 ? "▲" : "▼"} ${(100 * Math.abs(d)).toFixed(1)} pts vs iteration ${n - 1}`}</div></div>`;
+  }).join("");
+  $("evKpiHint").textContent = cur ? `${cur.mean.ngraphs ?? 0} molecules sampled for ${cur.raw.targets.length || cur.perTarget.length} target(s), strategy ${cur.raw.strategy || "?"}. Means are weighted by the molecules sampled per target. Hit rate and coverage come from the backward job (al_metrics.csv).` : "";
+  // targets table
+  const it = cur?.raw;
+  if (!it) { $("evTargets").innerHTML = ""; $("evFunnel").innerHTML = ""; $("evAll").innerHTML = ""; drawEval(); return; }
+  const props = it.prop_names, ids = new Set([...it.targets.map((t) => "t" + t.id), ...Object.keys(it.evaluation)]);
+  const tmap = Object.fromEntries(it.targets.map((t) => ["t" + t.id, t])), emap = Object.fromEntries(cur.perTarget.map((p) => [p.t, p.e]));
+  const dd = (t, s) => it.dedup[t.replace(/^t/, "")]?.[s] ?? "–";
+  const head = ["Target", ...props, "Region", "Density", "Sparsity", "Score", ...EV_COLS.map((c) => c[1]), "Kept", "Duplicate", "In initial", "Hit rate"];
+  $("evTgtSub").textContent = `iteration ${it.iteration} · ${it.strategy || "?"} · ${it.dir}`;
+  $("evTargets").innerHTML = `<tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr>` + [...ids].sort((a, b) => +a.slice(1) - +b.slice(1)).map((t) => {
+    const tg = tmap[t] || {}, m = tg.meta || {}, e = emap[t] || {};
+    return `<tr><td><span class="tag">${t}</span>${m.is_anchor ? ' <span class="hint">anchor</span>' : ""}</td>` +
+      props.map((p) => `<td>${fmtNum(tg.props?.[p])}</td>`).join("") +
+      `<td>${m.region ?? "–"}${m.in_band ? " · in band" : ""}</td><td>${fmtNum(m.density)}</td><td>${fmtNum(m.sparsity)}</td><td>${fmtNum(m.score)}</td>` +
+      EV_COLS.map(([k]) => `<td${heat(k, e[k])}>${k === "connected_components" ? fmtNum(e[k]) : fmtM(k, e[k])}</td>`).join("") +
+      `<td>${dd(t, "kept")}</td><td>${dd(t, "duplicate")}</td><td>${dd(t, "in_initial")}</td><td${heat("hit_rate", e.hit_rate)}>${pct(e.hit_rate)}</td></tr>`;
+  }).join("");
+  // funnel
+  // one row per stage: green = molecules that pass, red = filtered out of what came in (previous stage's output)
+  const ORDER = ["generated", "deduplicated", "score_filtered", "relaxed", "prop_calc", "accuracy_filtered", "hdf5"];
+  const main = ORDER.map((st) => it.funnel.find((f) => f.stage === st) || { stage: st, n: 0 }), side = Object.fromEntries(it.funnel.filter((f) => f.side_of).map((f) => [f.side_of, f]));
+  const lastRun = main.reduce((k, f, i) => (f.n > 0 || side[f.stage]?.n > 0 ? i : k), -1);
+  const top = Math.max(1, ...main.map((f) => f.n));
+  let input = null;
+  const frows = main.map((f, i) => {
+    return stageRow(f, i);
+  }).join("");
+  function stageRow(f, i) {
+    const ran = i <= lastRun, inn = input ?? f.n, kept = f.n, gone = ran ? Math.max(0, inn - kept) : 0;
+    if (ran) input = kept;
+    const sideNote = side[f.stage] && side[f.stage].stage !== "force_calc" ? ` · ${side[f.stage].stage}/ holds ${side[f.stage].n}` : "";
+    const tip = ran ? `${f.stage}: ${kept} of ${inn} pass, ${gone} filtered${sideNote}` : `${f.stage}: not run yet`;
+    return `<span>${f.stage}</span><div title="${tip}" style="display:flex;height:14px;width:${(100 * (ran ? inn : 0)) / top}%;min-width:${ran ? 2 : 0}px;border-radius:4px;overflow:hidden;background:var(--line)">` +
+      (ran ? `<div style="flex:${kept};background:var(--aqua)"></div><div style="flex:${gone};background:var(--red)"></div>` : "") +
+      `</div><span class="n">${ran ? `<span style="color:var(--aqua)">${kept}</span>${gone ? ` <span style="color:var(--red)">−${gone}</span>` : ""}` : `<span class="hint">–</span>`}</span>`;
+  }
+  $("evFunnel").innerHTML = main.length ? `<div class="funnel" style="grid-template-columns:130px 1fr 90px">${frows}</div>` +
+    `<div class="trlegend" style="margin-top:8px"><span><i style="background:var(--aqua);height:8px"></i>passed</span><span><i style="background:var(--red);height:8px"></i>filtered out</span><span>– not run yet</span></div>` +
+    `<div class="hint">Each bar is what entered the stage (the previous stage's output). Hover a bar for the numbers.</div>`
+    : `<div class="hint">No stage folders yet.</div>`;
+  // all metrics: rows = metric, columns = targets
+  const tcols = cur.perTarget.map((p) => p.t), mkeys = [...new Set(cur.perTarget.flatMap((p) => Object.keys(p.e)))].filter((k) => k !== "" && k !== "hit_rate");
+  $("evAll").innerHTML = tcols.length ? `<tr><th>Metric</th>${tcols.map((t) => `<th>${t}</th>`).join("")}<th>Mean</th></tr>` +
+    mkeys.map((k) => `<tr><td>${k}</td>${cur.perTarget.map((p) => `<td${heat(k, p.e[k])}>${fmtM(k, p.e[k])}</td>`).join("")}<td>${fmtM(k, cur.mean[k])}</td></tr>`).join("") : "";
+  drawEval();
+}
+function drawEval() {
+  const wrap = $("evWrap"), r = wrap.getBoundingClientRect(), dpr = devicePixelRatio || 1, cvE = $("evCanvas");
+  if (!r.width) return;
+  cvE.width = r.width * dpr; cvE.height = r.height * dpr; cvE.style.width = r.width + "px"; cvE.style.height = r.height + "px";
+  const g = cvE.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, r.width, r.height);
+  const k = $("evMetric").value, rows = evPerIteration().filter((x) => typeof x.mean[k] === "number");
+  cvE._map = null;
+  if (!rows.length) return;
+  const vals = rows.flatMap((x) => [x.mean[k], ...x.perTarget.map((p) => p.e[k]).filter((v) => typeof v === "number")]);
+  let y0 = Math.min(...vals), y1 = Math.max(...vals);
+  if (FRACTION.has(k) && y0 >= 0 && y1 <= 1) { y0 = 0; y1 = 1; }
+  if (y1 === y0) { y1 += 0.5; y0 -= 0.5; }
+  const x0 = rows[0].it - 0.5, x1 = rows[rows.length - 1].it + 0.5;
+  const M = { l: 64, r: 16, t: 10, b: 34 }, W = r.width - M.l - M.r, H = r.height - M.t - M.b;
+  const X = (x) => M.l + (x - x0) / (x1 - x0) * W, Y = (y) => M.t + (1 - (y - y0) / (y1 - y0)) * H;
+  const ink2 = css("--ink2"), line = css("--line"), blue = css("--blue"), surf = css("--surface");
+  g.font = "11.5px system-ui, sans-serif"; g.fillStyle = ink2; g.strokeStyle = line; g.lineWidth = 1;
+  g.textAlign = "right"; g.textBaseline = "middle";
+  for (let i = 0; i <= 5; i++) { const v = y0 + (i / 5) * (y1 - y0), yy = Y(v); g.beginPath(); g.moveTo(M.l, yy); g.lineTo(M.l + W, yy); g.stroke(); g.fillText(fmtM(k, v), M.l - 8, yy); }
+  g.textAlign = "center"; g.textBaseline = "top";
+  for (const x of rows) g.fillText(x.it, X(x.it), M.t + H + 8);
+  g.fillText("iteration", M.l + W / 2, M.t + H + 20);
+  g.fillStyle = color(0.35);
+  for (const x of rows) for (const p of x.perTarget) if (typeof p.e[k] === "number") { g.beginPath(); g.arc(X(x.it) + ((+p.t.slice(1) % 7) - 3) * 3, Y(p.e[k]), 3, 0, 7); g.fill(); }
+  g.strokeStyle = blue; g.lineWidth = 2.2; g.beginPath();
+  rows.forEach((x, i) => (i ? g.lineTo : g.moveTo).call(g, X(x.it), Y(x.mean[k]))); g.stroke();
+  for (const x of rows) { g.beginPath(); g.arc(X(x.it), Y(x.mean[k]), 4.5, 0, 7); g.fillStyle = blue; g.fill(); g.strokeStyle = surf; g.lineWidth = 2; g.stroke(); }
+  if (evHover != null) { const x = rows.find((q) => q.it === evHover); if (x) { g.strokeStyle = ink2; g.setLineDash([3, 3]); g.beginPath(); g.moveTo(X(x.it), M.t); g.lineTo(X(x.it), M.t + H); g.stroke(); g.setLineDash([]); } }
+  cvE._map = { X, M, W, rows, k };
+}
+$("evCanvas").onmousemove = (ev) => {
+  const m = $("evCanvas")._map; if (!m) return;
+  const r = $("evCanvas").getBoundingClientRect(), px = ev.clientX - r.left;
+  const x = m.rows.reduce((b, q) => (Math.abs(m.X(q.it) - px) < Math.abs(m.X(b.it) - px) ? q : b), m.rows[0]);
+  evHover = x.it; drawEval();
+  const tip = $("evTip"); tip.hidden = false;
+  tip.innerHTML = `<b>iteration ${x.it} · ${m.k}</b><br>mean: ${fmtM(m.k, x.mean[m.k])}<br>` +
+    x.perTarget.filter((p) => typeof p.e[m.k] === "number").map((p) => `${p.t}: ${fmtM(m.k, p.e[m.k])}`).join("<br>");
+  const left = px + 14 + tip.offsetWidth > r.width ? px - 14 - tip.offsetWidth : px + 14;
+  tip.style.left = left + "px"; tip.style.top = "8px";
+};
+$("evCanvas").onmouseleave = () => { evHover = null; $("evTip").hidden = true; drawEval(); };
+$("evCanvas").onclick = () => { if (evHover != null) { $("evIter").value = evHover; renderEval(); } };
+$("evMetric").onchange = () => drawEval();
+$("evIter").onchange = () => { renderEval(); renderKde(); renderCand(); refreshMolecules(true); };
+$("evRefresh").onclick = () => refreshEval();
+addEventListener("resize", () => { if (!$("viewEval").hidden) drawEval(); });
+setInterval(() => { if (experiment && !$("viewEval").hidden && !document.hidden) refreshEval(); }, 60000);
+
+// ---------------------------------------------------------------- shared plot helpers
+function setupCanvas(cvX) {
+  const r = cvX.parentElement.getBoundingClientRect(), dpr = devicePixelRatio || 1;
+  if (!r.width) return null;
+  cvX.width = r.width * dpr; cvX.height = r.height * dpr; cvX.style.width = r.width + "px"; cvX.style.height = r.height + "px";
+  const g = cvX.getContext("2d"); g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, r.width, r.height);
+  return { g, w: r.width, h: r.height };
+}
+function niceTicks(a, b, n) { const st = Math.pow(10, Math.floor(Math.log10((b - a) / n))), m = [1, 2, 5, 10].find((k) => (b - a) / (st * k) <= n) * st; const out = []; for (let v = Math.ceil(a / m) * m; v <= b + 1e-9; v += m) out.push(+v.toPrecision(12)); return out; }
+function drawAxes(g, M, W, H, x0, x1, y0, y1, xl, yl, logX) {
+  g.font = "11.5px system-ui, sans-serif"; g.fillStyle = css("--ink2"); g.strokeStyle = css("--line"); g.lineWidth = 1;
+  g.textAlign = "right"; g.textBaseline = "middle";
+  for (const v of niceTicks(y0, y1, 6)) { const yy = M.t + (1 - (v - y0) / (y1 - y0)) * H; g.beginPath(); g.moveTo(M.l, yy); g.lineTo(M.l + W, yy); g.stroke(); g.fillText(fmtNum(v), M.l - 8, yy); }
+  g.textAlign = "center"; g.textBaseline = "top";
+  for (const v of niceTicks(x0, x1, 7)) { const xx = M.l + (v - x0) / (x1 - x0) * W; g.beginPath(); g.moveTo(xx, M.t); g.lineTo(xx, M.t + H); g.stroke(); g.fillText(logX ? fmtNum(10 ** v) : fmtNum(v), xx, M.t + H + 6); }
+  g.fillText(xl, M.l + W / 2, M.t + H + 20);
+  g.save(); g.translate(14, M.t + H / 2); g.rotate(-Math.PI / 2); g.fillText(yl, 0, 0); g.restore();
+}
+function placeTip(tip, cvX, px, py, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const w = cvX.getBoundingClientRect().width;
+  tip.style.left = (px + 14 + tip.offsetWidth > w ? px - 14 - tip.offsetWidth : px + 14) + "px";
+  tip.style.top = Math.max(4, py - tip.offsetHeight / 2) + "px";
+}
+const diamond = (g, x, y, s) => { g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + s, y); g.lineTo(x, y + s); g.lineTo(x - s, y); g.closePath(); };
+
+// ---------------------------------------------------------------- KDE map: density, candidates, targets, landed molecules
+let kmData = null, kmLoading = false;
+async function loadKde() {
+  if (!experiment || kmLoading) return;
+  kmLoading = true; $("kmLoad").disabled = true;
+  $("kmEmptyMsg").textContent = "Reading the reference dataset and its densities… (the first time can take a minute)";
+  try { kmData = await api("/api/kde", { experiment: experiment.name }); }
+  catch (e) { $("kmEmptyMsg").textContent = e.message; }
+  finally { kmLoading = false; $("kmLoad").disabled = false; }
+  renderKde(); renderCand();
+}
+$("kmLoad").onclick = () => loadKde();
+const kmIter = () => kmData?.iterations.find((x) => x.iteration === +$("evIter").value);
+const evIterRec = () => evData?.iterations.find((x) => x.iteration === +$("evIter").value);
+function kmProps() {
+  const names = [...(kmData?.reference?.prop_names || []), ...(evData?.iterations || []).flatMap((it) => it.prop_names)];
+  return [...new Set(names)];
+}
+function renderKde() {
+  const props = kmProps();
+  for (const [id, def] of [["kmX", 0], ["kmY", 1]]) {
+    const s = $(id), prev = s.value;
+    s.innerHTML = props.map((p) => `<option>${p}</option>`).join("");
+    s.value = props.includes(prev) ? prev : props[def] || "";
+  }
+  const ref = kmData?.reference;
+  $("kmSub").textContent = ref ? `reference ${ref.source} · ${ref.n.toLocaleString()} molecules (${ref.cols[ref.prop_names[0]].length.toLocaleString()} drawn)` :
+    kmData ? `no reference density: ${kmData.reference_msg}` : "reference density, candidates, targets and where the molecules landed";
+  drawKde();
+}
+function drawKde() {
+  const c = setupCanvas($("kmCanvas")); if (!c) return;
+  const { g, w, h } = c, px = $("kmX").value, py = $("kmY").value, on = (l) => $("kmLayers").querySelector(`[data-l=${l}]`).checked;
+  const ref = kmData?.reference, ki = kmIter(), it = evIterRec();
+  const band = it?.targets.find((t) => t.meta?.band)?.meta.band;
+  const xs = [], ys = [];
+  const add = (x, y) => { if (typeof x === "number" && typeof y === "number") { xs.push(x); ys.push(y); } };
+  if (ref?.cols[px] && ref?.cols[py]) ref.cols[px].forEach((x, i) => add(x, ref.cols[py][i]));
+  for (const t of it?.targets || []) add(t.props?.[px], t.props?.[py]);
+  for (const r of ki?.landed || []) { add(r[px], r[py]); add(r["target_" + px], r["target_" + py]); }
+  if (on("cand")) for (const r of ki?.candidates || []) add(r[px], r[py]);
+  $("kmEmpty").hidden = xs.length > 0 && !!px && !!py && px !== py;
+  $("kmCanvas")._map = null;
+  if ($("kmEmpty").hidden === false) return;
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const padx = (x1 - x0) * 0.04 || 1, pady = (y1 - y0) * 0.04 || 1; x0 -= padx; x1 += padx; y0 -= pady; y1 += pady;
+  const M = { l: 64, r: 90, t: 10, b: 38 }, W = w - M.l - M.r, H = h - M.t - M.b;
+  const X = (x) => M.l + (x - x0) / (x1 - x0) * W, Y = (y) => M.t + (1 - (y - y0) / (y1 - y0)) * H;
+  drawAxes(g, M, W, H, x0, x1, y0, y1, px, py);
+  g.save(); g.beginPath(); g.rect(M.l, M.t, W, H); g.clip();
+  const marks = [];
+  if (ref && on("density")) {                         // hexbin, colour = mean density percentile
+    const r = 7, s3 = Math.sqrt(3), bins = new Map();
+    ref.cols[px].forEach((xv, i) => {
+      const x = X(xv) - M.l, y = Y(ref.cols[py][i]) - M.t;
+      const q = ((s3 / 3) * x - y / 3) / r, rr = ((2 / 3) * y) / r, cz = -q - rr;
+      let rq = Math.round(q), rs = Math.round(rr); const rc = Math.round(cz);
+      const dq = Math.abs(rq - q), ds = Math.abs(rs - rr), dc = Math.abs(rc - cz);
+      if (dq > ds && dq > dc) rq = -rs - rc; else if (ds > dc) rs = -rq - rc;
+      const k = rq + "," + rs, b = bins.get(k) || { q: rq, s: rs, n: 0, p: 0, inb: 0 };
+      b.n++; b.p += ref.pct[i]; if (band && ref.density[i] >= band[0] && ref.density[i] <= band[1]) b.inb++; bins.set(k, b);
+    });
+    for (const b of bins.values()) {
+      const cx = M.l + r * s3 * (b.q + b.s / 2), cy = M.t + r * 1.5 * b.s;
+      g.beginPath(); for (let k = 0; k < 6; k++) { const a = (Math.PI / 180) * (60 * k - 30); g.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a)); } g.closePath();
+      g.fillStyle = color(b.p / b.n / 100); g.globalAlpha = 0.85; g.fill(); g.globalAlpha = 1;
+      if (on("band") && b.inb / b.n >= 0.5) { g.strokeStyle = css("--aqua"); g.lineWidth = 1.6; g.stroke(); }
+    }
+  } else if (ref && on("band") && band) {
+    g.fillStyle = css("--aqua");
+    ref.cols[px].forEach((xv, i) => { if (ref.density[i] >= band[0] && ref.density[i] <= band[1]) g.fillRect(X(xv) - 1, Y(ref.cols[py][i]) - 1, 2, 2); });
+  }
+  if (on("cand")) for (const r of ki?.candidates || []) {
+    if (typeof r[px] !== "number" || typeof r[py] !== "number") continue;
+    const x = X(r[px]), y = Y(r[py]);
+    g.beginPath(); g.arc(x, y, r.selected ? 4.5 : 3, 0, 7);
+    g.fillStyle = r.selected ? css("--orange") : r.eligible ? css("--blue") : css("--muted"); g.globalAlpha = r.selected || r.eligible ? 0.95 : 0.5; g.fill(); g.globalAlpha = 1;
+    marks.push({ x, y, html: `<b>candidate ${r.candidate}</b><br>${px} ${fmtNum(r[px])} · ${py} ${fmtNum(r[py])}<br>density ${fmtNum(r.density)} · score ${fmtNum(r.score)}<br>${r.selected ? "selected" : r.eligible ? "eligible" : "not eligible"}${r.in_band ? " · in band" : ""}` });
+  }
+  if (on("landed")) for (const r of ki?.landed || []) {
+    const ax = r[px], ay = r[py], tx = r["target_" + px], ty = r["target_" + py];
+    if (typeof ax !== "number" || typeof ay !== "number") continue;
+    const x = X(ax), y = Y(ay), hit = r.hit === 1, col = hit ? css("--aqua") : css("--red");
+    if (typeof tx === "number" && typeof ty === "number") { g.strokeStyle = col; g.globalAlpha = 0.3; g.lineWidth = 1; g.beginPath(); g.moveTo(X(tx), Y(ty)); g.lineTo(x, y); g.stroke(); g.globalAlpha = 1; }
+    g.strokeStyle = col; g.fillStyle = col; g.lineWidth = 2;
+    if (hit) { g.beginPath(); g.arc(x, y, 3.5, 0, 7); g.fill(); }
+    else { g.beginPath(); g.moveTo(x - 3.5, y - 3.5); g.lineTo(x + 3.5, y + 3.5); g.moveTo(x + 3.5, y - 3.5); g.lineTo(x - 3.5, y + 3.5); g.stroke(); }
+    marks.push({ x, y, html: `<b>${r.molecule}</b> · target t${r.target_id}<br>${px}: ${fmtNum(ax)} (target ${fmtNum(tx)})<br>${py}: ${fmtNum(ay)} (target ${fmtNum(ty)})<br>${r.status}${r.reason ? " · " + r.reason : ""}` });
+  }
+  if (on("targets")) for (const t of it?.targets || []) {
+    const x = t.props?.[px], y = t.props?.[py]; if (typeof x !== "number" || typeof y !== "number") continue;
+    const s = 6 + Math.min(5, Math.sqrt(t.n_samples || 0) / 4);
+    diamond(g, X(x), Y(y), s); g.fillStyle = t.meta?.is_anchor ? css("--ink") : css("--orange"); g.fill(); g.strokeStyle = css("--surface"); g.lineWidth = 1.5; g.stroke();
+    g.fillStyle = css("--ink"); g.font = "bold 11px system-ui"; g.textAlign = "left"; g.textBaseline = "alphabetic"; g.fillText("t" + t.id, X(x) + s + 3, Y(y) - 3);
+    const m = t.meta || {};
+    marks.push({ x: X(x), y: Y(y), html: `<b>target t${t.id}</b>${m.is_anchor ? " (anchor)" : ""}<br>` + Object.entries(t.props).map(([k, v]) => `${k}: ${fmtNum(v)}`).join("<br>") +
+      `<br>requested ${t.n_samples} · density ${fmtNum(m.density)} · score ${fmtNum(m.score)}` });
+  }
+  g.restore();
+  if (ref && on("density")) {                          // colour bar
+    const bx = M.l + W + 18, bw = 12;
+    for (let k = 0; k < H; k++) { g.fillStyle = color(1 - k / H); g.fillRect(bx, M.t + k, bw, 1.5); }
+    g.fillStyle = css("--ink2"); g.textAlign = "left"; g.textBaseline = "middle"; g.font = "11px system-ui";
+    g.fillText("100", bx + bw + 4, M.t + 5); g.fillText("0", bx + bw + 4, M.t + H - 4);
+    g.save(); g.translate(bx + bw + 30, M.t + H / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillText("density percentile", 0, 0); g.restore();
+  }
+  $("kmCanvas")._map = { marks };
+}
+$("kmCanvas").onmousemove = (ev) => {
+  const m = $("kmCanvas")._map; if (!m) return;
+  const r = $("kmCanvas").getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+  let best = null, bd = 100; for (const k of m.marks) { const d = (k.x - x) ** 2 + (k.y - y) ** 2; if (d < bd) { bd = d; best = k; } }
+  if (best) placeTip($("kmTip"), $("kmCanvas"), x, y, best.html); else $("kmTip").hidden = true;
+};
+$("kmCanvas").onmouseleave = () => ($("kmTip").hidden = true);
+$("kmX").onchange = $("kmY").onchange = () => drawKde();
+$("kmLayers").onchange = () => drawKde();
+
+// ---------------------------------------------------------------- candidate scoring (anchor_candidates.csv)
+function renderCand() {
+  const rows = kmIter()?.candidates || [];
+  const keys = rows.length ? Object.keys(rows[0]).filter((k) => !["candidate", "density", "in_band", "eligible", "selected"].includes(k) && rows.some((r) => typeof r[k] === "number")) : [];
+  const s = $("csY"), prev = s.value;
+  s.innerHTML = keys.map((k) => `<option>${k}</option>`).join("");
+  s.value = keys.includes(prev) ? prev : keys.includes("score") ? "score" : keys[0] || "";
+  const sel = rows.filter((r) => r.selected).length, el = rows.filter((r) => r.eligible).length;
+  $("csSub").textContent = rows.length ? `iteration ${$("evIter").value} · ${rows.length} candidates · ${el} eligible · ${sel} selected` : "anchor_candidates.csv of the chosen iteration";
+  drawCand();
+}
+function drawCand() {
+  const c = setupCanvas($("csCanvas")); if (!c) return;
+  const { g, w, h } = c, rows = (kmIter()?.candidates || []).filter((r) => r.density > 0 && typeof r[$("csY").value] === "number"), yk = $("csY").value;
+  $("csEmpty").hidden = rows.length > 0; $("csCanvas")._map = null;
+  if (!rows.length) return;
+  const lx = rows.map((r) => Math.log10(r.density)), yv = rows.map((r) => r[yk]);
+  let x0 = Math.min(...lx), x1 = Math.max(...lx), y0 = Math.min(...yv), y1 = Math.max(...yv);
+  if (x1 === x0) { x0 -= 0.5; x1 += 0.5; } if (y1 === y0) { y0 -= 0.5; y1 += 0.5; }
+  const px = (x1 - x0) * 0.05, py = (y1 - y0) * 0.06; x0 -= px; x1 += px; y0 -= py; y1 += py;
+  const M = { l: 64, r: 16, t: 10, b: 38 }, W = w - M.l - M.r, H = h - M.t - M.b;
+  const X = (x) => M.l + (x - x0) / (x1 - x0) * W, Y = (y) => M.t + (1 - (y - y0) / (y1 - y0)) * H;
+  drawAxes(g, M, W, H, x0, x1, y0, y1, "KDE density (log)", yk, true);
+  const band = evIterRec()?.targets.find((t) => t.meta?.band)?.meta.band;
+  if (band && band[0] > 0) { g.fillStyle = css("--aqua"); g.globalAlpha = 0.1; g.fillRect(X(Math.log10(band[0])), M.t, X(Math.log10(band[1])) - X(Math.log10(band[0])), H); g.globalAlpha = 1; }
+  const marks = [];
+  for (const r of [...rows].sort((a, b) => (a.selected - b.selected) || (a.eligible - b.eligible))) {
+    const x = X(Math.log10(r.density)), y = Y(r[yk]);
+    g.beginPath(); g.arc(x, y, r.selected ? 5 : 3.5, 0, 7);
+    g.fillStyle = r.selected ? css("--orange") : r.eligible ? css("--blue") : css("--muted"); g.fill();
+    if (r.in_band) { g.strokeStyle = css("--aqua"); g.lineWidth = 1.5; g.stroke(); }
+    marks.push({ x, y, html: `<b>candidate ${r.candidate}</b><br>` + Object.entries(r).filter(([k]) => k !== "candidate").map(([k, v]) => `${k}: ${fmtNum(v)}`).join("<br>") });
+  }
+  $("csCanvas")._map = { marks };
+}
+$("csCanvas").onmousemove = (ev) => {
+  const m = $("csCanvas")._map; if (!m) return;
+  const r = $("csCanvas").getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+  let best = null, bd = 100; for (const k of m.marks) { const d = (k.x - x) ** 2 + (k.y - y) ** 2; if (d < bd) { bd = d; best = k; } }
+  if (best) placeTip($("csTip"), $("csCanvas"), x, y, best.html); else $("csTip").hidden = true;
+};
+$("csCanvas").onmouseleave = () => ($("csTip").hidden = true);
+$("csY").onchange = () => drawCand();
+
+// ---------------------------------------------------------------- molecule browser (.xyz of each stage)
+let mbList = [], mbKey = "", mbMol = null, mbRot = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+async function refreshMolecules(force) {
+  if (!experiment || $("evIter").value === "") return;
+  const key = experiment.name + ":" + $("evIter").value + ":" + $("mbStage").value;
+  if (!force && key === mbKey) return;
+  let r; try { r = await api("/api/molecules", { experiment: experiment.name, iteration: $("evIter").value, stage: $("mbStage").value || "generated" }); }
+  catch (e) { return toast(e.message); }
+  const prev = $("mbStage").value;
+  $("mbStage").innerHTML = r.stages.map((s) => `<option>${s}</option>`).join("");
+  $("mbStage").value = r.stages.includes(prev) ? prev : r.stages.includes("generated") ? "generated" : r.stages[0] || "";
+  if ($("mbStage").value !== (prev || "generated") && !force) { mbKey = ""; return refreshMolecules(true); }
+  mbList = r.molecules; mbKey = experiment.name + ":" + $("evIter").value + ":" + $("mbStage").value;
+  const tids = [...new Set(mbList.map((m) => m.target_id).filter((t) => t != null))].sort((a, b) => a - b), pt = $("mbTarget").value;
+  $("mbTarget").innerHTML = `<option value="">all targets</option>` + tids.map((t) => `<option value="${t}">t${t}</option>`).join("");
+  if (tids.map(String).includes(pt)) $("mbTarget").value = pt;
+  $("mbSub").textContent = `${r.dir}/${$("mbStage").value} · ${mbList.length} molecules${r.truncated ? " (first 3000)" : ""}`;
+  renderMolTable();
+}
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+function renderMolTable() {
+  const f = $("mbFilter").value.trim().toLowerCase(), t = $("mbTarget").value;
+  const rows = mbList.map((m, i) => [m, i]).filter(([m]) => (t === "" || String(m.target_id) === t) && (!f || m.id.toLowerCase().includes(f) || (m.smiles || "").toLowerCase().includes(f)));
+  const tag = (m) => m.hit === 1 ? `<span class="state COMPLETED">hit</span>` : m.status ? `<span class="state FAILED">${esc(m.status)}</span>` : m.dedup && m.dedup !== "kept" ? `<span class="state PENDING">${esc(m.dedup)}</span>` : m.dedup ? `<span class="state">kept</span>` : "";
+  $("mbTable").innerHTML = `<tr><th>Molecule</th><th>Target</th><th>Status</th><th style="text-align:left">SMILES</th></tr>` +
+    rows.slice(0, 1000).map(([m, i]) => `<tr data-i="${i}"${mbMol?.id === m.id ? ' class="sel"' : ""}><td>${esc(m.id)}</td><td>${m.target_id != null ? "t" + m.target_id : "–"}</td><td>${tag(m)}</td><td class="smi" title="${esc(m.smiles)}">${esc(m.smiles) || "–"}</td></tr>`).join("") +
+    (rows.length > 1000 ? `<tr><td colspan="4" class="hint">${rows.length - 1000} more: narrow the filter</td></tr>` : "");
+}
+$("mbTable").onclick = async (ev) => {
+  const tr = ev.target.closest("tr[data-i]"); if (!tr) return;
+  const m = mbList[+tr.dataset.i];
+  let r; try { r = await api("/api/xyz", { experiment: experiment.name, iteration: $("evIter").value, path: m.path }); } catch (e) { return toast(e.message); }
+  mbMol = { ...m, atoms: parseXyz(r.text) }; mbRot = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  const counts = {}; for (const a of mbMol.atoms) counts[a.el] = (counts[a.el] || 0) + 1;
+  $("mbInfo").innerHTML = `<b>${esc(m.id)}</b> · ${Object.entries(counts).sort().map(([e, n]) => e + (n > 1 ? n : "")).join("")} · ${mbMol.atoms.length} atoms` +
+    (m.smiles ? `<br><code>${esc(m.smiles)}</code>` : "") + (m.reason ? `<br>${esc(m.reason)}` : "") + `<br>${esc(r.path)} · drag to rotate`;
+  renderMolTable(); drawMol();
+};
+$("mbStage").onchange = () => refreshMolecules(true);
+$("mbTarget").onchange = $("mbFilter").oninput = () => renderMolTable();
+function parseXyz(text) {
+  const L = text.split(/\r?\n/), n = parseInt(L[0]) || 0, atoms = [];
+  for (const l of L.slice(2, 2 + n)) { const p = l.trim().split(/\s+/); if (p.length >= 4) atoms.push({ el: p[0].replace(/\d+/g, ""), p: [+p[1], +p[2], +p[3]] }); }
+  const c = [0, 1, 2].map((k) => atoms.reduce((s, a) => s + a.p[k], 0) / (atoms.length || 1));
+  for (const a of atoms) a.p = a.p.map((v, k) => v - c[k]);
+  return atoms;
+}
+const CPK = { H: ["#e8e8e8", 0.31], C: ["#606060", 0.76], N: ["#3050f8", 0.71], O: ["#ff0d0d", 0.66], F: ["#90e050", 0.57], S: ["#e0c030", 1.05],
+  Cl: ["#1ff01f", 1.02], P: ["#ff8000", 1.07], Br: ["#a62929", 1.2], I: ["#940094", 1.39], B: ["#ffb5b5", 0.84], Si: ["#f0c8a0", 1.11] };
+function drawMol() {
+  const c = setupCanvas($("mbCanvas")); $("mbEmpty").hidden = !!mbMol; if (!c || !mbMol) return;
+  const { g, w, h } = c, A = mbMol.atoms, R = mbRot;
+  const P = A.map((a) => R.map((row) => row[0] * a.p[0] + row[1] * a.p[1] + row[2] * a.p[2]));
+  const ext = Math.max(1, ...P.map((p) => Math.hypot(p[0], p[1]))), sc = Math.min(w, h) / 2 / (ext + 1.2);
+  const sx = (p) => w / 2 + p[0] * sc, sy = (p) => h / 2 - p[1] * sc;
+  const items = [];
+  for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
+    const d = Math.hypot(...[0, 1, 2].map((k) => A[i].p[k] - A[j].p[k]));
+    if (d < 1.2 * ((CPK[A[i].el]?.[1] ?? 0.8) + (CPK[A[j].el]?.[1] ?? 0.8))) items.push({ z: (P[i][2] + P[j][2]) / 2 - 0.01, i, j });
+  }
+  A.forEach((a, i) => items.push({ z: P[i][2], i }));
+  items.sort((a, b) => a.z - b.z);
+  const zmin = Math.min(...P.map((p) => p[2])), zmax = Math.max(...P.map((p) => p[2])), fade = (z) => 0.55 + 0.45 * (zmax > zmin ? (z - zmin) / (zmax - zmin) : 1);
+  for (const it of items) {
+    g.globalAlpha = fade(it.z);
+    if (it.j != null) { g.strokeStyle = css("--ink2"); g.lineWidth = 0.18 * sc; g.lineCap = "round"; g.beginPath(); g.moveTo(sx(P[it.i]), sy(P[it.i])); g.lineTo(sx(P[it.j]), sy(P[it.j])); g.stroke(); }
+    else {
+      const a = A[it.i], [col, rad] = CPK[a.el] || ["#ff1493", 0.8], r = (0.25 + 0.35 * rad) * sc;
+      const grd = g.createRadialGradient(sx(P[it.i]) - r / 3, sy(P[it.i]) - r / 3, r / 6, sx(P[it.i]), sy(P[it.i]), r);
+      grd.addColorStop(0, "#ffffff"); grd.addColorStop(0.35, col); grd.addColorStop(1, col);
+      g.fillStyle = grd; g.beginPath(); g.arc(sx(P[it.i]), sy(P[it.i]), r, 0, 7); g.fill();
+      g.strokeStyle = "rgba(0,0,0,.35)"; g.lineWidth = 1; g.stroke();
+    }
+  }
+  g.globalAlpha = 1;
+}
+{
+  let drag = null;
+  const mul = (a, b) => a.map((r) => [0, 1, 2].map((j) => r[0] * b[0][j] + r[1] * b[1][j] + r[2] * b[2][j]));
+  $("mbCanvas").onpointerdown = (e) => { drag = [e.clientX, e.clientY]; $("mbCanvas").setPointerCapture(e.pointerId); };
+  $("mbCanvas").onpointerup = () => (drag = null);
+  $("mbCanvas").onpointermove = (e) => {
+    if (!drag || !mbMol) return;
+    const dx = (e.clientX - drag[0]) * 0.01, dy = (e.clientY - drag[1]) * 0.01; drag = [e.clientX, e.clientY];
+    const ry = [[Math.cos(dx), 0, Math.sin(dx)], [0, 1, 0], [-Math.sin(dx), 0, Math.cos(dx)]];
+    const rx = [[1, 0, 0], [0, Math.cos(dy), -Math.sin(dy)], [0, Math.sin(dy), Math.cos(dy)]];
+    mbRot = mul(rx, mul(ry, mbRot)); drawMol();
+  };
+}
+addEventListener("resize", () => { if (!$("viewEval").hidden) { drawKde(); drawCand(); drawMol(); } });
+
+// KDE targets on the property map: every iteration's targets.json, where both axes are target properties
+$("kdeShow").onchange = async () => {
+  if ($("kdeShow").checked && !evData && experiment) { try { evData = await api("/api/generation", { experiment: experiment.name }); } catch (e) { toast(e.message); } }
+  if ($("kdeShow").checked && !experiment) toast("Choose an experiment first.");
+  render();
+};
+function drawKdeTargets(sx, sy) {
+  if (!$("kdeShow").checked || !evData || !view || sx.kind !== "prop" || sy.kind !== "prop") return;
+  const its = evData.iterations.filter((it) => it.targets.length), n = its.length;
+  let shown = 0;
+  ctx.save(); ctx.beginPath(); ctx.rect(M.l, M.t, view.W, view.H); ctx.clip();
+  its.forEach((it, k) => {
+    const col = css("--orange"), alpha = n > 1 ? 0.35 + 0.65 * k / (n - 1) : 1;
+    for (const t of it.targets) {
+      const x = t.props?.[sx.name], y = t.props?.[sy.name];
+      if (typeof x !== "number" || typeof y !== "number") continue;
+      const px = view.px(x), py = view.py(y), s = 5 + Math.min(5, Math.sqrt(t.n_samples || 0) / 4);
+      ctx.globalAlpha = alpha; ctx.beginPath(); ctx.moveTo(px, py - s); ctx.lineTo(px + s, py); ctx.lineTo(px, py + s); ctx.lineTo(px - s, py); ctx.closePath();
+      ctx.fillStyle = t.meta?.is_anchor ? css("--ink") : col; ctx.fill(); ctx.strokeStyle = css("--surface"); ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.globalAlpha = 1; ctx.font = "11px system-ui"; ctx.textAlign = "left"; ctx.fillStyle = css("--ink");
+      ctx.fillText(`i${it.iteration}·t${t.id}`, px + s + 3, py - 3); shown++;
+    }
+  });
+  ctx.restore();
+  $("psub").textContent += ` · ${shown} KDE target${shown === 1 ? "" : "s"} (◆ size = molecules requested, dark = anchor)`;
+}
+
+// ================================================================= logs (.out / .err of the jobs)
+const JOBNAME = { forward: "Forward", backward: "Backward", "": "Other" };
+const logSize = (n) => n == null ? "not written yet" : n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(1)} MB`;
+let logTimer = null;
+async function refreshLogs(list) {
+  if (!experiment) return;
+  const sel = $("logSel");
+  if (list) {
+    let res; try { res = await api("/api/logs", { experiment: experiment.name }); } catch (e) { return toast(e.message); }
+    // api() returns an object, so the file list arrives as res.files (older servers: as numbered keys)
+    const files = Array.isArray(res.files) ? res.files : Object.keys(res).filter((k) => /^\d+$/.test(k)).map((k) => res[k]);
+    const prev = sel.value;
+    sel.innerHTML = files.length ? ["forward", "backward", ""].map((j) => {
+      const fs = files.filter((f) => f.job === j);
+      return fs.length ? `<optgroup label="${JOBNAME[j]}">` + fs.map((f) => `<option value="${f.path}">${j ? `${JOBNAME[j]} .${f.kind}` : f.path} · ${logSize(f.size)}</option>`).join("") + "</optgroup>" : "";
+    }).join("") : `<option value="">no log files yet</option>`;
+    if ([...sel.options].some((o) => o.value === prev)) sel.value = prev;
+  }
+  if (!sel.value) { $("logView").textContent = ""; $("logSub").textContent = "No log files in this experiment yet"; return; }
+  let r; try { r = await api("/api/log", { experiment: experiment.name, path: sel.value }); } catch (e) { return toast(e.message); }
+  const box = $("logView"), atEnd = box.scrollTop + box.clientHeight >= box.scrollHeight - 30;
+  box.textContent = r.missing ? "(this file has not been written yet: the job has not started)" : (r.text || "(empty)");
+  $("logSub").textContent = `${experiment.name}/${r.path} · ${logSize(r.missing ? null : r.size)}${r.truncated ? " · showing the last 200 KB" : ""}`;
+  if ($("logFollow").checked || atEnd) box.scrollTop = box.scrollHeight;
+}
+$("logSel").onchange = () => { $("logView").scrollTop = 0; refreshLogs(false).then(() => { if ($("logFollow").checked) $("logView").scrollTop = $("logView").scrollHeight; }); };
+$("logRefresh").onclick = () => refreshLogs(true);
+setInterval(() => { if (!$("viewLogs").hidden && $("logFollow").checked && !document.hidden) refreshLogs(false); }, 10000);
+document.querySelectorAll("#viewtabs button").forEach((b) => (b.onclick = () => showView(b.dataset.v)));
+
+// ================================================================= step 5: config editor
+let cfgOrig = "", cfgDirty = false, lastStatus = null;
+async function loadConfig() {
+  if (!experiment) return;
+  try {
+    const res = await api("/api/config", { experiment: experiment.name });
+    cfgOrig = res.text; $("cfgText").value = res.text; cfgDirty = false; syncCfg(); renderCfgTables();
+    $("cfgTitle").textContent = `Experiments/${experiment.name}/configs/experiment_config.yaml`;
+    $("cfgErr").textContent = "";
+  } catch (e) { $("cfgErr").textContent = e.message; }
+}
+function syncCfg() {
+  cfgDirty = $("cfgText").value !== cfgOrig;
+  $("cfgSave").disabled = !cfgDirty;
+  $("cfgSub").textContent = cfgDirty ? "unsaved changes" : "saved";
+  const running = (lastStatus?.jobs || []).filter(jobActive);
+  $("cfgWarn").hidden = !running.length;
+  if (running.length) $("cfgWarn").textContent = `${running.map((j) => `${j.job} job ${j.id}`).join(", ")} ${running.length > 1 ? "are" : "is"} queued or running. The backward job rewrites this file when it ends, so edits made now may be overwritten.`;
+}
+$("cfgText").addEventListener("input", syncCfg);
+
+// ---- table view: line-based YAML reader; edits rewrite only the value on that line (comments/layout kept)
+let cfgMode = "tables";
+function splitYamlComment(s) {
+  let q = null;
+  for (let i = 0; i < s.length; i++) {
+    const c = s[i];
+    if (q) { if (c === q) q = null; }
+    else if ((c === '"' || c === "'") && !s.slice(0, i).trim()) q = c;
+    else if (c === "#" && (i === 0 || /\s/.test(s[i - 1]))) {
+      const v = s.slice(0, i).trimEnd();
+      return [v, s.slice(v.length, i), s.slice(i)];
+    }
+  }
+  return [s.trimEnd(), "", ""];
+}
+function parseCfg(text) {
+  const lines = text.split("\n"), sections = [];
+  let sec = { title: "General", desc: [], rows: [] }, stack = [], last = null, pendingList = null;
+  sections.push(sec);
+  for (let i = 0; i < lines.length; i++) {
+    const L = lines[i], t = L.trim();
+    if (/^#\s*={5,}/.test(t) && /^#\s*\S/.test((lines[i + 1] || "").trim()) && /^#\s*={5,}/.test((lines[i + 2] || "").trim())) {
+      sec = { title: lines[i + 1].trim().replace(/^#\s*/, ""), desc: [], rows: [] }; sections.push(sec);
+      i += 2; stack = []; last = null; pendingList = null; continue;
+    }
+    if (!t) { last = null; continue; }
+    const indent = L.length - L.trimStart().length;
+    if (t.startsWith("#")) {
+      if (last && indent > 0) last.comment += "\n" + t.replace(/^#\s?/, "");
+      else if (indent === 0) sec.desc.push(t.replace(/^#\s?/, ""));
+      continue;
+    }
+    if (t.startsWith("- ") || t === "-") {
+      if (pendingList) {
+        if (!pendingList.lines.length) pendingList.itemIndent = L.slice(0, indent);
+        pendingList.raw.push(splitYamlComment(t.slice(1).trim())[0]); pendingList.lines.push(i);
+      }
+      continue;
+    }
+    const m = L.match(/^(\s*)([^\s#:][^:#]*?|"[^"]*"):(\s*)(.*)$/);
+    if (!m) { last = null; continue; }
+    while (stack.length && stack[stack.length - 1].indent >= indent) stack.pop();
+    const parents = stack.map((x) => x.key), key = m[2];
+    const [value, gap, comment] = splitYamlComment(m[4]);
+    const row = { line: i, key, value, comment: comment.replace(/^#\s?/, ""), parents, path: [...parents, key].join(".") };
+    if (!value) { row.parent = true; row.raw = []; row.lines = []; stack.push({ indent, key }); pendingList = row; }
+    else {
+      pendingList = null;
+      if (/^\[.*\]$/.test(value)) { row.flow = true; row.raw = value.slice(1, -1).split(",").map((x) => x.trim()).filter(Boolean); }
+    }
+    sec.rows.push(row); last = row;
+  }
+  // lists: block style (key: + "- item" lines) or flow style ([a, b]); items are kept unquoted, the quote style is remembered
+  const quoted = (x) => /^(['"]).*\1$/.test(x);
+  for (const s of sections) for (const r of s.rows) {
+    if (r.parent && r.raw.length) r.parent = false; else if (!r.flow) continue;
+    r.list = true; r.quote = r.raw.length && r.raw.every(quoted) ? r.raw[0][0] : "";
+    r.items = r.raw.map((x) => (quoted(x) ? x.slice(1, -1) : x));
+  }
+  return sections.filter((s) => s.rows.length || s.desc.length);
+}
+const cfgRows = (text) => parseCfg(text).flatMap((s) => s.rows).filter((r) => !r.parent);
+const cfgShown = (r) => (r.list ? r.items.join(", ") : r.value);
+// Write one value (string) or list (array of strings) into the YAML text. The row is looked up again by its path, so a
+// list that gains or loses lines cannot shift the rows below it. Comments on the key line are kept.
+function setCfgValue(path, v) {
+  const text = $("cfgText").value, lines = text.split("\n"), r = cfgRows(text).find((x) => x.path === path);
+  if (!r) return;
+  const setLine = (val) => {
+    const m = lines[r.line].match(/^(\s*[^:]*?:)(\s*)(.*)$/), [, gap, comment] = splitYamlComment(m[3]);
+    lines[r.line] = m[1] + (val === "" ? "" : m[2] || " ") + val + (comment ? (gap || "  ") + comment : "");
+  };
+  if (!Array.isArray(v)) setLine(v);
+  else {
+    const q = (x) => (r.quote ? r.quote + x + r.quote : /^[\w.+\-\/]+$/.test(x) ? x : JSON.stringify(x));
+    const span = r.list && !r.flow ? r.lines[r.lines.length - 1] - r.lines[0] + 1 : 0;
+    if (r.flow || !v.length) { if (span) lines.splice(r.lines[0], span); setLine(`[${v.map(q).join(", ")}]`); }
+    else lines.splice(r.lines[0], span, ...v.map((x) => `${r.itemIndent}- ${q(x)}`));
+  }
+  $("cfgText").value = lines.join("\n"); syncCfg();
+}
+// Sections, notes and edit labels from CONFIGURATION_REFERENCE.md. Keys without an entry here (paths, derived values,
+// the copies of the framework configs that the backward job writes back, pipeline.blocks) are not shown in the tables.
+// Pipeline blocks in order and the job that runs each (same as STAGE_JOB in navigator_server.py)
+const STAGE_JOB = { split: "forward", train: "forward", plan: "forward", generate: "forward", dedup: "forward",
+  score_filter: "backward", relax_geo: "backward", prop_calc: "backward", prop_filter: "backward", hdf5: "backward", evaluate: "backward" };
+const CFG_CHOICES = { "pipeline.start_at": Object.keys(STAGE_JOB) };   // keys edited with a drop-down list
+const CFG_SECTIONS = [
+  ["loop", "Iterations & pipeline", "How many iterations run, where a restarted job begins, and how many calculations run at once in the backward job."],
+  ["gen", "Generation & conditioning", "What the diffusion model is conditioned on and how many molecules it generates per iteration."],
+  ["train", "Model training", "Training of the EDM diffusion model in the forward job of every iteration."],
+  ["mix", "Dataset mixing (replay)", "How the per-iteration datasets are weighted during training. With m intermediate datasets: newest 1 − alpha, each intermediate alpha/(m + beta), initial beta·alpha/(m + beta); min_original_share then raises the initial share if needed."],
+  ["score", "Score screening (QED / SA)", "score_filter block in the backward job: drops molecules with poor drug-likeness (QED) or synthetic accessibility (SA)."],
+  ["acc", "Property-accuracy filter", "prop_filter block: keeps molecules whose computed properties are close to their target. A molecule is a hit if |achieved − target| ≤ max(relative·|target|, absolute) for every conditioning property."],
+  ["geo", "Geometry optimization", "Relaxation of the generated molecules (relax_geo block)."],
+  ["prop", "Property calculation", "QM labelling of the relaxed molecules (prop_calc block)."],
+  ["hdf5", "HDF5 output", "How labelled molecules are written back for the next iteration."],
+  ["al", "Active learning: strategy", "Turns on target planning (plan block) and per-target labelling. Missing keys fall back to src/configs/al.yaml."],
+  ["anchor", "Active learning: anchor mode", "Applies with kde_region: anchor. Target 0 is the current trajectory row; additional targets are chosen from candidates sampled in a box around it."],
+  ["corr", "Active learning: corridor & frontier modes", "Only used with kde_region: corridor or query_strategy: frontier."],
+  ["kde", "Active learning: KDE density & scoring", "KDE of the initial dataset used to score candidate targets."],
+  ["dedup", "Deduplication", "Runs at the end of the forward job, right after generate; removes molecules with identical connectivity."],
+  ["mlflow", "MLflow", "Mirrors training curves into MLflow after every training run."],
+];
+const CFG_META = Object.fromEntries([
+  ["loop.num_iterations", "loop", "Mandatory", "Last iteration index; iterations run from 0 to this value, and a job with a higher current_iter stops."],
+  ["loop.current_iter", "loop", "Automatic", "Iteration the next job runs; every backward job increments it. Edit only to repair or restart a run."],
+  ["pipeline.start_at", "loop", "Optional", "First block to run in every job, chained ones included; earlier blocks are skipped. Normally split. To restart one job from a block (e.g. after a failure), use Start at in 6 Run instead: it applies to that job only and leaves this value unchanged. start_at: generate reuses iter_<n>/targets.json; dedup re-runs dedup without regenerating."],
+  ["max_parallel_tasks", "loop", "Optional", "Maximum number of relaxations or QM calculations running at once in the backward job."],
+  ["processing_timeout_hours", "loop", "Optional", "Time limit per relaxation or QM calculation; timed-out molecules are moved to killed/."],
+  ["EQdiffParam.properties_list", "gen", "Mandatory", "Conditioning properties, in context order. Each must exist in the initial dataset and as a trajectory column; with active learning only HLgap, eMBD, DIP, eH, eL are supported. Set before iteration 0."],
+  ["EQdiffParam.num_samples", "gen", "Mandatory", "Molecules generated per iteration. With al.anchor_extra_fraction the anchor target gets this many; otherwise it is the total over all targets."],
+  ["EQdiffParam.batch_size", "gen", "Optional", "Generation batch size."],
+  ["EQdiffParam.num_epochs", "train", "Optional", "Training epochs per iteration."],
+  ["EQdiffParam.batch_size_tr", "train", "Optional", "Training batch size."],
+  ["EQdiffParam.test_interval", "train", "Optional", "Epochs between sampling evaluations (1000 molecules); best_mol_stab.ckpt is saved only at these evaluations."],
+  ["EQdiffParam.split_seed", "train", "Optional", "Seed of the per-molecule train/validation/test split."],
+  ["EQdiffParam.concat_datasets", "mix", "Optional", "Keep one dataset per iteration and train on all with weighted sampling (needs hdf5.hdf5_iter_flag: True). false = re-split the cumulative HDF5 every iteration."],
+  ["EQdiffParam.alpha", "mix", "Optional", "Sampling share of all datasets except the newest, which gets 1 − alpha. In [0, 1]."],
+  ["EQdiffParam.beta", "mix", "Optional", "Weight of the initial dataset relative to one intermediate dataset; below 1 keeps it under them. In [0, 1]."],
+  ["EQdiffParam.min_original_share", "mix", "Optional", "Lower bound for the initial dataset's share, taken from the newest dataset; 0 disables it."],
+  ["EQdiffParam.samples_per_epoch", "mix", "Optional", "Draws per epoch once more than one dataset exists; null = size of the training set."],
+  ["query.filter_scheme", "score", "Optional", "score enables score_filter (QED/SA); accuracy enables prop_filter (properties)."],
+  ["query.score_reference", "score", "Optional", "initial_mean: thresholds from the mean QED and SA of the initial dataset (cached next to the input HDF5). trajectory: per-waypoint thresholds from the CSV."],
+  ["query.score_relax.QED", "score", "Optional", "initial_mean only: pass if QED > (1 − r)·mean QED. r in (−1, 1); > 0 loosens, < 0 tightens."],
+  ["query.score_relax.SAScore", "score", "Optional", "initial_mean only: pass if SA < (1 + r)·mean SA. r in (−1, 1); > 0 loosens, < 0 tightens."],
+  ["query.scores", "score", "Optional", "Scores checked by score_filter. initial_mean: SAScore and/or QED (SAScore alone skips the QED test). trajectory: SAScore only, with its per-waypoint thresholds in a CSV column."],
+  ["query.filter_threshold", "acc", "Optional", "Relative tolerance of the property-accuracy filter; also the default of al.tolerances.default.relative."],
+  ["al.tolerances.default.relative", "acc", "Optional", "Relative tolerance of the hit rule; null uses query.filter_threshold."],
+  ["al.tolerances.default.absolute", "acc", "Optional", "Absolute tolerance of the hit rule."],
+  ["al.keep_off_target", "acc", "Optional", "Without the prop_filter block, keep misses in the HDF5 with al_hit = 0; false drops them. With prop_filter, misses are always dropped."],
+  ["geometry.optimizer", "geo", "Mandatory", "EquiDTB (machine-learned), DFTB+ or FHI-aims. Any other value skips relaxation."],
+  ["geometry.calculate_forces", "geo", "Optional", "Also compute forces for the relaxed and unrelaxed geometries."],
+  ["properties.calculator", "prop", "Mandatory", "EquiDTB, DFTB+ or FHI-aims. FHI-aims uses src/configs/nctr1.in; DFTB+ needs the patched ASE calculator."],
+  ["hdf5.appending_flag", "hdf5", "Mandatory", "Append labelled molecules to the cumulative <stem>-output.hdf5. Required for active learning; False recreates the file every job."],
+  ["hdf5.hdf5_iter_flag", "hdf5", "Optional", "Also write each iteration's molecules to iter_<n>/hdf5/output.hdf5 (the next dataset_<n+1>); required by concat_datasets."],
+  ["hdf5.extra_properties_flag", "hdf5", "Optional", "Also write extra QM properties (forces, charges, volumes) to separate extra_properties HDF5 files."],
+  ["al.enabled", "al", "Mandatory", "Turn active learning on: adds plan and dedup blocks and labels every molecule against its own target."],
+  ["al.query_strategy", "al", "Optional", "kde_map (KDE planning), frontier (advance along the trajectory by hit rate) or trajectory (waypoint n only)."],
+  ["al.kde_region", "al", "Optional", "kde_map only: anchor samples a box around the current waypoint; corridor samples a padded band along the trajectory."],
+  ["system.seed", "al", "Optional", "Seed of target planning (plan) and coverage estimation (evaluate). Training uses its own seed; the data split uses EQdiffParam.split_seed."],
+  ["al.generation_budget_hours", "al", "Optional", "No further targets are started once generation has used this much wall time."],
+  ["al.include_anchor", "anchor", "Optional", "Waypoint n itself is target 0."],
+  ["al.anchor_box", "anchor", "Optional", "Candidates are sampled within ± this fraction of each anchor value."],
+  ["al.anchor_n_candidates", "anchor", "Optional", "Candidates sampled in the box; null uses density.n_candidates."],
+  ["al.anchor_n_targets", "anchor", "Optional", "Additional targets per iteration; the anchor comes on top."],
+  ["al.anchor_score", "anchor", "Optional", "relative_pct: distance to the anchor plus density difference, farthest-point selection. kde: adaptive score with repulsion."],
+  ["al.anchor_min_datnum", "anchor", "Optional", "relative_pct only: minimum atom-count difference to the anchor. anchor_box × atNUM must allow it, or no candidate qualifies."],
+  ["al.anchor_extra_fraction", "anchor", "Optional", "Molecules per additional target = round(fraction × num_samples), on top of num_samples at the anchor. null divides num_samples among all targets."],
+  ["al.targets_per_iter", "corr", "Optional", "Corridor: targets planned per iteration."],
+  ["al.corridor_pad", "corr", "Optional", "Corridor: padding around the trajectory polyline, as a fraction of its span on each axis."],
+  ["al.corridor_lookahead", "corr", "Optional", "Corridor: null uses the whole trajectory; k uses waypoints up to current_iter + k."],
+  ["al.advance_hit_rate", "corr", "Optional", "Frontier: hit rate a waypoint must reach before the next one is used."],
+  ["al.density.bandwidth", "kde", "Optional", "KDE bandwidth in standardized units: scott or a number. Along atNUM never narrower than one atom."],
+  ["al.density.density_percentiles", "kde", "Optional", "Keep only candidates whose density lies between these percentiles of the initial dataset's own densities; null = no band."],
+  ["al.density.n_candidates", "kde", "Optional", "Corridor: candidates sampled per iteration; anchor mode uses it when anchor_n_candidates is null."],
+  ["al.density.w_sparse", "kde", "Optional", "Adaptive score: weight of data sparsity."],
+  ["al.density.w_err", "kde", "Optional", "Adaptive score: weight of the generator's past error near the candidate."],
+  ["al.density.w_explore", "kde", "Optional", "Adaptive score: weight of 1/√(n_eff + 1), favouring rarely requested regions."],
+  ["al.density.min_reach", "kde", "Optional", "Drop candidates whose estimated hit rate is below this once more than min_neff past requests lie nearby; 0 disables it."],
+  ["al.density.logp_floor", "kde", "Optional", "Lower clip of the log density."],
+  ["al.min_neff", "kde", "Optional", "Nearby past requests needed before a region can be judged unreachable; also the coverage threshold of evaluate."],
+  ["al.dedup.enabled", "dedup", "Optional", "Remove molecules with identical connectivity."],
+  ["al.dedup.scope", "dedup", "Optional", "all: one copy across all targets (lowest target id wins). target: one copy within each target."],
+  ["al.dedup.against_initial", "dedup", "Optional", "Also remove molecules whose connectivity occurs in the initial dataset."],
+  ["al.dedup.cov_factor", "dedup", "Optional", "Atoms are bonded if their distance is below cov_factor × the sum of covalent radii."],
+  ["mlflow.enabled", "mlflow", "Optional", "Mirror the training curves of all iterations into MLflow after every training run."],
+].map(([p, sec, edit, note]) => [p, { sec, edit, note }]));
+function cfgMeta(path) {
+  if (CFG_META[path]) return CFG_META[path];
+  const m = path.match(/^al\.tolerances\.([^.]+)(\.(relative|absolute))?$/);
+  if (m) return { sec: "acc", edit: "Optional", note: `Per-property tolerance override for ${m[1]}${m[3] ? ` (${m[3]})` : ""}.` };
+  return null;                                   // static: paths, derived, copies of the framework configs
+}
+// Shown under a row while it is edited (constraints from CONFIGURATION_REFERENCE.md, section 5.3)
+const AL_PROPS = ["HLgap", "eMBD", "DIP", "eH", "eL"];
+function cfgWarning(r, changed) {
+  if (r.path !== "EQdiffParam.properties_list") return "";
+  const now = cfgRows($("cfgText").value), get = (p) => (now.find((x) => x.path === p) || {}).value || "";
+  const out = [], bad = r.items.filter((x) => !AL_PROPS.includes(x)), it = parseInt(get("loop.current_iter"), 10);
+  if (!r.items.length) out.push("At least one property is needed.");
+  if (bad.length && /^true$/i.test(get("al.enabled"))) out.push(`Not supported with active learning: ${bad.join(", ")} (supported: ${AL_PROPS.join(", ")}).`);
+  if (changed && it > 0) out.push(`This experiment is already at iteration ${it}; its trained models and trajectory use the saved list.`);
+  if (changed) out.push("Each property must be a column of the initial dataset and of the trajectory CSV.");
+  return out.join(" ");
+}
+function renderCfgTables() {
+  const box = $("cfgSections"), q = $("cfgFilter").value.trim().toLowerCase();
+  const closed = new Set([...box.querySelectorAll("details")].filter((d) => !d.open).map((d) => d.dataset.t));
+  const orig = new Map(cfgRows(cfgOrig).map((r) => [r.path, cfgShown(r)]));
+  const isPath = (v) => /^(file:|\/|~\/|\.\.?\/)/.test(v) || /\$\{(paths|code_paths|root|Code_path|Data_path)/.test(v);
+  const rows = cfgRows($("cfgText").value).filter((r) => cfgMeta(r.path) && !isPath(r.value));
+  const order = Object.keys(CFG_META);
+  box.innerHTML = "";
+  for (const [id, title, desc] of CFG_SECTIONS) {
+    const mine = rows.filter((r) => cfgMeta(r.path).sec === id)
+      .filter((r) => !q || [r.path, r.value, r.comment, cfgMeta(r.path).note, ...(r.items || [])].some((x) => (x || "").toLowerCase().includes(q)))
+      .sort((a, b) => (order.indexOf(a.path) + 1 || 1e9) - (order.indexOf(b.path) + 1 || 1e9));
+    if (!mine.length) continue;
+    const d = document.createElement("details"); d.className = "cfgsec"; d.dataset.t = id; d.open = !closed.has(id) || !!q;
+    const nchg = mine.filter((r) => orig.get(r.path) !== cfgShown(r)).length;
+    d.innerHTML = `<summary>${esc(title)}<span class="n">${mine.length} setting${mine.length === 1 ? "" : "s"}</span>${nchg ? `<span class="chg">${nchg} changed</span>` : ""}</summary><div class="desc">${esc(desc)}</div>`;
+    const tb = document.createElement("table"); tb.className = "cfgtab";
+    tb.innerHTML = '<colgroup><col class="ck"><col class="cv"><col class="ce"><col></colgroup><thead><tr><th>Key</th><th>Value</th><th>Edit</th><th>Explanation</th></tr></thead>';
+    const body = document.createElement("tbody");
+    for (const r of mine) {
+      const meta = cfgMeta(r.path), tr = document.createElement("tr");
+      const tag = meta.edit ? `<span class="etag ${/^Mandatory/.test(meta.edit) ? "mand" : ""}">${esc(meta.edit)}</span>` : "";
+      const where = r.parents.length ? `<div class="kp">${esc(r.parents.join("."))}</div>` : "";
+      tr.innerHTML = `<td class="k"><div class="kn">${esc(r.key)}</div>${where}</td><td class="v"></td><td class="e">${tag}</td><td class="c"><div>${esc(meta.note || r.comment)}</div><div class="cwarn" hidden></div></td>`;
+      if (meta.note && r.comment) tr.children[3].title = "YAML comment: " + r.comment;
+      const cell = tr.children[1], warnEl = tr.querySelector(".cwarn");
+      const simpleList = r.list && r.items.every((x) => !/^[[{]|: /.test(x));
+      if (r.list && !simpleList) { cell.innerHTML = `<span class="ro" title="Edit this list in the YAML tab">${esc(cfgShown(r))}</span>`; body.appendChild(tr); continue; }
+      let inp;
+      if (!r.list && /^(true|false)$/i.test(r.value)) {
+        inp = document.createElement("select");
+        for (const o of r.value[0] === "T" ? ["True", "False"] : ["true", "false"]) inp.add(new Option(o, o));
+        inp.value = r.value;
+      } else if (!r.list && CFG_CHOICES[r.path]) {
+        inp = document.createElement("select");
+        const opts = CFG_CHOICES[r.path];
+        for (const o of opts.includes(r.value) ? opts : [r.value, ...opts]) inp.add(new Option(o, o));
+        inp.value = r.value;
+      } else {
+        inp = document.createElement("input"); inp.type = "text"; inp.value = cfgShown(r);
+        if (r.list) inp.placeholder = "comma-separated, e.g. a, b";
+      }
+      inp.title = r.list ? `${r.path} (comma-separated list)` : r.path;
+      const mark = () => {
+        const changed = orig.get(r.path) !== cfgShown(r);
+        tr.classList.toggle("changed", changed);
+        const w = cfgWarning(r, changed);
+        warnEl.textContent = w; warnEl.hidden = !w;
+      };
+      inp.addEventListener(inp.tagName === "SELECT" ? "change" : "input", () => {
+        if (r.list) { r.items = inp.value.split(",").map((x) => x.trim()).filter(Boolean); setCfgValue(r.path, r.items); }
+        else { r.value = inp.value.trim(); setCfgValue(r.path, r.value); }
+        mark();
+      });
+      inp.addEventListener("keydown", (e) => { if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); if (!$("cfgSave").disabled) $("cfgSave").click(); } });
+      cell.appendChild(inp); mark();
+      body.appendChild(tr);
+    }
+    tb.appendChild(body); d.appendChild(tb); box.appendChild(d);
+  }
+  if (!box.children.length) box.innerHTML = `<div class="hint">${q ? "No setting matches the filter." : "Empty config."}</div>`;
+}
+function setCfgMode(m) {
+  cfgMode = m;
+  document.querySelectorAll("#cfgMode button").forEach((b) => b.classList.toggle("on", b.dataset.m === m));
+  $("cfgText").hidden = m !== "yaml"; $("cfgSections").hidden = m !== "tables"; $("cfgFilter").hidden = m !== "tables";
+  if (m === "tables") renderCfgTables();
+}
+document.querySelectorAll("#cfgMode button").forEach((b) => (b.onclick = () => setCfgMode(b.dataset.m)));
+$("cfgFilter").addEventListener("input", renderCfgTables);
+$("cfgText").addEventListener("keydown", (e) => {
+  if (e.key === "Tab") { e.preventDefault(); const t = e.target, s = t.selectionStart; t.setRangeText("  ", s, t.selectionEnd, "end"); syncCfg(); }
+  if ((e.ctrlKey || e.metaKey) && e.key === "s") { e.preventDefault(); if (!$("cfgSave").disabled) $("cfgSave").click(); }
+});
+$("cfgReload").onclick = async () => { if (!cfgDirty || (await ask("Discard your unsaved changes?"))) loadConfig(); };
+$("cfgSave").onclick = async () => {
+  $("cfgErr").textContent = "";
+  try {
+    await api("/api/config", {}, { experiment: experiment.name, text: $("cfgText").value });
+    cfgOrig = $("cfgText").value; syncCfg(); if (cfgMode === "tables") renderCfgTables(); toast("Config saved (previous version kept as experiment_config.yaml.bak)");
+  } catch (e) { $("cfgErr").textContent = e.message; }
+};
+$("openCfg").onclick = () => showView("Config");
+addEventListener("beforeunload", (e) => { if (cfgDirty) { e.preventDefault(); e.returnValue = ""; } });
+
+// ================================================================= step 6: jobs
+const JOB_FIELDS = [["via", "Submit from"], ["host", "Login node (SSH)"], ["user", "User"], ["port", "Port"], ["key", "Private key file"], ["passphrase", "Key passphrase"],
+  ["partition", "Partition"], ["account", "Account"], ["time", "Time limit (HH:MM:SS)"], ["nodes", "Nodes"], ["ntasks_per_node", "Tasks per node"],
+  ["cpus_per_task", "CPUs per task"], ["gpus", "GPUs per node"], ["mem_per_cpu", "Memory per CPU (MB)"], ["extra", "Extra sbatch options"]];
+const JOB_HINT = { forward: "GPU cluster, e.g. capella", backward: "CPU cluster, e.g. barnard" };
+$("jobSet").onclick = async () => {
+  let s; try { s = await api("/api/job_settings"); } catch (e) { return toast(e.message); }
+  $("jobcols").innerHTML = ["forward", "backward"].map((j) => `<div><h3>${j === "forward" ? "Forward job" : "Backward job"}</h3><div class="hint" style="margin-top:0">${JOB_HINT[j]}</div>` +
+    JOB_FIELDS.map(([k, label]) => k === "via"
+      ? `<label class="f">${label}</label><select data-j="${j}" data-k="via"><option value="local">this server's machine</option><option value="ssh">another login node over SSH</option></select>`
+      : k === "passphrase"
+      ? `<label class="f" data-show="ssh" data-j="${j}">${label}</label><input type="password" autocomplete="new-password" data-j="${j}" data-k="passphrase" data-show="ssh" placeholder="${s[j].passphrase_set ? "held by the server · leave empty to keep" : "only if the key is encrypted"}">` +
+        (s[j].passphrase_set ? `<label class="hint" data-show="ssh" data-j="${j}" style="display:block"><input type="checkbox" data-j="${j}" data-clear="1"> forget the passphrase</label>` : "") +
+        `<div class="hint" data-show="ssh" data-j="${j}">Kept in the server's memory only, never on its disk.</div>` +
+        `<label class="hint" data-show="ssh" data-j="${j}" style="display:block"><input type="checkbox" data-j="${j}" data-remember="1"${store.get(PASS_KEY(j)) ? " checked" : ""}> remember in this browser (restored after a server restart)</label>`
+      : `<label class="f" data-show="${["host", "user", "port", "key"].includes(k) ? "ssh" : ""}">${label}</label><input type="text" data-j="${j}" data-k="${k}" data-show="${["host", "user", "port", "key"].includes(k) ? "ssh" : ""}" value="${String(s[j][k] ?? "").replace(/"/g, "&quot;")}">`
+    ).join("") + "</div>").join("");
+  for (const j of ["forward", "backward"]) $("jobcols").querySelector(`select[data-j=${j}]`).value = s[j].via || "ssh";
+  const sync = () => $("jobcols").querySelectorAll("[data-show=ssh]").forEach((el) => {
+    const j = el.dataset.j || el.nextElementSibling?.dataset.j;
+    el.hidden = $("jobcols").querySelector(`select[data-j=${j}]`).value !== "ssh";
+  });
+  $("jobcols").querySelectorAll("select").forEach((el) => (el.onchange = sync)); sync();
+  $("jobdlg").showModal();
+};
+$("jobCancel").onclick = () => $("jobdlg").close();
+$("jobOk").onclick = async () => {
+  const body = { forward: {}, backward: {} };
+  $("jobcols").querySelectorAll("[data-k]").forEach((el) => (body[el.dataset.j][el.dataset.k] = el.dataset.k === "passphrase" ? el.value : el.value.trim()));
+  $("jobcols").querySelectorAll("[data-clear]:checked").forEach((el) => { body[el.dataset.j].passphrase = "\u0000clear"; forgetPass(el.dataset.j); });
+  $("jobcols").querySelectorAll("[data-remember]").forEach((el) => {
+    const j = el.dataset.j, pw = body[j].passphrase;
+    if (!el.checked) forgetPass(j);
+    else if (pw && pw !== "\u0000clear") store.set(PASS_KEY(j), pw);
+  });
+  try { await api("/api/job_settings", {}, body); $("jobdlg").close(); toast("Job settings saved"); } catch (e) { toast(e.message); }
+};
+// "Start at": a one-off start block for the next submission only (yours, or the chain's first). It reaches that job as
+// QALPA_START_AT and takes priority over pipeline.start_at; the config is not changed, so later jobs use it again.
+$("startAt").innerHTML = '<option value="">From config</option>' + ["forward", "backward"].map((j) =>
+  `<optgroup label="${j[0].toUpperCase() + j.slice(1)} job">` +
+  Object.keys(STAGE_JOB).filter((s) => STAGE_JOB[s] === j).map((s) => `<option value="${s}">${s}</option>`).join("") + "</optgroup>").join("");
+function syncStart() {
+  const s = $("startAt").value, owner = STAGE_JOB[s], cfgS = lastStatus?.start_at;
+  $("startAt").options[0].text = `From config (${cfgS ?? "?"})`;
+  $("subFwd").disabled = owner === "backward";
+  $("subBwd").disabled = owner === "forward";
+  let h = s ? `Only the next ${owner} job (yours, or the chain's first) starts at ${s}; the jobs after it follow the config again.`
+            : "Pick a block to restart there once, e.g. after a failed job. The config is not changed.";
+  if (cfgS && cfgS !== "split") h += ` ⚠ pipeline.start_at in the config is '${cfgS}', so every other job skips the blocks before it too.`;
+  $("startHint").textContent = h;
+}
+$("startAt").onchange = syncStart;
+async function submit(job) {
+  if (!experiment) return;
+  const start_at = $("startAt").value || null;
+  const running = (lastStatus?.jobs || []).find(jobActive);
+  if (running && !(await ask(`${running.job} job ${running.id} is still ${running.state.toLowerCase()}. Submit the ${job} job anyway?`))) return;
+  try {
+    const e = await api("/api/submit", {}, { experiment: experiment.name, job, start_at });
+    toast(`Submitted ${job} job ${e.id}` + (start_at ? ` (start at ${start_at})` : ""));
+    $("startAt").value = ""; syncStart();                 // used once
+    refreshStatus();
+  } catch (e) { toast(`Could not submit: ${e.message}`); }
+}
+$("subFwd").onclick = () => submit("forward");
+$("subBwd").onclick = () => submit("backward");
+$("chain").onchange = async () => {
+  const on = $("chain").checked, start_at = on ? $("startAt").value || null : null;
+  try {
+    const ch = await api("/api/chain", {}, { experiment: experiment.name, on, start_at });
+    if (start_at && ch.active) { $("startAt").value = ""; syncStart(); }   // handed to the chain's first submission
+    if (on && !ch.active) toast(`Chain not started: ${ch.message || "see the message under the switch"}`);
+    showChain(ch); refreshStatus();
+  } catch (e) { toast(e.message); $("chain").checked = false; }
+};
+function showChain(ch) {
+  $("chain").checked = !!ch?.active;
+  $("chainMsg").textContent = ch?.message ? `Chain: ${ch.message}` : "";
+  $("kChain").textContent = ch?.active ? "on" : ch?.message ? "off · " + ch.message : "off";
+}
+$("openJobs").onclick = () => showView("Jobs");
+$("jobsRefresh").onclick = () => refreshStatus();
+const stateTag = (s) => `<span class="state ${s}">${(s || "–").toLowerCase()}</span>`;
+let stBusy = false, stAgain = false;
+async function refreshStatus() {
+  if (!experiment) {                                      // nothing to show: do not leave another experiment's jobs here
+    for (const id of ["kIter", "kFwd", "kBwd"]) $(id).textContent = "–";
+    showChain(null);
+    $("jobsSub").textContent = "choose an experiment in step 1 to see its jobs";
+    $("jobsTable").innerHTML = "";
+    return;
+  }
+  if (stBusy) { stAgain = true; return; }                 // one request at a time (SSH job queries can be slow); rerun once it returns
+  stBusy = true; $("jobsRefresh").disabled = true; $("jobsRefresh").textContent = "Refreshing…";
+  const name = experiment.name;
+  try {
+    const st = await api("/api/status", { experiment: name });
+    if (experiment?.name !== name) return;                // experiment switched while waiting: the rerun below shows the new one
+    lastStatus = st; syncStart();
+    $("kIter").textContent = `${st.current_iter ?? "?"} / ${st.num_iterations ?? "?"}`;
+    for (const [job, id] of [["forward", "kFwd"], ["backward", "kBwd"]]) {
+      const j = st.jobs.find((x) => x.job === job);
+      $(id).innerHTML = j ? `${stateTag(j.state)} <span style="font-size:12px;color:var(--ink2)">#${j.id}</span>` : "–";
+    }
+    showChain(st.chain);
+    $("jobsSub").textContent = st.errors?.length ? `⚠ ${st.errors[0]} — these states may be stale; fix it in Job settings (SSH key passphrase, Submit via)` : `updated ${new Date().toLocaleTimeString()} · refreshes every 20 s`;
+    $("jobsTable").innerHTML = st.jobs.length
+      ? `<tr><th>Job</th><th>ID</th><th>Iteration</th><th>Cluster</th><th>Submitted</th><th>State</th><th></th></tr>` +
+        st.jobs.map((j) => `<tr><td>${j.job}${j.start_at ? ` <span class="tag" title="one-off start block of this job">from ${esc(j.start_at)}</span>` : ""}</td><td>${j.id}</td><td>${j.iteration ?? ""}</td><td>${j.cluster}</td><td>${j.submitted}</td><td>${stateTag(j.state)}</td><td>${jobActive(j) ? `<button class="btn" data-cancel="${j.id}" data-job="${j.job}" style="padding:3px 10px">Cancel</button>` : `<button class="btn" data-del="${j.id}" data-job="${j.job}" title="Remove this record from the list (the job's files are kept)" style="padding:3px 10px">Delete</button>`}</td></tr>`).join("")
+      : `<tr><td style="color:var(--muted);text-align:left">No jobs submitted from the Navigator yet.</td></tr>`;
+    syncCfg();
+  } catch (e) {
+    if (experiment?.name === name) $("jobsSub").textContent = `⚠ status unavailable: ${e.message}` + (lastStatus ? " — showing the last known states" : "");
+  } finally {
+    stBusy = false; $("jobsRefresh").disabled = false; $("jobsRefresh").textContent = "Refresh";
+    if (stAgain) { stAgain = false; refreshStatus(); }
+  }
+}
+$("jobsTable").onclick = async (ev) => {
+  const d = ev.target.closest("[data-del]");
+  if (d && experiment) {
+    if (!(await ask(`Delete the record of ${d.dataset.job} job ${d.dataset.del}? Only the entry in this list is removed; its output files are kept.`))) return;
+    d.disabled = true;
+    try { await api("/api/delete_job", {}, { experiment: experiment.name, id: d.dataset.del }); toast(`Deleted record of job ${d.dataset.del}`); }
+    catch (e) { toast(`Could not delete: ${e.message}`); d.disabled = false; }
+    return refreshStatus();
+  }
+  const b = ev.target.closest("[data-cancel]");
+  if (!b || !experiment) return;
+  if (!(await ask(`Cancel the ${b.dataset.job} job ${b.dataset.cancel}?${$("chain").checked ? " This also stops the chain." : ""}`))) return;
+  b.disabled = true;
+  try { await api("/api/cancel", {}, { experiment: experiment.name, id: b.dataset.cancel }); toast(`Cancelled ${b.dataset.job} job ${b.dataset.cancel}`); }
+  catch (e) { toast(`Could not cancel: ${e.message}`); b.disabled = false; }
+  setTimeout(refreshStatus, 1500);
+};
+setInterval(() => { if (experiment && (!$("viewJobs").hidden || $("chain").checked)) refreshStatus(); }, 20000);
+
+// ================================================================= start
+if (SERVER) {
+  connect();
+  for (const [id, n] of [["nMap", 2], ["nWay", 3], ["nExp", 4]]) $(id).textContent = n;
+} else {
+  for (const [id, n] of [["nMap", 1], ["nWay", 2], ["nExp", 3]]) $(id).textContent = n;   // offline: no experiment step
+}
+resize();
+</script>
+</body>
+</html>

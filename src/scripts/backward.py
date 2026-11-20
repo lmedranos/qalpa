@@ -81,7 +81,8 @@ def main(cfg: DictConfig):
             reference = initial_reference(dm.input_hdf5)
             relax = cfg.query.get("score_relax")
             relax = OmegaConf.to_container(relax, resolve=True) if relax is not None else None
-            screen_query(dm.query_data, dm.current_data / "score_filtered", reference, relax=relax)
+            screen_query(dm.query_data, dm.current_data / "score_filtered", reference, relax=relax,
+                         scores=list(cfg.query.get("scores", ["SAScore", "QED"])))
         else:
             print("  score_filter skipped: 'score' is not in query.filter_scheme")
     elif 'score_filter' in active_blocks:
@@ -97,6 +98,14 @@ def main(cfg: DictConfig):
                 fscored_path = score_filtered_path / score_name
                 fscored_path.mkdir(parents=True, exist_ok=True)
                 molecular_filter.score_filter(dm.query_data, fscored_path, score_name, score_filtered_path / f'{score_name.lower()}.txt', score_idx)
+                # same summary file as the initial_mean screen, so the counts survive the cleanup below
+                n_in = sum(1 for f in dm.query_data.iterdir() if f.is_file() and f.suffix == '.xyz')
+                n_pass = sum(1 for f in fscored_path.iterdir() if f.is_file() and f.suffix == '.xyz')
+                import json
+                (score_filtered_path / "score_screen_summary.json").write_text(json.dumps({
+                    "reference": "trajectory", "score": score_name,
+                    "threshold": float(my_trajectory.scores[score_name][score_idx]),
+                    "counts": {"total": n_in, "passed": n_pass, "rejected": n_in - n_pass}}, indent=2))
                 # clean query directory
                 dm.clean_dir(dm.query_data)
                 # copy filtered molecules to the query data path

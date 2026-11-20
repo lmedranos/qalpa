@@ -5,6 +5,7 @@ Defaults live in src/configs/al.yaml; the experiment config only needs the keys 
 
 from __future__ import annotations
 
+import os
 from copy import deepcopy
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,8 @@ import numpy as np
 import yaml
 
 NUM_ATOMS_PROP = "atNUM"
+# One-off start block for a single job (set by the Navigator's "Start at" option on submission)
+START_ONCE_ENV = "QALPA_START_AT"
 
 # Property name -> key path in the prop_calc JSON files (same paths as MolecularFilter.accuracy_filter).
 PROPERTY_JSON_KEYS = {
@@ -186,7 +189,17 @@ def resolve_start(cfg, al: dict, blocks: list) -> str:
 
     start_at: plan re-plans (if targets.json was deleted; otherwise it is reused) without retraining;
     start_at: generate reuses the existing targets.json.
+
+    The environment variable QALPA_START_AT, if set, overrides pipeline.start_at for this job only. The config
+    file is not changed, so the jobs after it (e.g. the rest of a chain) start at pipeline.start_at again.
     """
+    once = os.environ.get(START_ONCE_ENV, "").strip()
+    if once:
+        if once not in blocks:
+            raise ValueError(f"{START_ONCE_ENV}={once} is not one of this experiment's pipeline blocks: {blocks}")
+        print(f"  Starting this job at '{once}' ({START_ONCE_ENV}, this job only); "
+              f"pipeline.start_at in the config stays '{cfg.pipeline.start_at}'")
+        return once
     return cfg.pipeline.start_at
 
 

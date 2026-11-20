@@ -127,7 +127,7 @@ geometry:
 query:
   trajectory_csv: ${paths.experiments}/${experiment_name}/configs/trajectory_*.csv
   props: ${EQdiffParam.properties_list}              # Properties to track
-  scores: ["SAScore", "QED"]            # Scores used by score_filter (initial_mean always uses both;
+  scores: ["SAScore"]                   # Scores checked by score_filter (initial_mean: SAScore and/or QED;
                                         #   trajectory mode needs a CSV column per score)
   score_reference: initial_mean         # initial_mean: keep molecules with QED > mean QED AND SA < mean SA of the
                                         #   initial dataset (computed once, cached next to the input HDF5; the
@@ -135,8 +135,8 @@ query:
                                         #   iter_<n>/score_filtered/scores.tsv
                                         # trajectory: per-iteration thresholds from the trajectory CSV columns
   score_relax:                          # initial_mean: shift the thresholds by a fraction of the mean
-    QED: 0.2                            #   QED threshold = mean QED x (1 - QED)      0.2 -> 0.8 x mean
-    SAScore: 0.2                        #   SA threshold  = mean SA  x (1 + SAScore)  0.2 -> 1.2 x mean
+    QED: 0.3                            #   QED threshold = mean QED x (1 - QED)      0.2 -> 0.8 x mean
+    SAScore: 0.3                        #   SA threshold  = mean SA  x (1 + SAScore)  0.2 -> 1.2 x mean
                                         #   > 0 loosens (more molecules pass), < 0 tightens, 0 = the means.
                                         #   Test on alloqm_0 iter 0 (1379 generated, before dedup): both filters
                                         #   passed by 6.4% (r=0), 15.1% (0.1), 28.5% (0.2), 43.0% (0.3)

@@ -259,6 +259,14 @@ You need an initial dataset in AQM/QM7-X HDF5 format: molecule groups with `atNU
 
 Open [`Navigator/design_trajectory.ipynb`](Navigator/design_trajectory.ipynb) and set `file_path` to your initial dataset. Choose the x, y and colour properties, for example `HLgap`, `eMBD` and `atNUM`, and press **Show Plot**. Left-click the waypoints from start to end (**Undo** and **Clear** correct mistakes). Each click snaps to the nearest hexagon and records its mean colour value, so with `atNUM` as the colour every waypoint also gets an atom count. **Save Plot + CSV** writes `trajectory_<x>_<y>_<colour>.csv`.
 
+**No Jupyter?** Use the Navigator app in your browser. On the cluster, in a VS Code terminal, run:
+
+```bash
+python Navigator/navigator_server.py      # any QALPA conda environment
+```
+
+and open the link it prints (VS Code forwards the port; without VS Code, run `ssh -L 8765:localhost:8765 <login-node>` on your computer). The app walks you through four steps: **1 Experiment** creates a new experiment (it runs `init_experiment.py` with the name and dataset you choose) or opens an existing one; **2 Map** reads the molecules when you press **Show map**; **3 Waypoints** are added by clicking the map; **4 Save to experiment** writes the trajectory into `Experiments/<experiment>/configs/` (older `trajectory_*.csv` files there are renamed to `.bak`) and sets `EQdiffParam.properties_list` in that experiment's config. The server listens only on localhost and needs the token it prints: if the page asks, paste it once and the browser remembers it. It reads and writes only inside the project folder (`--root`, or **⚙ Settings** in the app). To run the app on your own computer instead, `pip install numpy h5py paramiko`, start the same script there, and enter your HPC host, user and SSH key under **⚙ Settings**. Without a server, double-click [`Navigator/navigator.html`](Navigator/navigator.html) to use the same app on files from your own computer. The full guide, including job submission from the app, is in [`Navigator/README.md`](Navigator/README.md).
+
 To try QALPA first, use the example [`Navigator/trajectory_HLgap_eMBD_atNUM.csv`](Navigator/trajectory_HLgap_eMBD_atNUM.csv):
 
 ```csv
@@ -528,6 +536,13 @@ These restarts are meant for an iteration whose `hdf5` block has not run yet; af
 
 > [!IMPORTANT]
 > `pipeline.start_at` is not reset automatically. Set it back to `split` once the restarted iteration has finished, or the next iteration will skip its first blocks.
+
+To restart a single job without editing the config, set the block for that job only, in either of two ways:
+
+- In the Navigator, use **Start at** in step 6 Run (see [Navigator/README.md](Navigator/README.md)).
+- On the command line, set the environment variable `QALPA_START_AT`, for example `sbatch --export=ALL,QALPA_START_AT=prop_calc qalpa_backward.sh`.
+
+The variable takes priority over `pipeline.start_at` for that job. The config is not changed, so the jobs after it run from `pipeline.start_at` (normally `split`) and nothing needs resetting.
 
 ## Monitoring training with MLflow
 

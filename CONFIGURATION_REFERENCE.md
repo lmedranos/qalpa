@@ -192,7 +192,7 @@ Source: [`Experiments/templates/configs/experiment_config.yaml`](Experiments/tem
 | `loop.num_iterations` | `8` | Last iteration index; iterations run from 0 to this value, and a job with a higher `current_iter` stops | **Mandatory** |
 | `loop.current_iter` | `0` | Iteration the next job runs; every backward job increments it | Automatic |
 | `pipeline.blocks` | `[split, train, plan, generate, dedup, score_filter, relax_geo, prop_calc, prop_filter, hdf5, compress]` | Blocks to run; each job runs the listed blocks it owns, in order | Optional |
-| `pipeline.start_at` | `split` | First block to run in both jobs; earlier blocks are skipped. It is not reset automatically | Optional |
+| `pipeline.start_at` | `split` | First block to run in both jobs; earlier blocks are skipped. It is not reset automatically. For a single job, the environment variable `QALPA_START_AT` (the Navigator's **Start at**) takes priority and leaves this value unchanged | Optional |
 | `max_parallel_tasks` | `20` | Maximum number of relaxations or QM calculations running at once in the backward job | Optional |
 | `processing_timeout_hours` | `2` | Time limit per relaxation or QM calculation; timed-out molecules are moved to a `killed/` folder | Optional |
 
@@ -264,9 +264,9 @@ With three or more datasets and *m* intermediate ones, the sampling shares are: 
 |---|---|---|---|
 | `query.trajectory_csv` | `${paths.experiments}/${experiment_name}/configs/trajectory_*.csv` | Trajectory file; with a pattern, the first match in alphabetical order is used | **Mandatory** (copy the CSV) |
 | `query.props` | `${EQdiffParam.properties_list}` | Conditioning properties read from the trajectory and passed to generation in this order; keep it identical to `properties_list` | Keep |
-| `query.scores` | `["SAScore", "QED"]` | `trajectory` mode only: score columns read from the CSV. Each must be a column, and the Navigator names the QED column `QEDScore` | Optional |
+| `query.scores` | `["SAScore"]` | Scores that `score_filter` checks, in both modes. `initial_mean`: `SAScore`, `QED` or both; `["SAScore"]` skips the QED test. `trajectory`: each score is also a CSV column holding its per-waypoint threshold, and only `SAScore` works: no QED score is computed in this mode, so a `QED` entry stops the backward job | Optional |
 | `query.score_reference` | `initial_mean` | `initial_mean`: thresholds from the mean QED and SA score of the initial dataset, computed once and cached next to the input HDF5. `trajectory`: per-waypoint thresholds from the CSV | Optional |
-| `query.score_relax` | `{QED: 0.2, SAScore: 0.2}` | `initial_mean` only: a molecule passes if QED > (1 − r) × mean QED and SA < (1 + r) × mean SA. Each r lies in (−1, 1); r > 0 loosens and r < 0 tightens | Optional |
+| `query.score_relax` | `{QED: 0.3, SAScore: 0.3}` | `initial_mean` only: a molecule passes if QED > (1 − r) × mean QED and SA < (1 + r) × mean SA; only the tests for the scores in `query.scores` are applied. Each r lies in (−1, 1); r > 0 loosens and r < 0 tightens | Optional |
 | `query.filter_scheme` | `[score, accuracy]` | `score` enables `score_filter`; `accuracy` enables `prop_filter` | Optional |
 | `query.filter_threshold` | `0.1` | Relative tolerance of the property-accuracy filter; also the default relative tolerance of `al.tolerances` | Optional |
 
@@ -378,6 +378,7 @@ These checks run when a job starts, or when the block that needs the setting run
 | `query.trajectory_csv` | A matching file exists and contains every `query.props` column (and, in `trajectory` mode, every `query.scores` column) |
 | `query.props` | With active learning: not empty, and only `HLgap`, `eMBD`, `DIP`, `eH`, `eL` |
 | `query.score_reference`, `query.score_relax` | `initial_mean` or `trajectory`; relax keys `QED` and `SAScore` with values in (−1, 1) |
+| `query.scores` | In `initial_mean` mode: contains `SAScore`, `QED` or both |
 | `EQdiffParam.context_mapping` | Needs a non-empty `properties_list` |
 | `EQdiffParam.concat_datasets` | Needs `hdf5.hdf5_iter_flag: True`; from iteration 1, the previous backward job must have written `iter_<n−1>/hdf5/output.hdf5` |
 | `EQdiffParam.alpha`, `beta`, `min_original_share` | `alpha` and `beta` in [0, 1]; `min_original_share` in [0, 1) and small enough to leave a share for the newest dataset |
