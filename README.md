@@ -62,9 +62,29 @@ See [Installation](https://qalpa.readthedocs.io/en/latest/getting-started/instal
 
 ## Quick start
 
-You need an initial dataset in AQM/QM7-X HDF5 format, with `atNUM`, `atXYZ` and the properties to condition on.
+You need an initial dataset in AQM/QM7-X HDF5 format, with `atNUM`, `atXYZ` and the properties to condition on. Run QALPA from the Navigator app in your browser, or from the command line.
 
-1. **Design a trajectory** in the Navigator app (`python Navigator/navigator_server.py`), or use the example `Navigator/trajectory_HLgap_eMBD_atNUM.csv`.
+### Option 1: Navigator (browser app)
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="img/navigator-app-dark.png">
+    <img width="100%" alt="QALPA Navigator in the browser: the left panel holds the steps (1 Experiment, 2 Map, 3 Waypoints, 4 Export, 5 Configuration, 6 Run); the Map tab shows the HLgap–eMBD map of the initial dataset as hexagons coloured by mean atom count, with a three-waypoint trajectory drawn from START to END." src="img/navigator-app.png">
+  </picture>
+</p>
+
+The Navigator runs the whole workflow from one page: create an experiment, draw the trajectory on a map of your dataset, review the configuration, then submit and chain the SLURM jobs and follow training and results. Start its server on a login node:
+
+```bash
+pip install --user numpy h5py pyyaml paramiko   # once; or use a QALPA conda environment
+python Navigator/navigator_server.py
+```
+
+Open the link it prints. VS Code forwards the port for you; otherwise run `ssh -L 8765:localhost:8765 <login-node>` on your computer first. Then work through steps 1 to 6 in the left panel. To submit jobs on a second cluster, the server needs an SSH key: see [Navigator setup](https://qalpa.readthedocs.io/en/latest/navigator/index.html).
+
+### Option 2: Command line
+
+1. **Get a trajectory:** use the example `Navigator/trajectory_HLgap_eMBD_atNUM.csv`, or draw one in the Navigator and download it as CSV.
 2. **Create an experiment:**
 
    ```bash

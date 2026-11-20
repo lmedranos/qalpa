@@ -49,6 +49,7 @@
   .pathrow input { flex: 1; min-width: 0; }
   .btn { font: inherit; font-weight: 500; color: var(--ink); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 7px 12px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
   .btn:hover:not(:disabled) { border-color: var(--blue); }
+  a.btn { text-decoration: none; }
   .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
   .btn.primary:hover:not(:disabled) { filter: brightness(1.08); }
   .btn:disabled { opacity: .45; cursor: default; }
@@ -111,6 +112,13 @@
   #clTable tr.clStage td { background: var(--blue-soft); font-weight: 600; }
   #clTable tr.clItem td:nth-child(2) { padding-left: 24px; }
   .view { display: flex; flex-direction: column; gap: 12px; flex: 1; min-height: 0; }
+  .welcome { display: flex; flex-direction: column; gap: 14px; overflow: auto; }
+  .welcome picture { display: contents; }
+  .welcome .wfig { display: block; width: 100%; height: auto; max-height: calc(100vh - 300px); min-height: 160px; object-fit: contain; }
+  .wsteps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 8px; }
+  .wsteps li { display: flex; gap: 8px; align-items: flex-start; background: var(--bg); border-radius: 10px; padding: 9px 11px; font-size: 12px; color: var(--ink2); }
+  .wsteps li b { display: block; color: var(--ink); font-size: 13px; }
+  .wsteps .step { flex: none; }
   .trlegend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--ink2); margin: 2px 0 8px; }
   .trlegend span { display: inline-flex; align-items: center; gap: 6px; }
   .trlegend i { width: 16px; height: 3px; border-radius: 2px; display: inline-block; }
@@ -187,6 +195,7 @@
   <div class="expchip" id="expchip" hidden>Experiment <b id="expname"></b></div>
   <div class="badge"><span class="dot" id="dot"></span><span id="mode">Offline (files from this computer)</span></div>
   <button class="btn alert" id="sshWarn" hidden title="An SSH login failed. The server will not try again until you press Retry.">⚠ SSH login failed</button>
+  <a class="btn" id="docsLink" href="https://qalpa.readthedocs.io/en/latest/navigator/index.html" target="_blank" rel="noopener noreferrer" title="Open the QALPA documentation in a new tab">Docs ↗</a>
   <button class="btn" id="gear" title="Connection settings" hidden>⚙ Settings</button>
 </div>
 
@@ -281,7 +290,7 @@
   </div>
 
   <div class="main">
-    <div class="viewtabs" id="viewtabs" hidden><button data-v="Map" class="on">Map</button><button data-v="Config">Config</button><button data-v="Jobs">Jobs</button><button data-v="Logs">Logs</button><button data-v="Training">Training</button><button data-v="Eval">Evaluation</button><button data-v="Clean" class="danger" title="Delete outputs of a failed iteration">Clean</button></div>
+    <div class="viewtabs" id="viewtabs" hidden><button data-v="Welcome" class="on">Welcome</button><button data-v="Map">Map</button><button data-v="Config">Config</button><button data-v="Jobs">Jobs</button><button data-v="Logs">Logs</button><button data-v="Training">Training</button><button data-v="Eval">Evaluation</button><button data-v="Clean" class="danger" title="Delete outputs of a failed iteration">Clean</button></div>
     <div class="view" id="viewEval" hidden>
       <div class="card">
         <div class="toolbar">
@@ -457,7 +466,28 @@
       </div>
       <div class="card"><table id="trTable"></table></div>
     </div>
-    <div class="view" id="viewMap">
+    <div class="view" id="viewWelcome">
+      <div class="card welcome">
+        <div class="toolbar">
+          <div><div class="title">Welcome to the QALPA Navigator</div><div class="sub">Steer a property-conditioned diffusion model through chemical space with quantum-mechanical feedback and KDE-planned active learning</div></div>
+          <div class="right"><a class="btn" href="https://qalpa.readthedocs.io/en/latest/" target="_blank" rel="noopener noreferrer">Documentation ↗</a></div>
+        </div>
+        <picture>
+          <source media="(prefers-color-scheme: dark)" srcset="../img/qalpa-workflow-dark.png">
+          <img class="wfig" src="../img/qalpa-workflow.png" alt="QALPA workflow. Forward job on a GPU: fine-tune the diffusion model, plan targets with KDE around the current waypoint, generate molecules and remove duplicates. Backward job on CPUs: screen QED and SA score, relax geometries, compute QM properties and keep the molecules that hit their target. The hits join the data and the loop repeats." onerror="this.hidden = true">
+        </picture>
+        <ol class="wsteps">
+          <li><span class="step">1</span><div><b>Experiment</b>Create a new experiment or open one</div></li>
+          <li><span class="step">2</span><div><b>Map</b>Plot the initial dataset on two properties</div></li>
+          <li><span class="step">3</span><div><b>Waypoints</b>Click the map to draw the trajectory</div></li>
+          <li><span class="step">4</span><div><b>Export</b>Save the trajectory into the experiment</div></li>
+          <li><span class="step">5</span><div><b>Configuration</b>Review experiment_config.yaml</div></li>
+          <li><span class="step">6</span><div><b>Run</b>Submit and chain the forward and backward jobs</div></li>
+        </ol>
+        <div class="hint" style="margin-top:0">Start in the panel on the left. Pressing <b>Show map</b> opens the map.</div>
+      </div>
+    </div>
+    <div class="view" id="viewMap" hidden>
     <div class="card plotcard">
       <div class="toolbar">
         <div><div class="title" id="ptitle">Property map</div><div class="sub" id="psub">No data</div></div>
@@ -939,6 +969,7 @@ $("plot").onclick = async () => {
   const ok = await ensureLoaded();
   $("plot").disabled = false;
   if (!ok) return;
+  showView("Map");                        // leave the Welcome tab first, so the canvas has its real size
   points = []; build(); render();
 };
 for (const id of ["px", "py", "pc", "grid"]) $(id).addEventListener("change", () => {
@@ -1130,7 +1161,7 @@ $("saveexp").onclick = async () => {
 
 // ================================================================= views (Map | Config | Jobs)
 function showView(v) {
-  for (const name of ["Map", "Config", "Jobs", "Logs", "Clean", "Training", "Eval"]) $("view" + name).hidden = name !== v;
+  for (const name of ["Welcome", "Map", "Config", "Jobs", "Logs", "Clean", "Training", "Eval"]) $("view" + name).hidden = name !== v;
   if (v === "Clean") refreshClean();
   if (v === "Eval") refreshEval();
   document.querySelectorAll("#viewtabs button").forEach((b) => b.classList.toggle("on", b.dataset.v === v));

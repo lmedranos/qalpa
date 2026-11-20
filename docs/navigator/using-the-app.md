@@ -2,6 +2,8 @@
 
 Steps 1 to 5 prepare an experiment: create it, draw the trajectory, save it, and review the configuration. [Running jobs](running-jobs.md) covers step 6.
 
+When you open the app, the **Welcome** tab shows the QALPA workflow and the six steps, with a link to this documentation. The steps themselves are in the panel on the left. Pressing **Show map** switches to the **Map** tab.
+
 ## Step 1: Experiment
 
 - **New:** enter a name, pick the initial dataset (`.hdf5`) with **Browse…** and press **Create experiment**. This runs `init_experiment.py` and creates `Experiments/<name>_<n>/`. The log is shown when it finishes.

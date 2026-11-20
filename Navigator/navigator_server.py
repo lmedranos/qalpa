@@ -36,6 +36,8 @@ from urllib.parse import parse_qs, urlparse
 
 HERE = Path(__file__).resolve().parent
 PAGE = HERE / "navigator.html"
+# Figures the page shows before a map is loaded, served at /img/<name> (only these names, from this repository).
+FIGURES = {name: HERE.parent / "img" / name for name in ("qalpa-workflow.png", "qalpa-workflow-dark.png")}
 DATA_EXT = (".h5", ".hdf5", ".csv")
 COOKIE = "qalpa_navigator_token"
 
@@ -1693,11 +1695,11 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, fmt, *args):
         pass
 
-    def _send(self, code, body: bytes, ctype, cookie=False):
+    def _send(self, code, body: bytes, ctype, cookie=False, cache="no-store"):
         self.send_response(code)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(body)))
-        self.send_header("Cache-Control", "no-store")
+        self.send_header("Cache-Control", cache)
         if cookie:
             self.send_header("Set-Cookie", f"{COOKIE}={self.token}; Path=/; HttpOnly; SameSite=Strict")
         self.end_headers()
@@ -1731,6 +1733,12 @@ class Handler(BaseHTTPRequestHandler):
         if url.path in ("/", "/navigator.html"):
             # the page itself is public: without a valid token it shows the sign-in screen
             return self._send(200, PAGE.read_bytes(), "text/html; charset=utf-8", cookie=self._authorized(q))
+        if url.path.startswith("/img/"):
+            # public like the page: the workflow figure from the repository, nothing else
+            fig = FIGURES.get(url.path[len("/img/"):])
+            if fig is None or not fig.is_file():
+                return self._error("not found", 404)
+            return self._send(200, fig.read_bytes(), "image/png", cache="max-age=3600")
         if not self._authorized(q):
             return self._error("invalid token", 403)
         try:

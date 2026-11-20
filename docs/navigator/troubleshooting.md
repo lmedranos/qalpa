@@ -11,4 +11,4 @@
 | `Connection reset by peer` / `Error reading SSH protocol banner` | The login node is refusing connections for a while, usually after many failed logins. Wait about 30 minutes. |
 | `invalid partition specified` | The job was submitted on the wrong cluster. Check **Submit from** and **Login node**. |
 | Page asks for a token | Paste the token the server printed at start-up. |
-| `Address already in use` at start-up | Another program, for example another Navigator server, already uses port 8765 on this login node. Start with another port, such as `--port 8800`. |
+| The printed link uses another port than 8765 | Port 8765 was taken, for example by another Navigator server, so the server picked a free port. Use the port in the printed link, also in `ssh -L`. |

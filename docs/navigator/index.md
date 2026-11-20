@@ -133,7 +133,7 @@ The link already contains the token. If the page shows **Sign in**, copy the tok
 
 The token stays the same across restarts (it is kept in `~/.qalpa_navigator_token`, readable only by you). Delete that file to get a new one, e.g. if the token was shared by mistake.
 
-The top bar shows **Connected** and the project folder. **⚙ Settings** lets you switch to another project folder, or to a different machine over SSH.
+The top bar shows **Connected** and the project folder. **⚙ Settings** lets you switch to another project folder, or to a different machine over SSH. **Docs ↗** opens this documentation in a new tab.
 
 ## Other ways to run it
 
